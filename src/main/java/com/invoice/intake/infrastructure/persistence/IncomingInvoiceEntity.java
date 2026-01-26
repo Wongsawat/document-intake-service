@@ -55,7 +55,7 @@ public class IncomingInvoiceEntity {
     private InvoiceStatus status;
 
     @JdbcTypeCode(SqlTypes.JSON)
-    @Column(name = "validation_result", columnDefinition = "jsonb")
+    @Column(name = "validation_result")
     private Map<String, Object> validationResult;
 
     @CreationTimestamp
