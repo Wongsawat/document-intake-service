@@ -1,5 +1,7 @@
 package com.invoice.intake.domain.model;
 
+import com.invoice.intake.infrastructure.validation.DocumentType;
+
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Objects;
@@ -21,6 +23,7 @@ public class IncomingInvoice {
     private final String xmlContent;
     private final String source;
     private final String correlationId;
+    private final DocumentType documentType;
 
     // Validation
     private InvoiceStatus status;
@@ -36,6 +39,7 @@ public class IncomingInvoice {
         this.xmlContent = Objects.requireNonNull(builder.xmlContent, "XML content is required");
         this.source = Objects.requireNonNull(builder.source, "Source is required");
         this.correlationId = builder.correlationId;
+        this.documentType = builder.documentType;
         this.status = builder.status != null ? builder.status : InvoiceStatus.RECEIVED;
         this.validationResult = builder.validationResult;
         this.receivedAt = builder.receivedAt != null ? builder.receivedAt : LocalDateTime.now();
@@ -154,6 +158,10 @@ public class IncomingInvoice {
         return processedAt;
     }
 
+    public DocumentType getDocumentType() {
+        return documentType;
+    }
+
     /**
      * Builder for IncomingInvoice
      */
@@ -163,6 +171,7 @@ public class IncomingInvoice {
         private String xmlContent;
         private String source;
         private String correlationId;
+        private DocumentType documentType;
         private InvoiceStatus status;
         private ValidationResult validationResult;
         private LocalDateTime receivedAt;
@@ -190,6 +199,11 @@ public class IncomingInvoice {
 
         public Builder correlationId(String correlationId) {
             this.correlationId = correlationId;
+            return this;
+        }
+
+        public Builder documentType(DocumentType documentType) {
+            this.documentType = documentType;
             return this;
         }
 

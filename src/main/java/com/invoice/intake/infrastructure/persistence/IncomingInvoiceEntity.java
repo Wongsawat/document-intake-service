@@ -1,6 +1,7 @@
 package com.invoice.intake.infrastructure.persistence;
 
 import com.invoice.intake.domain.model.InvoiceStatus;
+import com.invoice.intake.infrastructure.validation.DocumentType;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
@@ -19,7 +20,8 @@ import java.util.UUID;
 @Table(name = "incoming_invoices", indexes = {
     @Index(name = "idx_incoming_invoice_number", columnList = "invoice_number"),
     @Index(name = "idx_incoming_status", columnList = "status"),
-    @Index(name = "idx_incoming_received", columnList = "received_at")
+    @Index(name = "idx_incoming_received", columnList = "received_at"),
+    @Index(name = "idx_incoming_document_type", columnList = "document_type")
 })
 @Getter
 @Setter
@@ -43,6 +45,10 @@ public class IncomingInvoiceEntity {
 
     @Column(name = "correlation_id", length = 100)
     private String correlationId;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "document_type", length = 50)
+    private DocumentType documentType;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, length = 20)
