@@ -163,4 +163,126 @@ class InvoiceIntakeControllerTest {
                 .header("X-Source", "KAFKA"))
             .andExpect(status().isAccepted());
     }
+
+    @Test
+    @DisplayName("POST /api/v1/invoices accepts text/xml content type")
+    void testSubmitInvoiceAcceptsTextXmlContentType() throws Exception {
+        when(invoiceIntakeService.submitInvoice(any(), eq("REST"), any()))
+            .thenReturn(testInvoice);
+
+        mockMvc.perform(post("/api/v1/invoices")
+                .contentType(MediaType.TEXT_XML)
+                .content("<test>xml</test>")
+                .header("X-Correlation-ID", "corr-text-xml"))
+            .andExpect(status().isAccepted())
+            .andExpect(jsonPath("$.correlationId").value("corr-text-xml"));
+    }
+
+    @Test
+    @DisplayName("GET /api/v1/invoices/{id} handles invoice with null documentType")
+    void testGetInvoiceHandlesNullDocumentType() throws Exception {
+        IncomingInvoice invoiceWithNullType = IncomingInvoice.builder()
+            .id(testInvoice.getId())
+            .invoiceNumber("INV-2024-003")
+            .xmlContent("<test>xml</test>")
+            .source("REST")
+            .documentType(null) // Null document type
+            .status(InvoiceStatus.VALIDATING)
+            .validationResult(ValidationResult.success())
+            .receivedAt(LocalDateTime.now())
+            .build();
+
+        when(invoiceIntakeService.getInvoice(testInvoice.getId()))
+            .thenReturn(invoiceWithNullType);
+
+        mockMvc.perform(get("/api/v1/invoices/{id}", testInvoice.getId()))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.invoiceNumber").value("INV-2024-003"))
+            .andExpect(jsonPath("$.status").value("VALIDATING"))
+            .andExpect(jsonPath("$.documentType").doesNotExist());
+    }
+
+    @Test
+    @DisplayName("GET /api/v1/invoices/{id} handles invoice without processedAt")
+    void testGetInvoiceHandlesNullProcessedAt() throws Exception {
+        IncomingInvoice invoiceWithoutProcessedAt = IncomingInvoice.builder()
+            .id(testInvoice.getId())
+            .invoiceNumber("INV-2024-004")
+            .xmlContent("<test>xml</test>")
+            .source("REST")
+            .documentType(DocumentType.TAX_INVOICE)
+            .status(InvoiceStatus.RECEIVED)
+            .validationResult(ValidationResult.success())
+            .receivedAt(LocalDateTime.now())
+            .processedAt(null) // Not yet processed
+            .build();
+
+        when(invoiceIntakeService.getInvoice(testInvoice.getId()))
+            .thenReturn(invoiceWithoutProcessedAt);
+
+        mockMvc.perform(get("/api/v1/invoices/{id}", testInvoice.getId()))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.receivedAt").exists())
+            .andExpect(jsonPath("$.processedAt").doesNotExist());
+    }
+
+    @Test
+    @DisplayName("GET /api/v1/invoices/{id} handles invoice without validation result")
+    void testGetInvoiceHandlesNullValidationResult() throws Exception {
+        IncomingInvoice invoiceWithoutValidation = IncomingInvoice.builder()
+            .id(testInvoice.getId())
+            .invoiceNumber("INV-2024-005")
+            .xmlContent("<test>xml</test>")
+            .source("REST")
+            .documentType(DocumentType.TAX_INVOICE)
+            .status(InvoiceStatus.RECEIVED)
+            .validationResult(null) // Not yet validated
+            .receivedAt(LocalDateTime.now())
+            .build();
+
+        when(invoiceIntakeService.getInvoice(testInvoice.getId()))
+            .thenReturn(invoiceWithoutValidation);
+
+        mockMvc.perform(get("/api/v1/invoices/{id}", testInvoice.getId()))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.validationResult").doesNotExist());
+    }
+
+    @Test
+    @DisplayName("GET /api/v1/invoices/{id} returns 500 for unexpected errors")
+    void testGetInvoiceReturns500ForUnexpectedErrors() throws Exception {
+        UUID testId = UUID.randomUUID();
+        when(invoiceIntakeService.getInvoice(testId))
+            .thenThrow(new RuntimeException("Database connection failed"));
+
+        mockMvc.perform(get("/api/v1/invoices/{id}", testId))
+            .andExpect(status().isInternalServerError())
+            .andExpect(jsonPath("$.error").value("Failed to retrieve invoice status"));
+    }
+
+    @Test
+    @DisplayName("POST /api/v1/invoices with null correlation ID generates UUID")
+    void testSubmitInvoiceWithNullCorrelationIdGeneratesUuid() throws Exception {
+        when(invoiceIntakeService.submitInvoice(any(), eq("REST"), any()))
+            .thenReturn(testInvoice);
+
+        mockMvc.perform(post("/api/v1/invoices")
+                .contentType(MediaType.APPLICATION_XML)
+                .content("<test>xml</test>"))
+            .andExpect(status().isAccepted())
+            .andExpect(jsonPath("$.correlationId").value("generated"));
+    }
+
+    @Test
+    @DisplayName("POST /api/v1/invoices handles empty correlation ID header")
+    void testSubmitInvoiceHandlesEmptyCorrelationId() throws Exception {
+        when(invoiceIntakeService.submitInvoice(any(), eq("REST"), any()))
+            .thenReturn(testInvoice);
+
+        mockMvc.perform(post("/api/v1/invoices")
+                .contentType(MediaType.APPLICATION_XML)
+                .content("<test>xml</test>")
+                .header("X-Correlation-ID", ""))
+            .andExpect(status().isAccepted());
+    }
 }
