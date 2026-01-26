@@ -7,9 +7,21 @@ Gateway microservice for receiving and validating XML invoices in the Invoice Pr
 The Invoice Intake Service is the **first checkpoint** for XML invoices entering the system. It:
 
 - ✅ **Receives** XML invoices via REST API and Kafka
-- ✅ **Validates** XML against XSD schema (using teda library)
+- ✅ **Validates** XML against XSD schema and Schematron business rules (using teda library)
+- ✅ **Detects** document type from XML namespace
 - ✅ **Extracts** invoice metadata
-- ✅ **Publishes** validated invoices to downstream services
+- ✅ **Routes** validated invoices to document-type-specific Kafka topics
+
+## Supported Document Types
+
+| Document Type | Description |
+|---------------|-------------|
+| TaxInvoice | Full tax invoice (ใบกำกับภาษี) |
+| Receipt | Receipt/tax invoice combined (ใบเสร็จรับเงิน/ใบกำกับภาษี) |
+| Invoice | Commercial invoice |
+| DebitCreditNote | Debit/credit note (ใบเพิ่มหนี้/ใบลดหนี้) |
+| CancellationNote | Cancellation document |
+| AbbreviatedTaxInvoice | Abbreviated tax invoice (ใบกำกับภาษีอย่างย่อ) |
 
 ## Architecture
 
@@ -43,7 +55,7 @@ POST /api/v1/invoices
 Content-Type: application/xml
 X-Correlation-ID: optional-correlation-id
 
-<Invoice>...</Invoice>
+<TaxInvoice_CrossIndustryInvoice>...</TaxInvoice_CrossIndustryInvoice>
 
 Response: 202 Accepted
 {
@@ -61,6 +73,7 @@ Response: 200 OK
 {
   "id": "uuid",
   "invoiceNumber": "INV-2025-001",
+  "documentType": "TAX_INVOICE",
   "status": "FORWARDED",
   "receivedAt": "2025-12-03T10:30:00",
   "validationResult": {
@@ -75,13 +88,26 @@ Response: 200 OK
 
 ### Route 1: REST Intake
 ```
-POST /api/v1/invoices → direct:invoice-intake → Validation → Kafka (invoice.received)
+POST /api/v1/invoices → direct:invoice-intake → Validation → Content-Based Routing → Kafka
 ```
 
 ### Route 2: Kafka Intake
 ```
-Kafka (invoice.intake) → Validation → Kafka (invoice.received)
+Kafka (invoice.intake) → Validation → Content-Based Routing → Kafka
 ```
+
+### Content-Based Routing
+
+Documents are routed to type-specific topics based on XML namespace:
+
+| Document Type | Output Topic |
+|---------------|--------------|
+| TaxInvoice | `invoice.received.tax-invoice` |
+| Receipt | `invoice.received.receipt` |
+| Invoice | `invoice.received.invoice` |
+| DebitCreditNote | `invoice.received.debit-credit-note` |
+| CancellationNote | `invoice.received.cancellation` |
+| AbbreviatedTaxInvoice | `invoice.received.abbreviated` |
 
 ### Error Handling
 - 3 retry attempts with exponential backoff
@@ -92,8 +118,17 @@ Kafka (invoice.intake) → Validation → Kafka (invoice.received)
 ### Consumed Topics
 - `invoice.intake` - Invoices from external systems
 
-### Published Topics
-- `invoice.received` - Validated invoices for processing service
+### Published Topics (Content-Based Routing)
+
+| Topic | Document Type |
+|-------|---------------|
+| `invoice.received.tax-invoice` | TaxInvoice |
+| `invoice.received.receipt` | Receipt |
+| `invoice.received.invoice` | Invoice |
+| `invoice.received.debit-credit-note` | DebitCreditNote |
+| `invoice.received.cancellation` | CancellationNote |
+| `invoice.received.abbreviated` | AbbreviatedTaxInvoice |
+| `invoice.intake.dlq` | Failed messages |
 
 ### Event Schema
 ```json
@@ -104,7 +139,8 @@ Kafka (invoice.intake) → Validation → Kafka (invoice.received)
   "version": 1,
   "invoiceId": "uuid",
   "invoiceNumber": "INV-2025-001",
-  "xmlContent": "<Invoice>...</Invoice>",
+  "documentType": "TAX_INVOICE",
+  "xmlContent": "<TaxInvoice_CrossIndustryInvoice>...</TaxInvoice_CrossIndustryInvoice>",
   "correlationId": "uuid"
 }
 ```
@@ -114,6 +150,7 @@ Kafka (invoice.intake) → Validation → Kafka (invoice.received)
 ### incoming_invoices Table
 - `id` (UUID) - Primary key
 - `invoice_number` (VARCHAR) - Unique invoice identifier
+- `document_type` (VARCHAR) - Document type enum
 - `xml_content` (TEXT) - Full XML document
 - `source` (VARCHAR) - Origin (REST/KAFKA)
 - `correlation_id` (VARCHAR) - Request correlation
@@ -140,7 +177,7 @@ Kafka (invoice.intake) → Validation → Kafka (invoice.received)
 ### Prerequisites
 1. PostgreSQL database running
 2. Kafka broker running
-3. teda library installed
+3. teda library installed (`cd ../../../../teda && mvn clean install`)
 4. Eureka server (optional)
 
 ### Build
@@ -170,14 +207,34 @@ docker run -p 8081:8081 \
 
 ## Integration with teda Library
 
-The `XmlValidationService` implementation requires integration with teda library for:
+The service uses the **teda library** (`com.wpanther:thai-etax-invoice`) for complete XML validation:
 
-- XSD schema validation
-- JAXB parsing
-- Invoice number extraction
-- Database-backed code list validation
+### Three-Layer Validation
+1. **XML Well-Formedness** - Validated during JAXB unmarshaling
+2. **XSD Schema Validation** - Validates against Thai e-Tax XSD schemas (TaxInvoice_2p1.xsd, etc.)
+3. **Schematron Business Rules** - Validates against ETDA business rules (TaxInvoice_Schematron_2p1.sch)
 
-**Note**: The implementation needs to be completed in `XmlValidationServiceImpl`.
+### JAXB-Based Processing
+- **Type-safe unmarshaling** - XML converted to strongly-typed JAXB objects
+- **Document type auto-detection** - Detected from namespace URI or unmarshaled class
+- **Invoice number extraction** - Extracted from ExchangedDocument/ID element
+- **Error collection** - ValidationEventHandler collects all errors (not fail-fast)
+
+### Implementation Notes
+**Critical**: The teda library uses an interface/implementation pattern. JAXB contexts MUST be initialized with `.impl` packages:
+
+```java
+// Correct - Uses implementation packages
+"com.wpanther.etax.generated.taxinvoice.rsm.impl:" +
+"com.wpanther.etax.generated.taxinvoice.ram.impl:" +
+"com.wpanther.etax.generated.common.qdt.impl:" +
+"com.wpanther.etax.generated.common.udt.impl"
+```
+
+### Test Coverage
+- **184 tests** covering all validation scenarios
+- Integration tests use real XML samples from `src/test/resources/samples/`
+- Tests verify JAXB unmarshaling, XSD validation, and Schematron rules
 
 ## Monitoring
 
@@ -209,17 +266,12 @@ src/main/java/com/invoice/intake/
     └── validation/         # XML validation implementation
 ```
 
-## Next Steps
+## Recommended Enhancements
 
-### Required Implementation
-1. **XmlValidationServiceImpl** - Complete integration with teda library
-2. **Repository Mapper** - Domain ↔ Entity conversion
-
-### Recommended Enhancements
-1. **Outbox Pattern** - Reliable event publishing
+1. **Outbox Pattern** - Reliable event publishing (table exists, needs implementation)
 2. **Rate Limiting** - Prevent overload
 3. **API Authentication** - Secure endpoints
-4. **Comprehensive Tests** - Unit and integration tests
+4. **Performance Testing** - Load test for high-volume scenarios
 
 ## License
 
