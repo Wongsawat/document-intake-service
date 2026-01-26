@@ -19,6 +19,10 @@ spring:
     properties:
       hibernate:
         format_sql: false
+        # Use JSON as other for H2 compatibility (instead of JSONB)
+        type:
+          json:
+            format: org.hibernate.type.SqlTypes.JSON
 
   flyway:
     enabled: false
