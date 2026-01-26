@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rsm:TaxInvoice_CrossIndustryInvoice
+    xmlns:ram="urn:etda:uncefact:data:standard:TaxInvoice_ReusableAggregateBusinessInformationEntity:2"
+    xmlns:rsm="urn:etda:uncefact:data:standard:TaxInvoice_CrossIndustryInvoice:2">
+    <rsm:ExchangedDocumentContext>
+        <ram:GuidelineSpecifiedDocumentContextParameter>
+            <ram:ID schemeAgencyID="ETDA" schemeVersionID="v2.1">ER3-2560</ram:ID>
+        </ram:GuidelineSpecifiedDocumentContextParameter>
+    </rsm:ExchangedDocumentContext>
+    <rsm:ExchangedDocument>
+        <ram:ID>NOSELLER001</ram:ID>
+        <ram:TypeCode>388</ram:TypeCode>
+        <ram:IssueDateTime>2024-01-15T10:30:00</ram:IssueDateTime>
+    </rsm:ExchangedDocument>
+    <rsm:SupplyChainTradeTransaction>
+        <ram:ApplicableHeaderTradeAgreement>
+            <ram:SellerTradeParty>
+                <!-- Missing seller Name which is required -->
+                <ram:SpecifiedTaxRegistration>
+                    <ram:ID schemeID="TXID" schemeAgencyID="RD">12345678901230001</ram:ID>
+                </ram:SpecifiedTaxRegistration>
+                <ram:PostalTradeAddress>
+                    <ram:PostcodeCode>10310</ram:PostcodeCode>
+                    <ram:CityName>1017</ram:CityName>
+                    <ram:CitySubDivisionName>101701</ram:CitySubDivisionName>
+                    <ram:CountryID>TH</ram:CountryID>
+                    <ram:CountrySubDivisionID>10</ram:CountrySubDivisionID>
+                    <ram:BuildingNumber>123</ram:BuildingNumber>
+                </ram:PostalTradeAddress>
+            </ram:SellerTradeParty>
+            <ram:BuyerTradeParty>
+                <ram:Name>Test Buyer</ram:Name>
+            </ram:BuyerTradeParty>
+        </ram:ApplicableHeaderTradeAgreement>
+        <ram:ApplicableHeaderTradeSettlement>
+            <ram:InvoiceCurrencyCode>THB</ram:InvoiceCurrencyCode>
+            <ram:SpecifiedTradeSettlementHeaderMonetarySummation>
+                <ram:LineTotalAmount>1000</ram:LineTotalAmount>
+                <ram:GrandTotalAmount>1070</ram:GrandTotalAmount>
+            </ram:SpecifiedTradeSettlementHeaderMonetarySummation>
+        </ram:ApplicableHeaderTradeSettlement>
+        <ram:IncludedSupplyChainTradeLineItem>
+            <ram:AssociatedDocumentLineDocument>
+                <ram:LineID>1</ram:LineID>
+            </ram:AssociatedDocumentLineDocument>
+            <ram:SpecifiedTradeProduct>
+                <ram:Name>Test Product</ram:Name>
+            </ram:SpecifiedTradeProduct>
+        </ram:IncludedSupplyChainTradeLineItem>
+    </rsm:SupplyChainTradeTransaction>
+</rsm:TaxInvoice_CrossIndustryInvoice>

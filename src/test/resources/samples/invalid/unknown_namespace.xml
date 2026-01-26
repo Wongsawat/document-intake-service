@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rsm:UnknownDocument_CrossIndustryInvoice
+    xmlns:ram="urn:etda:uncefact:data:standard:TaxInvoice_ReusableAggregateBusinessInformationEntity:2"
+    xmlns:rsm="urn:unknown:namespace:uri:2">
+    <rsm:ExchangedDocumentContext>
+        <ram:GuidelineSpecifiedDocumentContextParameter>
+            <ram:ID schemeAgencyID="ETDA" schemeVersionID="v2.1">ER3-2560</ram:ID>
+        </ram:GuidelineSpecifiedDocumentContextParameter>
+    </rsm:ExchangedDocumentContext>
+    <rsm:ExchangedDocument>
+        <ram:ID>UNKNOWN001</ram:ID>
+        <ram:TypeCode>388</ram:TypeCode>
+        <ram:IssueDateTime>2024-01-15T10:30:00</ram:IssueDateTime>
+    </rsm:ExchangedDocument>
+    <rsm:SupplyChainTradeTransaction>
+        <ram:ApplicableHeaderTradeAgreement>
+            <ram:SellerTradeParty>
+                <ram:Name>Test Seller</ram:Name>
+            </ram:SellerTradeParty>
+        </ram:ApplicableHeaderTradeAgreement>
+    </rsm:SupplyChainTradeTransaction>
+</rsm:UnknownDocument_CrossIndustryInvoice>

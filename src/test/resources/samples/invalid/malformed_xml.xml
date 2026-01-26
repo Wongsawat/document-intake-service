@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rsm:TaxInvoice_CrossIndustryInvoice
+    xmlns:ram="urn:etda:uncefact:data:standard:TaxInvoice_ReusableAggregateBusinessInformationEntity:2"
+    xmlns:rsm="urn:etda:uncefact:data:standard:TaxInvoice_CrossIndustryInvoice:2">
+    <rsm:ExchangedDocumentContext>
+        <ram:GuidelineSpecifiedDocumentContextParameter>
+            <ram:ID schemeAgencyID="ETDA" schemeVersionID="v2.1">ER3-2560</ram:ID>
+        </ram:GuidelineSpecifiedDocumentContextParameter>
+    </rsm:ExchangedDocumentContext>
+    <rsm:ExchangedDocument>
+        <ram:ID>MALFORMED001</ram:ID>
+        <ram:TypeCode>388</ram:TypeCode>
+        <ram:IssueDateTime>2024-01-15T10:30:00</ram:IssueDateTime>
+    <!-- Missing closing tag for ExchangedDocument -->
+    <rsm:SupplyChainTradeTransaction>
+        <ram:ApplicableHeaderTradeAgreement>
+            <ram:SellerTradeParty>
+                <ram:Name>Test Seller</ram:Name>
+                <ram:SpecifiedTaxRegistration>
+                    <ram:ID schemeID="TXID">12345678901230001</ram:ID>
+                </ram:SpecifiedTaxRegistration>
+            </ram:SellerTradeParty>
+        </ram:ApplicableHeaderTradeAgreement>
+    </rsm:SupplyChainTradeTransaction>
+</rsm:TaxInvoice_CrossIndustryInvoice>

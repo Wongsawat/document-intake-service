@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rsm:Invoice_CrossIndustryInvoice
+    xmlns:ram="urn:uncefact:data:standard:Invoice_ReusableAggregateBusinessInformationEntity:100"
+    xmlns:rsm="urn:uncefact:data:standard:CrossIndustryInvoice:100"
+    xmlns:udt="urn:uncefact:data:standard:UnqualifiedDataType:100"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+    <rsm:ExchangedDocumentContext>
+        <ram:GuidelineSpecifiedDocumentContextParameter>
+            <ram:ID schemeVersionID="v2.1">urn:cen.eu:en16931:2017</ram:ID>
+        </ram:GuidelineSpecifiedDocumentContextParameter>
+    </rsm:ExchangedDocumentContext>
+    <rsm:ExchangedDocument>
+        <ram:ID>INV2024010001</ram:ID>
+        <ram:TypeCode>380</ram:TypeCode>
+        <ram:IssueDateTime>2024-01-15T10:30:00</ram:IssueDateTime>
+    </rsm:ExchangedDocument>
+    <rsm:SupplyChainTradeTransaction>
+        <ram:ApplicableHeaderTradeAgreement>
+            <ram:SellerTradeParty>
+                <ram:Name>Test Seller Company Limited</ram:Name>
+                <ram:PostalTradeAddress>
+                    <ram:CountryID>US</ram:CountryID>
+                </ram:PostalTradeAddress>
+            </ram:SellerTradeParty>
+            <ram:BuyerTradeParty>
+                <ram:Name>Test Buyer Company Limited</ram:Name>
+                <ram:PostalTradeAddress>
+                    <ram:CountryID>US</ram:CountryID>
+                </ram:PostalTradeAddress>
+            </ram:BuyerTradeParty>
+        </ram:ApplicableHeaderTradeAgreement>
+        <ram:ApplicableHeaderTradeSettlement>
+            <ram:InvoiceCurrencyCode>USD</ram:InvoiceCurrencyCode>
+            <ram:ApplicableTradeTax>
+                <ram:TypeCode>VAT</ram:TypeCode>
+                <ram:CalculatedRate>10</ram:CalculatedRate>
+                <ram:BasisAmount>1000</ram:BasisAmount>
+                <ram:CalculatedAmount>100</ram:CalculatedAmount>
+            </ram:ApplicableTradeTax>
+            <ram:SpecifiedTradeSettlementHeaderMonetarySummation>
+                <ram:LineTotalAmount>1000</ram:LineTotalAmount>
+                <ram:TaxBasisTotalAmount>1000</ram:TaxBasisTotalAmount>
+                <ram:TaxTotalAmount>100</ram:TaxTotalAmount>
+                <ram:GrandTotalAmount>1100</ram:GrandTotalAmount>
+            </ram:SpecifiedTradeSettlementHeaderMonetarySummation>
+        </ram:ApplicableHeaderTradeSettlement>
+        <rsm:IncludedSupplyChainTradeLineItem>
+            <ram:AssociatedDocumentLineDocument>
+                <ram:LineID>1</ram:LineID>
+            </ram:AssociatedDocumentLineDocument>
+            <ram:SpecifiedTradeProduct>
+                <ram:Name>Test Product</ram:Name>
+            </ram:SpecifiedTradeProduct>
+            <ram:SpecifiedLineTradeAgreement>
+                <ram:NetPriceProductTradePrice>
+                    <ram:ChargeAmount>100</ram:ChargeAmount>
+                </ram:NetPriceProductTradePrice>
+            </ram:SpecifiedLineTradeAgreement>
+            <ram:SpecifiedLineTradeDelivery>
+                <ram:BilledQuantity unitCode="EA">10</ram:BilledQuantity>
+            </ram:SpecifiedLineTradeDelivery>
+            <ram:SpecifiedLineTradeSettlement>
+                <ram:ApplicableTradeTax>
+                    <ram:TypeCode>VAT</ram:TypeCode>
+                    <ram:CalculatedRate>10</ram:CalculatedRate>
+                    <ram:BasisAmount>1000</ram:BasisAmount>
+                    <ram:CalculatedAmount>100</ram:CalculatedAmount>
+                </ram:ApplicableTradeTax>
+                <ram:SpecifiedTradeSettlementLineMonetarySummation>
+                    <ram:TaxTotalAmount>100</ram:TaxTotalAmount>
+                    <ram:NetLineTotalAmount currencyID="USD">1000</ram:NetLineTotalAmount>
+                </ram:SpecifiedTradeSettlementLineMonetarySummation>
+            </ram:SpecifiedLineTradeSettlement>
+        </rsm:IncludedSupplyChainTradeLineItem>
+    </rsm:SupplyChainTradeTransaction>
+</rsm:Invoice_CrossIndustryInvoice>
