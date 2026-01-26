@@ -71,18 +71,29 @@ public class InvoiceIntakeController {
         try {
             IncomingInvoice invoice = intakeService.getInvoice(id);
 
-            return ResponseEntity.ok(Map.of(
-                "id", invoice.getId().toString(),
-                "invoiceNumber", invoice.getInvoiceNumber(),
-                "status", invoice.getStatus().name(),
-                "receivedAt", invoice.getReceivedAt().toString(),
-                "processedAt", invoice.getProcessedAt() != null ? invoice.getProcessedAt().toString() : null,
-                "validationResult", invoice.getValidationResult() != null ? Map.of(
+            Map<String, Object> response = new java.util.HashMap<>();
+            response.put("id", invoice.getId().toString());
+            response.put("invoiceNumber", invoice.getInvoiceNumber());
+            response.put("status", invoice.getStatus().name());
+
+            if (invoice.getDocumentType() != null) {
+                response.put("documentType", invoice.getDocumentType().name());
+            }
+            if (invoice.getReceivedAt() != null) {
+                response.put("receivedAt", invoice.getReceivedAt().toString());
+            }
+            if (invoice.getProcessedAt() != null) {
+                response.put("processedAt", invoice.getProcessedAt().toString());
+            }
+            if (invoice.getValidationResult() != null) {
+                response.put("validationResult", Map.of(
                     "valid", invoice.getValidationResult().valid(),
                     "errors", invoice.getValidationResult().errors(),
                     "warnings", invoice.getValidationResult().warnings()
-                ) : null
-            ));
+                ));
+            }
+
+            return ResponseEntity.ok(response);
 
         } catch (IllegalArgumentException e) {
             return ResponseEntity.notFound().build();
