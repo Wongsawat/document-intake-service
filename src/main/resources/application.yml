@@ -41,8 +41,14 @@ app:
   kafka:
     topics:
       invoice-intake: invoice.intake
-      invoice-received: invoice.received
       intake-dlq: invoice.intake.dlq
+      # Document-type-specific topics for content-based routing
+      tax-invoice: invoice.received.tax-invoice
+      receipt: invoice.received.receipt
+      invoice: invoice.received.invoice
+      debit-credit-note: invoice.received.debit-credit-note
+      cancellation: invoice.received.cancellation
+      abbreviated: invoice.received.abbreviated
     bootstrap-servers: ${KAFKA_BROKERS:localhost:9092}
 
 # Eureka client configuration

@@ -4,6 +4,7 @@ import com.invoice.intake.domain.model.IncomingInvoice;
 import com.invoice.intake.domain.model.ValidationResult;
 import com.invoice.intake.domain.repository.IncomingInvoiceRepository;
 import com.invoice.intake.domain.service.XmlValidationService;
+import com.invoice.intake.infrastructure.validation.DocumentType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -41,6 +42,13 @@ public class InvoiceIntakeService {
             throw new IllegalArgumentException("Could not extract invoice number from XML");
         }
 
+        // Extract document type
+        DocumentType documentType = validationService.extractDocumentType(xmlContent);
+        if (documentType == null) {
+            throw new IllegalArgumentException("Could not detect document type from XML");
+        }
+        log.debug("Detected document type: {}", documentType);
+
         // Check if already exists
         if (invoiceRepository.existsByInvoiceNumber(invoiceNumber)) {
             log.warn("Invoice number {} already exists", invoiceNumber);
@@ -53,6 +61,7 @@ public class InvoiceIntakeService {
             .xmlContent(xmlContent)
             .source(source)
             .correlationId(correlationId)
+            .documentType(documentType)
             .build();
 
         // Save initial state
