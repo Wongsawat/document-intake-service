@@ -1,6 +1,7 @@
 package com.invoice.intake.domain.service;
 
 import com.invoice.intake.domain.model.ValidationResult;
+import com.invoice.intake.infrastructure.validation.DocumentType;
 
 /**
  * Domain service for XML validation
@@ -8,7 +9,7 @@ import com.invoice.intake.domain.model.ValidationResult;
 public interface XmlValidationService {
 
     /**
-     * Validate XML content against XSD schema
+     * Validate XML content against XSD schema and Schematron business rules
      *
      * @param xmlContent The XML content to validate
      * @return Validation result with errors and warnings
@@ -22,4 +23,12 @@ public interface XmlValidationService {
      * @return Invoice number or null if not found
      */
     String extractInvoiceNumber(String xmlContent);
+
+    /**
+     * Extract document type from XML namespace
+     *
+     * @param xmlContent The XML content
+     * @return Document type or null if unable to detect
+     */
+    DocumentType extractDocumentType(String xmlContent);
 }
