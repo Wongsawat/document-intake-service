@@ -7,7 +7,7 @@
     </appender>
 
     <!-- Set appropriate log levels for testing -->
-    <logger name="com.invoice.intake" level="DEBUG"/>
+    <logger name="com.wpanther.document.intake" level="DEBUG"/>
     <logger name="org.springframework" level="WARN"/>
     <logger name="org.hibernate" level="WARN"/>
     <logger name="org.apache.camel" level="WARN"/>
