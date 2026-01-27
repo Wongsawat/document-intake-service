@@ -1,6 +1,6 @@
-# Deployment Guide - Invoice Intake Service
+# Deployment Guide - Document Intake Service
 
-This guide covers deploying the Invoice Intake Service to Docker, AWS, and Red Hat OpenShift.
+This guide covers deploying the Document Intake Service to Docker, AWS, and Red Hat OpenShift.
 
 ## Table of Contents
 
@@ -36,7 +36,7 @@ This guide covers deploying the Invoice Intake Service to Docker, AWS, and Red H
 mvn clean package
 
 # Verify the build
-ls -lh target/invoice-intake-service-1.0.0-SNAPSHOT.jar
+ls -lh target/document-intake-service-1.0.0-SNAPSHOT.jar
 ```
 
 ---
@@ -47,10 +47,10 @@ ls -lh target/invoice-intake-service-1.0.0-SNAPSHOT.jar
 
 ```bash
 # Build the image
-docker build -t invoice-intake-service:1.0.0 .
+docker build -t document-intake-service:1.0.0 .
 
 # Tag for registry (optional)
-docker tag invoice-intake-service:1.0.0 yourdockerhub/invoice-intake-service:1.0.0
+docker tag document-intake-service:1.0.0 yourdockerhub/document-intake-service:1.0.0
 ```
 
 ### 2. Run with Docker Compose
@@ -100,9 +100,9 @@ services:
     ports:
       - "2181:2181"
 
-  invoice-intake-service:
-    image: invoice-intake-service:1.0.0
-    container_name: invoice-intake-service
+  document-intake-service:
+    image: document-intake-service:1.0.0
+    container_name: document-intake-service
     environment:
       # Database
       DB_HOST: postgres
@@ -146,7 +146,7 @@ volumes:
 docker-compose up -d
 
 # View logs
-docker-compose logs -f invoice-intake-service
+docker-compose logs -f document-intake-service
 
 # Stop all services
 docker-compose down
@@ -159,7 +159,7 @@ docker-compose down -v
 
 ```bash
 docker run -d \
-  --name invoice-intake-service \
+  --name document-intake-service \
   -p 8081:8081 \
   -e DB_HOST=host.docker.internal \
   -e DB_PORT=5432 \
@@ -169,7 +169,7 @@ docker run -d \
   -e KAFKA_BROKERS=host.docker.internal:9092 \
   -e EUREKA_ENABLED=false \
   --restart unless-stopped \
-  invoice-intake-service:1.0.0
+  document-intake-service:1.0.0
 ```
 
 ---
@@ -187,14 +187,14 @@ aws ecr get-login-password --region us-east-1 | \
 
 # Create repository
 aws ecr create-repository \
-  --repository-name invoice-intake-service \
+  --repository-name document-intake-service \
   --region us-east-1
 
 # Tag and push image
-docker tag invoice-intake-service:1.0.0 \
-  <account-id>.dkr.ecr.us-east-1.amazonaws.com/invoice-intake-service:1.0.0
+docker tag document-intake-service:1.0.0 \
+  <account-id>.dkr.ecr.us-east-1.amazonaws.com/document-intake-service:1.0.0
 
-docker push <account-id>.dkr.ecr.us-east-1.amazonaws.com/invoice-intake-service:1.0.0
+docker push <account-id>.dkr.ecr.us-east-1.amazonaws.com/document-intake-service:1.0.0
 ```
 
 #### 2. Create ECS Task Definition
@@ -203,7 +203,7 @@ Create `task-definition.json`:
 
 ```json
 {
-  "family": "invoice-intake-service",
+  "family": "document-intake-service",
   "networkMode": "awsvpc",
   "requiresCompatibilities": ["FARGATE"],
   "cpu": "1024",
@@ -212,8 +212,8 @@ Create `task-definition.json`:
   "taskRoleArn": "arn:aws:iam::<account-id>:role/ecsTaskRole",
   "containerDefinitions": [
     {
-      "name": "invoice-intake-service",
-      "image": "<account-id>.dkr.ecr.us-east-1.amazonaws.com/invoice-intake-service:1.0.0",
+      "name": "document-intake-service",
+      "image": "<account-id>.dkr.ecr.us-east-1.amazonaws.com/document-intake-service:1.0.0",
       "cpu": 1024,
       "memory": 2048,
       "essential": true,
@@ -254,7 +254,7 @@ Create `task-definition.json`:
       "logConfiguration": {
         "logDriver": "awslogs",
         "options": {
-          "awslogs-group": "/ecs/invoice-intake-service",
+          "awslogs-group": "/ecs/document-intake-service",
           "awslogs-region": "us-east-1",
           "awslogs-stream-prefix": "ecs"
         }
@@ -284,12 +284,12 @@ aws ecs register-task-definition \
 # Create ECS service
 aws ecs create-service \
   --cluster invoice-cluster \
-  --service-name invoice-intake-service \
-  --task-definition invoice-intake-service \
+  --service-name document-intake-service \
+  --task-definition document-intake-service \
   --desired-count 2 \
   --launch-type FARGATE \
   --network-configuration "awsvpcConfiguration={subnets=[subnet-xxx,subnet-yyy],securityGroups=[sg-xxx],assignPublicIp=ENABLED}" \
-  --load-balancers "targetGroupArn=arn:aws:elasticloadbalancing:us-east-1:<account-id>:targetgroup/invoice-intake-tg,containerName=invoice-intake-service,containerPort=8081"
+  --load-balancers "targetGroupArn=arn:aws:elasticloadbalancing:us-east-1:<account-id>:targetgroup/invoice-intake-tg,containerName=document-intake-service,containerPort=8081"
 ```
 
 #### 4. Setup RDS PostgreSQL
@@ -334,25 +334,25 @@ Create `k8s/deployment.yaml`:
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: invoice-intake-service
+  name: document-intake-service
   namespace: invoice
   labels:
-    app: invoice-intake-service
+    app: document-intake-service
     version: v1
 spec:
   replicas: 3
   selector:
     matchLabels:
-      app: invoice-intake-service
+      app: document-intake-service
   template:
     metadata:
       labels:
-        app: invoice-intake-service
+        app: document-intake-service
         version: v1
     spec:
       containers:
-      - name: invoice-intake-service
-        image: <account-id>.dkr.ecr.us-east-1.amazonaws.com/invoice-intake-service:1.0.0
+      - name: document-intake-service
+        image: <account-id>.dkr.ecr.us-east-1.amazonaws.com/document-intake-service:1.0.0
         imagePullPolicy: Always
         ports:
         - containerPort: 8081
@@ -414,10 +414,10 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: invoice-intake-service
+  name: document-intake-service
   namespace: invoice
   labels:
-    app: invoice-intake-service
+    app: document-intake-service
 spec:
   type: ClusterIP
   ports:
@@ -426,7 +426,7 @@ spec:
     protocol: TCP
     name: http
   selector:
-    app: invoice-intake-service
+    app: document-intake-service
 ---
 apiVersion: v1
 kind: Secret
@@ -470,7 +470,7 @@ spec:
         pathType: Prefix
         backend:
           service:
-            name: invoice-intake-service
+            name: document-intake-service
             port:
               number: 8081
 ```
@@ -488,7 +488,7 @@ kubectl apply -f k8s/ingress.yaml
 # Check deployment
 kubectl get pods -n invoice
 kubectl get svc -n invoice
-kubectl logs -f deployment/invoice-intake-service -n invoice
+kubectl logs -f deployment/document-intake-service -n invoice
 ```
 
 #### 3. Horizontal Pod Autoscaling
@@ -505,7 +505,7 @@ spec:
   scaleTargetRef:
     apiVersion: apps/v1
     kind: Deployment
-    name: invoice-intake-service
+    name: document-intake-service
   minReplicas: 2
   maxReplicas: 10
   metrics:
@@ -539,7 +539,7 @@ aws ec2 run-instances \
   --key-name your-key \
   --security-group-ids sg-xxx \
   --subnet-id subnet-xxx \
-  --tag-specifications 'ResourceType=instance,Tags=[{Key=Name,Value=invoice-intake-service}]' \
+  --tag-specifications 'ResourceType=instance,Tags=[{Key=Name,Value=document-intake-service}]' \
   --user-data file://user-data.sh
 ```
 
@@ -558,17 +558,17 @@ curl -L "https://github.com/docker/compose/releases/download/v2.20.0/docker-comp
 chmod +x /usr/local/bin/docker-compose
 
 # Pull and run the service
-docker pull <account-id>.dkr.ecr.us-east-1.amazonaws.com/invoice-intake-service:1.0.0
+docker pull <account-id>.dkr.ecr.us-east-1.amazonaws.com/document-intake-service:1.0.0
 
 docker run -d \
-  --name invoice-intake-service \
+  --name document-intake-service \
   -p 8081:8081 \
   -e DB_HOST=<rds-endpoint> \
   -e DB_USERNAME=postgres \
   -e DB_PASSWORD=<password> \
   -e KAFKA_BROKERS=<kafka-broker>:9092 \
   --restart always \
-  <account-id>.dkr.ecr.us-east-1.amazonaws.com/invoice-intake-service:1.0.0
+  <account-id>.dkr.ecr.us-east-1.amazonaws.com/document-intake-service:1.0.0
 ```
 
 ---
@@ -589,11 +589,11 @@ oc new-project invoice-microservices
 
 ```bash
 # Create ImageStream
-oc create imagestream invoice-intake-service
+oc create imagestream document-intake-service
 
 # Tag the image
-oc tag docker.io/yourdockerhub/invoice-intake-service:1.0.0 \
-  invoice-intake-service:1.0.0
+oc tag docker.io/yourdockerhub/document-intake-service:1.0.0 \
+  document-intake-service:1.0.0
 ```
 
 ### 3. Create OpenShift Resources
@@ -604,29 +604,29 @@ Create `openshift/deployment.yaml`:
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: invoice-intake-service
+  name: document-intake-service
   namespace: invoice-microservices
   labels:
-    app: invoice-intake-service
-    app.kubernetes.io/component: invoice-intake-service
-    app.kubernetes.io/instance: invoice-intake-service
-    app.kubernetes.io/name: invoice-intake-service
+    app: document-intake-service
+    app.kubernetes.io/component: document-intake-service
+    app.kubernetes.io/instance: document-intake-service
+    app.kubernetes.io/name: document-intake-service
     app.kubernetes.io/part-of: invoice-app
     app.openshift.io/runtime: java
 spec:
   replicas: 2
   selector:
     matchLabels:
-      app: invoice-intake-service
+      app: document-intake-service
   template:
     metadata:
       labels:
-        app: invoice-intake-service
-        deployment: invoice-intake-service
+        app: document-intake-service
+        deployment: document-intake-service
     spec:
       containers:
-      - name: invoice-intake-service
-        image: invoice-intake-service:1.0.0
+      - name: document-intake-service
+        image: document-intake-service:1.0.0
         imagePullPolicy: Always
         ports:
         - containerPort: 8081
@@ -688,10 +688,10 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: invoice-intake-service
+  name: document-intake-service
   namespace: invoice-microservices
   labels:
-    app: invoice-intake-service
+    app: document-intake-service
 spec:
   ports:
   - name: 8081-tcp
@@ -699,21 +699,21 @@ spec:
     protocol: TCP
     targetPort: 8081
   selector:
-    app: invoice-intake-service
+    app: document-intake-service
   type: ClusterIP
 ---
 apiVersion: route.openshift.io/v1
 kind: Route
 metadata:
-  name: invoice-intake-service
+  name: document-intake-service
   namespace: invoice-microservices
   labels:
-    app: invoice-intake-service
+    app: document-intake-service
 spec:
   host: invoice-intake.apps.openshift-cluster.example.com
   to:
     kind: Service
-    name: invoice-intake-service
+    name: document-intake-service
     weight: 100
   port:
     targetPort: 8081-tcp
@@ -808,10 +808,10 @@ oc get svc
 oc get route
 
 # View logs
-oc logs -f deployment/invoice-intake-service
+oc logs -f deployment/document-intake-service
 
 # Scale deployment
-oc scale deployment/invoice-intake-service --replicas=3
+oc scale deployment/document-intake-service --replicas=3
 ```
 
 ### 8. Build from Source (S2I)
@@ -819,14 +819,14 @@ oc scale deployment/invoice-intake-service --replicas=3
 ```bash
 # Create BuildConfig
 oc new-build java:openjdk-21-ubi8~https://github.com/yourusername/invoice-microservices.git \
-  --context-dir=services/invoice-intake-service \
-  --name=invoice-intake-service
+  --context-dir=services/document-intake-service \
+  --name=document-intake-service
 
 # Start build
-oc start-build invoice-intake-service
+oc start-build document-intake-service
 
 # Create app from ImageStream
-oc new-app invoice-intake-service
+oc new-app document-intake-service
 ```
 
 ### 9. Setup CI/CD Pipeline
@@ -888,7 +888,7 @@ spec:
       workspace: shared-workspace
     params:
     - name: IMAGE
-      value: image-registry.openshift-image-registry.svc:5000/invoice-microservices/invoice-intake-service:latest
+      value: image-registry.openshift-image-registry.svc:5000/invoice-microservices/document-intake-service:latest
   - name: deploy
     taskRef:
       name: openshift-client
@@ -898,7 +898,7 @@ spec:
     params:
     - name: SCRIPT
       value: |
-        oc rollout restart deployment/invoice-intake-service -n invoice-microservices
+        oc rollout restart deployment/document-intake-service -n invoice-microservices
 ```
 
 ---
@@ -987,10 +987,10 @@ global:
   scrape_interval: 15s
 
 scrape_configs:
-  - job_name: 'invoice-intake-service'
+  - job_name: 'document-intake-service'
     metrics_path: '/actuator/prometheus'
     static_configs:
-      - targets: ['invoice-intake-service:8081']
+      - targets: ['document-intake-service:8081']
 ```
 
 ### Grafana Dashboard
@@ -1014,7 +1014,7 @@ Import dashboard ID `4701` (JVM Micrometer) or create custom dashboard with thes
 
 ```bash
 # Check database connectivity
-docker exec -it invoice-intake-service sh
+docker exec -it document-intake-service sh
 wget -qO- http://localhost:8081/actuator/health
 
 # Verify database settings
@@ -1066,14 +1066,14 @@ healthcheck:
 
 ```bash
 # Docker
-docker logs -f invoice-intake-service
+docker logs -f document-intake-service
 
 # Kubernetes/OpenShift
-kubectl logs -f deployment/invoice-intake-service
-oc logs -f deployment/invoice-intake-service
+kubectl logs -f deployment/document-intake-service
+oc logs -f deployment/document-intake-service
 
 # AWS CloudWatch
-aws logs tail /ecs/invoice-intake-service --follow
+aws logs tail /ecs/document-intake-service --follow
 ```
 
 ### Debug Mode
@@ -1083,7 +1083,7 @@ aws logs tail /ecs/invoice-intake-service --follow
 docker run -e LOGGING_LEVEL_ROOT=DEBUG ...
 
 # Kubernetes
-kubectl set env deployment/invoice-intake-service LOGGING_LEVEL_ROOT=DEBUG
+kubectl set env deployment/document-intake-service LOGGING_LEVEL_ROOT=DEBUG
 ```
 
 ---
@@ -1106,7 +1106,7 @@ metadata:
 spec:
   podSelector:
     matchLabels:
-      app: invoice-intake-service
+      app: document-intake-service
   policyTypes:
   - Ingress
   - Egress

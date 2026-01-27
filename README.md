@@ -1,16 +1,16 @@
-# Invoice Intake Service
+# Document Intake Service
 
-Gateway microservice for receiving and validating XML invoices in the Invoice Processing System.
+Gateway microservice for receiving and validating XML documents in the Invoice Processing System.
 
 ## Overview
 
-The Invoice Intake Service is the **first checkpoint** for XML invoices entering the system. It:
+The Document Intake Service is the **first checkpoint** for XML documents entering the system. It:
 
-- ✅ **Receives** XML invoices via REST API and Kafka
+- ✅ **Receives** XML documents via REST API and Kafka
 - ✅ **Validates** XML against XSD schema and Schematron business rules (using teda library)
 - ✅ **Detects** document type from XML namespace
-- ✅ **Extracts** invoice metadata
-- ✅ **Routes** validated invoices to document-type-specific Kafka topics
+- ✅ **Extracts** document metadata
+- ✅ **Routes** validated documents to document-type-specific Kafka topics
 
 ## Supported Document Types
 
@@ -40,15 +40,15 @@ The Invoice Intake Service is the **first checkpoint** for XML invoices entering
 ### Domain Model
 
 **Aggregate Root:**
-- `IncomingInvoice` - Manages invoice lifecycle (RECEIVED → VALIDATING → VALIDATED/INVALID → FORWARDED)
+- `IncomingDocument` - Manages document lifecycle (RECEIVED → VALIDATING → VALIDATED/INVALID → FORWARDED)
 
 **Value Objects:**
 - `ValidationResult` - Contains errors and warnings
-- `InvoiceStatus` - Enum for tracking lifecycle
+- `DocumentStatus` - Enum for tracking lifecycle
 
 ## API Endpoints
 
-### Submit Invoice
+### Submit Document
 
 ```http
 POST /api/v1/invoices
@@ -64,7 +64,7 @@ Response: 202 Accepted
 }
 ```
 
-### Get Invoice Status
+### Get Document Status
 
 ```http
 GET /api/v1/invoices/{id}
@@ -93,7 +93,7 @@ POST /api/v1/invoices → direct:invoice-intake → Validation → Content-Based
 
 ### Route 2: Kafka Intake
 ```
-Kafka (invoice.intake) → Validation → Content-Based Routing → Kafka
+Kafka (document.intake) → Validation → Content-Based Routing → Kafka
 ```
 
 ### Content-Based Routing
@@ -102,42 +102,42 @@ Documents are routed to type-specific topics based on XML namespace:
 
 | Document Type | Output Topic |
 |---------------|--------------|
-| TaxInvoice | `invoice.received.tax-invoice` |
-| Receipt | `invoice.received.receipt` |
-| Invoice | `invoice.received.invoice` |
-| DebitCreditNote | `invoice.received.debit-credit-note` |
-| CancellationNote | `invoice.received.cancellation` |
-| AbbreviatedTaxInvoice | `invoice.received.abbreviated` |
+| TaxInvoice | `document.received.tax-invoice` |
+| Receipt | `document.received.receipt` |
+| Invoice | `document.received.invoice` |
+| DebitCreditNote | `document.received.debit-credit-note` |
+| CancellationNote | `document.received.cancellation` |
+| AbbreviatedTaxInvoice | `document.received.abbreviated` |
 
 ### Error Handling
 - 3 retry attempts with exponential backoff
-- Failed messages → Dead Letter Queue (`invoice.intake.dlq`)
+- Failed messages → Dead Letter Queue (`document.intake.dlq`)
 
 ## Kafka Integration
 
 ### Consumed Topics
-- `invoice.intake` - Invoices from external systems
+- `document.intake` - Documents from external systems
 
 ### Published Topics (Content-Based Routing)
 
 | Topic | Document Type |
 |-------|---------------|
-| `invoice.received.tax-invoice` | TaxInvoice |
-| `invoice.received.receipt` | Receipt |
-| `invoice.received.invoice` | Invoice |
-| `invoice.received.debit-credit-note` | DebitCreditNote |
-| `invoice.received.cancellation` | CancellationNote |
-| `invoice.received.abbreviated` | AbbreviatedTaxInvoice |
-| `invoice.intake.dlq` | Failed messages |
+| `document.received.tax-invoice` | TaxInvoice |
+| `document.received.receipt` | Receipt |
+| `document.received.invoice` | Invoice |
+| `document.received.debit-credit-note` | DebitCreditNote |
+| `document.received.cancellation` | CancellationNote |
+| `document.received.abbreviated` | AbbreviatedTaxInvoice |
+| `document.intake.dlq` | Failed messages |
 
 ### Event Schema
 ```json
 {
   "eventId": "uuid",
-  "eventType": "invoice.received",
+  "eventType": "document.received",
   "occurredAt": "2025-12-03T10:30:00Z",
   "version": 1,
-  "invoiceId": "uuid",
+  "documentId": "uuid",
   "invoiceNumber": "INV-2025-001",
   "documentType": "TAX_INVOICE",
   "xmlContent": "<TaxInvoice_CrossIndustryInvoice>...</TaxInvoice_CrossIndustryInvoice>",
@@ -147,9 +147,9 @@ Documents are routed to type-specific topics based on XML namespace:
 
 ## Database Schema
 
-### incoming_invoices Table
+### incoming_documents Table
 - `id` (UUID) - Primary key
-- `invoice_number` (VARCHAR) - Unique invoice identifier
+- `invoice_number` (VARCHAR) - Unique document identifier
 - `document_type` (VARCHAR) - Document type enum
 - `xml_content` (TEXT) - Full XML document
 - `source` (VARCHAR) - Origin (REST/KAFKA)
@@ -196,13 +196,13 @@ mvn spring-boot:run
 
 ### Run with Docker
 ```bash
-docker build -t invoice-intake-service:latest .
+docker build -t document-intake-service:latest .
 
 docker run -p 8081:8081 \
   -e DB_HOST=postgres \
   -e DB_PASSWORD=postgres \
   -e KAFKA_BROKERS=kafka:29092 \
-  invoice-intake-service:latest
+  document-intake-service:latest
 ```
 
 ## Integration with teda Library
@@ -232,7 +232,7 @@ The service uses the **teda library** (`com.wpanther:thai-etax-invoice`) for com
 ```
 
 ### Test Coverage
-- **184 tests** covering all validation scenarios
+- **237 tests** covering all validation scenarios
 - Integration tests use real XML samples from `src/test/resources/samples/`
 - Tests verify JAXB unmarshaling, XSD validation, and Schematron rules
 
@@ -244,22 +244,22 @@ The service uses the **teda library** (`com.wpanther:thai-etax-invoice`) for com
 - `/actuator/prometheus` - Prometheus metrics
 
 ### Key Metrics
-- `invoice_received_total` - Total invoices received
-- `invoice_validation_duration_seconds` - Validation time
-- `invoice_validation_failures_total` - Validation failures
+- `document_received_total` - Total documents received
+- `document_validation_duration_seconds` - Validation time
+- `document_validation_failures_total` - Validation failures
 
 ## Project Structure
 
 ```
-src/main/java/com/invoice/intake/
-├── InvoiceIntakeServiceApplication.java
+src/main/java/com/wpanther/document/intake/
+├── DocumentIntakeServiceApplication.java
 ├── domain/
-│   ├── model/              # IncomingInvoice aggregate, value objects
+│   ├── model/              # IncomingDocument aggregate, value objects
 │   ├── repository/         # Repository interfaces
 │   └── service/            # XmlValidationService
 ├── application/
 │   ├── controller/         # REST controllers
-│   └── service/            # InvoiceIntakeService
+│   └── service/            # DocumentIntakeService
 └── infrastructure/
     ├── persistence/        # JPA entities, repositories
     ├── config/             # Camel routes, Kafka config

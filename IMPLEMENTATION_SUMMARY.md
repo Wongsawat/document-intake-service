@@ -1,8 +1,8 @@
-# Invoice Intake Service - Implementation Summary
+# Document Intake Service - Implementation Summary
 
 ## Overview
 
-The **Invoice Intake Service** is a complete, production-ready Spring Boot microservice with Apache Camel integration, following Domain-Driven Design principles and Thai e-Tax invoice processing requirements.
+The **Document Intake Service** is a complete, production-ready Spring Boot microservice with Apache Camel integration, following Domain-Driven Design principles and Thai e-Tax document processing requirements.
 
 ## Current Status: ✅ Production Ready
 
@@ -12,13 +12,13 @@ The **Invoice Intake Service** is a complete, production-ready Spring Boot micro
 |-----------|--------|----------|
 | Domain Model | ✅ Complete | 100% |
 | Application Services | ✅ Complete | 100% |
-| REST Controller | ✅ Complete | 97% |
-| JAXB XML Validation | ✅ Complete | 79% |
+| REST Controller | ✅ Complete | 95% |
+| JAXB XML Validation | ✅ Complete | 76% |
 | Apache Camel Routes | ✅ Complete | 15% |
-| Database Layer | ✅ Complete | 100% |
+| Database Layer | ✅ Complete | 46% |
 | Configuration | ✅ Complete | - |
 | Documentation | ✅ Complete | - |
-| Test Coverage | 🟡 Partial | 78% avg |
+| Test Coverage | 🟡 Partial | 64% avg |
 
 ## What Has Been Implemented
 
@@ -29,12 +29,13 @@ The **Invoice Intake Service** is a complete, production-ready Spring Boot micro
 - Lombok 1.18.30 for code generation
 - MapStruct 1.5.5 for entity mapping
 - Flyway 10.10.0 for database migrations
+- **Package**: `com.wpanther.document.intake`
 
 ### ✅ 2. Domain Model (DDD Approach)
 
 **Aggregate Root:**
-- `IncomingInvoice` - Core business entity with:
-  - Invoice metadata (ID, number, XML content, source)
+- `IncomingDocument` - Core business entity with:
+  - Document metadata (ID, number, XML content, source)
   - Document type tracking (TAX_INVOICE, RECEIPT, etc.)
   - State machine (RECEIVED → VALIDATING → VALIDATED/INVALID → FORWARDED)
   - Business rules enforcement
@@ -43,7 +44,7 @@ The **Invoice Intake Service** is a complete, production-ready Spring Boot micro
 
 **Value Objects:**
 - `ValidationResult` - Immutable validation result with errors/warnings
-- `InvoiceStatus` - Enum for lifecycle state tracking
+- `DocumentStatus` - Enum for lifecycle state tracking
 
 ### ✅ 3. XML Validation with JAXB Integration
 
@@ -76,15 +77,16 @@ The **Invoice Intake Service** is a complete, production-ready Spring Boot micro
 ### ✅ 4. Infrastructure Layer
 
 **JPA Entity:**
-- `IncomingInvoiceEntity` - Database representation with:
+- `IncomingDocumentEntity` - Database representation with:
   - UUID primary key
   - JSONB validation result column
   - Document type enum (via @Enumerated)
   - Unique constraint on invoice number
 
 **Repositories:**
-- `IncomingInvoiceRepository` (domain interface)
-- `JpaIncomingInvoiceRepository` (Spring Data JPA implementation)
+- `IncomingDocumentRepository` (domain interface)
+- `IncomingDocumentRepositoryImpl` (repository adapter bridging domain and JPA)
+- `JpaIncomingDocumentRepository` (Spring Data JPA implementation)
 - JSONB support with `@JdbcTypeCode(SqlTypes.JSON)`
 
 **Validation:**
@@ -94,55 +96,55 @@ The **Invoice Intake Service** is a complete, production-ready Spring Boot micro
 ### ✅ 5. Application Layer
 
 **Services:**
-- `InvoiceIntakeService` - Main orchestration service
-  - Submit and validate invoices
-  - Mark invoices as forwarded
+- `DocumentIntakeService` - Main orchestration service
+  - Submit and validate documents
+  - Mark documents as forwarded
   - Idempotency checks by invoice number
   - Integration with JAXB validation
 
 **REST Controller:**
-- `InvoiceIntakeController`
-  - `POST /api/v1/invoices` - Submit XML invoice
-  - `GET /api/v1/invoices/{id}` - Get invoice status
+- `DocumentIntakeController`
+  - `POST /api/v1/invoices` - Submit XML document
+  - `GET /api/v1/invoices/{id}` - Get document status
   - X-Correlation-ID support (auto-generated if missing)
   - Multiple content types (application/xml, text/xml)
   - Comprehensive error handling
 
 ### ✅ 6. Apache Camel Integration
 
-**Camel Routes** ([CamelConfig.java](src/main/java/com/invoice/intake/infrastructure/config/CamelConfig.java)):
+**Camel Routes** ([CamelConfig.java](src/main/java/com/wpanther/document/intake/infrastructure/config/CamelConfig.java)):
 
 1. **REST Intake Route** (`direct:invoice-intake`)
    - Receives from REST API
-   - Validates with InvoiceIntakeService
+   - Validates with DocumentIntakeService
    - Content-based routing by document type
    - Publishes to type-specific Kafka topics
 
-2. **Kafka Intake Route** (`kafka:invoice.intake`)
+2. **Kafka Intake Route** (`kafka:document.intake`)
    - Consumes from Kafka topic
-   - Validates with InvoiceIntakeService
+   - Validates with DocumentIntakeService
    - Content-based routing by document type
    - Publishes to type-specific Kafka topics
 
 **Content-Based Routing:**
-- Routes validated invoices to document-type-specific topics:
-  - `invoice.received.tax-invoice`
-  - `invoice.received.receipt`
-  - `invoice.received.invoice`
-  - `invoice.received.debit-credit-note`
-  - `invoice.received.cancellation`
-  - `invoice.received.abbreviated`
+- Routes validated documents to document-type-specific topics:
+  - `document.received.tax-invoice`
+  - `document.received.receipt`
+  - `document.received.invoice`
+  - `document.received.debit-credit-note`
+  - `document.received.cancellation`
+  - `document.received.abbreviated`
 
 **Error Handling:**
 - Dead Letter Channel pattern
 - 3 retries with exponential backoff
-- DLQ topic (`invoice.intake.dlq`) for failed messages
+- DLQ topic (`document.intake.dlq`) for failed messages
 - Logging for exhausted retries
 
 ### ✅ 7. Database
 
 **Flyway Migrations:**
-- `V1__create_incoming_invoices_table.sql` - Main invoice table
+- `V1__create_incoming_invoices_table.sql` - Main document table
 - `V2__create_outbox_events_table.sql` - Outbox pattern support
 - `V3__add_document_type_column.sql` - Document type tracking
 
@@ -160,7 +162,7 @@ The **Invoice Intake Service** is a complete, production-ready Spring Boot micro
 - JPA/Hibernate configuration
 - Flyway database migrations
 - Apache Camel settings
-- Kafka topics configuration (7 topics)
+- Kafka topics configuration (8 topics using `document.*` naming)
 - Eureka service discovery
 - Actuator endpoints
 
@@ -168,34 +170,34 @@ The **Invoice Intake Service** is a complete, production-ready Spring Boot micro
 - H2 in-memory database for tests
 - Test-specific configuration
 
-### ✅ 9. Test Suite (78% Average Coverage)
+### ✅ 9. Test Suite (64% Average Coverage)
 
 **Test Coverage by Package:**
 
 | Package | Coverage | Status |
 |---------|----------|--------|
-| `domain.model` | 100% | ✅ |
-| `application.service` | 100% | ✅ |
-| `infrastructure.persistence` | 100% | ✅ |
-| `application.controller` | 97% | ✅ |
-| `infrastructure.validation` | 79% | 🟡 |
-| `com.invoice.intake` | 33% | 🟡 |
-| `infrastructure.config` | 15% | 🔴 |
+| `com.wpanther.document.intake.domain.model` | 100% | ✅ |
+| `com.wpanther.document.intake.application.service` | 100% | ✅ |
+| `com.wpanther.document.intake.application.controller` | 95% | ✅ |
+| `com.wpanther.document.intake.infrastructure.validation` | 76% | 🟡 |
+| `com.wpanther.document.intake.infrastructure.persistence` | 46% | 🟡 |
+| `com.wpanther.document.intake.infrastructure.config` | 15% | 🔴 |
+| `com.wpanther.document.intake` | 37% | 🟡 |
 
 **Test Files:**
 1. **Domain Tests**
-   - `IncomingInvoiceTest.java` - Aggregate root business logic
+   - `IncomingDocumentTest.java` - Aggregate root business logic
    - `ValidationResultTest.java` - Value object behavior
-   - `InvoiceStatusTest.java` - Enum values
+   - `DocumentStatusTest.java` - Enum values
 
 2. **Application Tests**
-   - `InvoiceIntakeServiceTest.java` - Service orchestration (100%)
-   - `InvoiceIntakeControllerTest.java` - REST API (97%)
-   - `InvoiceIntakeServiceApplicationTest.java` - Application startup
+   - `DocumentIntakeServiceTest.java` - Service orchestration (100%)
+   - `DocumentIntakeControllerTest.java` - REST API (95%)
+   - `DocumentIntakeServiceApplicationTest.java` - Application startup
 
 3. **Infrastructure Tests**
-   - `XmlValidationServiceImplTest.java` - JAXB validation (79%)
-     - 45+ test cases covering:
+   - `XmlValidationServiceImplTest.java` - JAXB validation (76%)
+     - 20+ test cases covering:
        - Valid XML for all 6 document types
        - Malformed XML handling
        - XSD schema validation
@@ -203,15 +205,13 @@ The **Invoice Intake Service** is a complete, production-ready Spring Boot micro
        - Document type detection
        - Invoice number extraction
        - Error scenarios and edge cases
-       - Large XML processing
-       - Entity references, CDATA, processing instructions
-   - `IncomingInvoiceEntityTest.java` - JPA entity (100%)
-   - `JpaIncomingInvoiceRepositoryTest.java` - Repository (100%)
+   - `IncomingDocumentEntityTest.java` - JPA entity
+   - `JpaIncomingDocumentRepositoryTest.java` - Repository integration
    - `DocumentTypeTest.java` - Document type enum
    - `CamelConfigTest.java` - Camel configuration unit tests
-   - `CamelConfigIntegrationTest.java` - Camel context startup
+   - `CamelConfigIntegrationTest.java` - Camel context startup (disabled, requires Kafka)
 
-**Total Test Cases:** 268 tests passing
+**Total Test Cases:** 237 tests passing
 
 ### ✅ 10. Docker Support
 
@@ -233,24 +233,24 @@ The **Invoice Intake Service** is a complete, production-ready Spring Boot micro
 
 | Category | Count |
 |----------|-------|
-| **Java Classes** | 20+ |
+| **Java Classes** | 15 |
 | **Domain Models** | 3 |
 | **Value Objects** | 2 |
 | **JPA Entities** | 1 |
-| **Services** | 3 |
+| **Services** | 2 |
 | **Controllers** | 1 |
-| **Repositories** | 2 |
+| **Repositories** | 2 (domain + JPA) |
 | **Camel Routes** | 2 |
 | **Database Tables** | 2 |
 | **SQL Migrations** | 3 |
-| **Test Classes** | 11 |
-| **Test Cases** | 268 |
+| **Test Classes** | 13 |
+| **Test Cases** | 237 |
 | **Kafka Topics** | 8 |
 
 ## File Structure
 
 ```
-invoice-intake-service/
+document-intake-service/
 ├── pom.xml                                    # Maven (Camel + Spring Boot + teda)
 ├── Dockerfile                                 # Docker build
 ├── README.md                                  # Service documentation
@@ -259,29 +259,30 @@ invoice-intake-service/
 │
 └── src/
     ├── main/
-    │   ├── java/com/invoice/intake/
-    │   │   ├── InvoiceIntakeServiceApplication.java
+    │   ├── java/com/wpanther/document/intake/
+    │   │   ├── DocumentIntakeServiceApplication.java
     │   │   │
     │   │   ├── domain/                        # Domain Layer (DDD)
     │   │   │   ├── model/
-    │   │   │   │   ├── IncomingInvoice.java   # ⭐ Aggregate Root
+    │   │   │   │   ├── IncomingDocument.java  # ⭐ Aggregate Root
     │   │   │   │   ├── ValidationResult.java  # Value Object
-    │   │   │   │   └── InvoiceStatus.java     # Enum
+    │   │   │   │   └── DocumentStatus.java    # Enum
     │   │   │   ├── repository/
-    │   │   │   │   └── IncomingInvoiceRepository.java
+    │   │   │   │   └── IncomingDocumentRepository.java
     │   │   │   └── service/
     │   │   │       └── XmlValidationService.java  # Interface
     │   │   │
     │   │   ├── application/                   # Application Layer
     │   │   │   ├── controller/
-    │   │   │   │   └── InvoiceIntakeController.java  # ⭐ REST API
+    │   │   │   │   └── DocumentIntakeController.java  # ⭐ REST API
     │   │   │   └── service/
-    │   │   │       └── InvoiceIntakeService.java  # ⭐ Orchestration
+    │   │   │       └── DocumentIntakeService.java  # ⭐ Orchestration
     │   │   │
     │   │   └── infrastructure/                # Infrastructure Layer
     │   │       ├── persistence/
-    │   │       │   ├── IncomingInvoiceEntity.java
-    │   │       │   └── JpaIncomingInvoiceRepository.java
+    │   │       │   ├── IncomingDocumentEntity.java
+    │   │       │   ├── IncomingDocumentRepositoryImpl.java  # Repository adapter
+    │   │       │   └── JpaIncomingDocumentRepository.java
     │   │       ├── validation/                # ⭐ JAXB Validation
     │   │       │   ├── XmlValidationServiceImpl.java  # Main implementation
     │   │       │   ├── DocumentType.java      # Document type enum
@@ -298,21 +299,21 @@ invoice-intake-service/
     │           └── V3__add_document_type_column.sql
     │
     └── test/
-        ├── java/com/invoice/intake/
-        │   ├── InvoiceIntakeServiceApplicationTest.java
+        ├── java/com/wpanther/document/intake/
+        │   ├── DocumentIntakeServiceApplicationTest.java
         │   ├── domain/model/
-        │   │   ├── IncomingInvoiceTest.java
+        │   │   ├── IncomingDocumentTest.java
         │   │   ├── ValidationResultTest.java
-        │   │   └── InvoiceStatusTest.java
+        │   │   └── DocumentStatusTest.java
         │   ├── application/
         │   │   ├── controller/
-        │   │   │   └── InvoiceIntakeControllerTest.java
+        │   │   │   └── DocumentIntakeControllerTest.java
         │   │   └── service/
-        │   │       └── InvoiceIntakeServiceTest.java
+        │   │       └── DocumentIntakeServiceTest.java
         │   └── infrastructure/
         │       ├── persistence/
-        │       │   ├── IncomingInvoiceEntityTest.java
-        │       │   └── JpaIncomingInvoiceRepositoryTest.java
+        │       │   ├── IncomingDocumentEntityTest.java
+        │       │   └── JpaIncomingDocumentRepositoryTest.java
         │       ├── validation/
         │       │   ├── XmlValidationServiceImplTest.java
         │       │   └── DocumentTypeTest.java
@@ -333,13 +334,14 @@ invoice-intake-service/
 | Pattern | Purpose | Implementation |
 |---------|---------|----------------|
 | **Domain-Driven Design** | Business logic organization | Aggregate root, value objects, repositories |
-| **Repository Pattern** | Data access abstraction | Domain interface + JPA implementation |
+| **Repository Pattern** | Data access abstraction | Domain interface + adapter + JPA implementation |
 | **Enterprise Integration Patterns** | Message routing | Apache Camel routes with CBR |
 | **Dead Letter Channel** | Error handling | Failed messages → DLQ |
 | **Content-Based Router** | Dynamic routing | Route by document type |
-| **Builder Pattern** | Object construction | IncomingInvoice.Builder (Lombok) |
+| **Builder Pattern** | Object construction | IncomingDocument.Builder (Lombok) |
 | **Layered Architecture** | Separation of concerns | Domain, Application, Infrastructure |
 | **Template Method** | JAXB validation | ValidationEventHandler |
+| **Adapter Pattern** | Layer bridging | IncomingDocumentRepositoryImpl |
 
 ## Apache Camel Routes
 
@@ -347,28 +349,28 @@ invoice-intake-service/
 ```
 HTTP POST → direct:invoice-intake
   ↓
-Submit & Validate (InvoiceIntakeService + JAXB)
+Submit & Validate (DocumentIntakeService + JAXB)
   ↓
 Extract Document Type
   ↓
 If Valid → Marshal to JSON → Content-Based Router
   ↓
-Route by Document Type → Kafka (invoice.received.{type})
+Route by Document Type → Kafka (document.received.{type})
   ↓
 Mark as Forwarded
 ```
 
 ### Route 2: Kafka Intake
 ```
-Kafka (invoice.intake) → Consume
+Kafka (document.intake) → Consume
   ↓
-Submit & Validate (InvoiceIntakeService + JAXB)
+Submit & Validate (DocumentIntakeService + JAXB)
   ↓
 Extract Document Type
   ↓
 If Valid → Marshal to JSON → Content-Based Router
   ↓
-Route by Document Type → Kafka (invoice.received.{type})
+Route by Document Type → Kafka (document.received.{type})
   ↓
 Mark as Forwarded
 ```
@@ -377,7 +379,7 @@ Mark as Forwarded
 ```
 Error → Retry (3x with exponential backoff)
   ↓
-If Still Failed → Dead Letter Queue (invoice.intake.dlq)
+If Still Failed → Dead Letter Queue (document.intake.dlq)
   ↓
 Log Exhausted Retries
 ```
@@ -386,25 +388,25 @@ Log Exhausted Retries
 
 ### 1. Receives From:
 - **REST API clients** via `POST /api/v1/invoices`
-- **External systems** via Kafka topic `invoice.intake`
+- **External systems** via Kafka topic `document.intake`
 
 ### 2. Publishes To (Content-Based Routing):
-- **Invoice Processing Service** via type-specific Kafka topics:
-  - `invoice.received.tax-invoice` - TaxInvoice documents
-  - `invoice.received.receipt` - Receipt documents
-  - `invoice.received.invoice` - Invoice documents
-  - `invoice.received.debit-credit-note` - Debit/Credit notes
-  - `invoice.received.cancellation` - Cancellation notes
-  - `invoice.received.abbreviated` - Abbreviated invoices
+- **Document Processing Service** via type-specific Kafka topics:
+  - `document.received.tax-invoice` - TaxInvoice documents
+  - `document.received.receipt` - Receipt documents
+  - `document.received.invoice` - Invoice documents
+  - `document.received.debit-credit-note` - Debit/Credit notes
+  - `document.received.cancellation` - Cancellation notes
+  - `document.received.abbreviated` - Abbreviated invoices
 
 **Event Structure:**
 ```json
 {
   "eventId": "uuid",
-  "eventType": "invoice.received",
+  "eventType": "document.received",
   "occurredAt": "ISO-8601 timestamp",
   "version": 1,
-  "invoiceId": "uuid",
+  "documentId": "uuid",
   "invoiceNumber": "INV-2025-001",
   "documentType": "TAX_INVOICE",
   "xmlContent": "<xml>...</xml>",
@@ -420,10 +422,10 @@ Log Exhausted Retries
 
 ## Business Logic Implemented
 
-### Invoice Processing Flow
+### Document Processing Flow
 
 ```
-1. Receive XML invoice (REST or Kafka)
+1. Receive XML document (REST or Kafka)
    ↓
 2. JAXB unmarshal & auto-detect document type
    ↓
@@ -431,7 +433,7 @@ Log Exhausted Retries
    ↓
 4. Check if already exists (idempotency)
    ↓
-5. Create IncomingInvoice aggregate (status = RECEIVED)
+5. Create IncomingDocument aggregate (status = RECEIVED)
    ↓
 6. Save to database
    ↓
@@ -446,14 +448,14 @@ Log Exhausted Retries
    ↓
 10. If valid → Content-based routing by document type
    ↓
-11. Publish InvoiceReceivedEvent to type-specific Kafka topic
+11. Publish DocumentReceivedEvent to type-specific Kafka topic
    ↓
 12. Mark as forwarded (status = FORWARDED)
 ```
 
 ### Aggregate Business Rules
 
-The `IncomingInvoice` aggregate enforces:
+The `IncomingDocument` aggregate enforces:
 
 - ✅ Invoice number cannot be blank
 - ✅ XML content cannot be blank
@@ -461,7 +463,7 @@ The `IncomingInvoice` aggregate enforces:
   - RECEIVED → VALIDATING
   - VALIDATING → VALIDATED/INVALID
   - VALIDATED → FORWARDED
-- ✅ Only validated invoices can be forwarded
+- ✅ Only validated documents can be forwarded
 - ✅ Document type must be one of 6 supported types
 - ✅ Timestamps tracked for audit trail
 
@@ -483,14 +485,14 @@ The `IncomingInvoice` aggregate enforces:
 
 | Topic | Direction | Purpose |
 |-------|-----------|---------|
-| `invoice.intake` | Consumer | Receive invoices from external systems |
-| `invoice.received.tax-invoice` | Producer | Forward validated TaxInvoice documents |
-| `invoice.received.receipt` | Producer | Forward validated Receipt documents |
-| `invoice.received.invoice` | Producer | Forward validated Invoice documents |
-| `invoice.received.debit-credit-note` | Producer | Forward validated Debit/Credit notes |
-| `invoice.received.cancellation` | Producer | Forward validated Cancellation notes |
-| `invoice.received.abbreviated` | Producer | Forward validated Abbreviated invoices |
-| `invoice.intake.dlq` | Producer | Failed message handling |
+| `document.intake` | Consumer | Receive documents from external systems |
+| `document.received.tax-invoice` | Producer | Forward validated TaxInvoice documents |
+| `document.received.receipt` | Producer | Forward validated Receipt documents |
+| `document.received.invoice` | Producer | Forward validated Invoice documents |
+| `document.received.debit-credit-note` | Producer | Forward validated Debit/Credit notes |
+| `document.received.cancellation` | Producer | Forward validated Cancellation notes |
+| `document.received.abbreviated` | Producer | Forward validated Abbreviated invoices |
+| `document.intake.dlq` | Producer | Failed message handling |
 
 ### Actuator Endpoints
 
@@ -517,7 +519,7 @@ The `IncomingInvoice` aggregate enforces:
 cd ../../../../teda
 mvn clean install
 
-# Build invoice-intake-service
+# Build document-intake-service
 cd ../invoice-microservices/services/invoice-intake-service
 mvn clean package
 ```
@@ -548,13 +550,13 @@ mvn spring-boot:run
 ### Run with Docker
 
 ```bash
-docker build -t invoice-intake-service:latest .
+docker build -t document-intake-service:latest .
 
 docker run -p 8081:8081 \
   -e DB_HOST=postgres \
   -e DB_PASSWORD=postgres \
   -e KAFKA_BROKERS=kafka:29092 \
-  invoice-intake-service:latest
+  document-intake-service:latest
 ```
 
 ## API Usage Examples
@@ -576,7 +578,7 @@ curl -X POST http://localhost:8081/api/v1/invoices \
 }
 ```
 
-### Get Invoice Status
+### Get Document Status
 
 ```bash
 curl http://localhost:8081/api/v1/invoices/550e8400-e29b-41d4-a716-446655440000
@@ -599,21 +601,22 @@ curl http://localhost:8081/api/v1/invoices/550e8400-e29b-41d4-a716-446655440000
 }
 ```
 
-### Submit Invoice via Kafka
+### Submit Document via Kafka
 
 ```bash
-kafka-console-producer.sh --broker-list localhost:9092 --topic invoice.intake
+kafka-console-producer.sh --broker-list localhost:9092 --topic document.intake
 > <TaxInvoice_CrossIndustryInvoice>...</TaxInvoice_CrossIndustryInvoice>
 ```
 
 ## Known Limitations
 
 1. **Camel Route Testing** - Integration tests require embedded Kafka (15% coverage)
-2. **Main Method Testing** - Application startup not fully tested (33% coverage)
-3. **Validation Error Paths** - Some edge cases in JAXB initialization (79% coverage)
-4. **Outbox Pattern** - Event publishing not transactional (table exists but not used)
-5. **Rate Limiting** - API protection not implemented
-6. **Authentication** - Public endpoints (no OAuth2/JWT)
+2. **Main Method Testing** - Application startup not fully tested (37% coverage)
+3. **Validation Error Paths** - Some edge cases in JAXB initialization (76% coverage)
+4. **Repository Adapter** - New adapter needs more edge case tests (46% coverage)
+5. **Outbox Pattern** - Event publishing not transactional (table exists but not used)
+6. **Rate Limiting** - API protection not implemented
+7. **Authentication** - Public endpoints (no OAuth2/JWT)
 
 ## Recommended Enhancements
 
@@ -630,6 +633,10 @@ kafka-console-producer.sh --broker-list localhost:9092 --topic invoice.intake
 3. **Validation Edge Cases**
    - JAXB initialization failure scenarios
    - Schema loading error handling
+
+4. **Repository Adapter Tests**
+   - Edge cases in entity↔domain mapping
+   - Error handling scenarios
 
 ### 🟢 Production Readiness
 1. **Outbox Pattern Implementation**
@@ -670,7 +677,7 @@ This implementation follows:
 
 ## Summary
 
-The **Invoice Intake Service** is a **production-ready microservice** with:
+The **Document Intake Service** is a **production-ready microservice** with:
 
 ✅ Complete domain model with business logic
 ✅ JAXB-based XML validation with teda library integration
@@ -678,19 +685,19 @@ The **Invoice Intake Service** is a **production-ready microservice** with:
 ✅ Apache Camel content-based routing
 ✅ Dual intake channels (REST + Kafka)
 ✅ Database persistence with Flyway migrations
-✅ Comprehensive test suite (78% average coverage)
+✅ Comprehensive test suite (64% average coverage)
 ✅ Service discovery with Eureka
 ✅ Docker support
 ✅ Production-ready documentation
 
 **Total Lines of Code**: ~3,500 lines (including tests)
-**Test Coverage**: 78% average, 100% for core domain
+**Test Coverage**: 64% average, 100% for core domain
 **Architecture**: Clean Architecture + DDD + Apache Camel EIP
 **Status**: Ready for production deployment with recommended enhancements
 
-The service is **fully functional** and ready for integration with downstream services (Invoice Processing Service, Notification Service).
+The service is **fully functional** and ready for integration with downstream services (Document Processing Service, Notification Service).
 
 ---
 
 **Version**: 1.0.0
-**Last Updated**: 2026-01-26
+**Last Updated**: 2026-01-27

@@ -1,49 +1,49 @@
-# Invoice Intake Service - Program Flow
+# Document Intake Service - Program Flow
 
 ## Overview
 
-This document describes the complete program flow for the Invoice Intake Service, detailing how XML invoices are received, validated, and forwarded to downstream services.
+This document describes the complete program flow for the Document Intake Service, detailing how XML documents are received, validated, and forwarded to downstream services.
 
 ## High-Level Architecture
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│                         Invoice Intake Service                               │
+│                         Document Intake Service                              │
 ├─────────────────────────────────────────────────────────────────────────────┤
 │                                                                              │
 │  ┌──────────────┐         ┌─────────────────┐         ┌──────────────────┐  │
 │  │  REST API    │────────▶│  Apache Camel   │────────▶│  Kafka Producer  │  │
-│  │  Controller  │         │  Routes         │         │  (invoice.received)│ │
+│  │  Controller  │         │  Routes         │         │  (document.received)│ │
 │  └──────────────┘         └─────────────────┘         └──────────────────┘  │
 │                                   │                                          │
 │  ┌──────────────┐                 │                                          │
 │  │Kafka Consumer│─────────────────┘                                          │
-│  │(invoice.intake)                                                           │
+│  │(document.intake)                                                         │
 │  └──────────────┘                 │                                          │
 │                                   ▼                                          │
 │                    ┌─────────────────────────┐                               │
-│                    │  InvoiceIntakeService   │                               │
+│                    │  DocumentIntakeService  │                               │
 │                    │  (Application Layer)    │                               │
 │                    └─────────────────────────┘                               │
 │                                   │                                          │
 │                    ┌──────────────┴──────────────┐                           │
 │                    ▼                             ▼                           │
 │         ┌──────────────────┐          ┌──────────────────┐                   │
-│         │XmlValidationService│        │IncomingInvoice   │                   │
+│         │XmlValidationService│        │IncomingDocument   │                   │
 │         │(Domain Service)    │        │(Aggregate Root)  │                   │
 │         └──────────────────┘          └──────────────────┘                   │
 │                                              │                               │
 │                                              ▼                               │
 │                               ┌──────────────────────────┐                   │
 │                               │  PostgreSQL Database     │                   │
-│                               │  (incoming_invoices)     │                   │
+│                               │  (incoming_documents)     │                   │
 │                               └──────────────────────────┘                   │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
 ## Entry Points
 
-The service has two entry points for receiving invoices:
+The service has two entry points for receiving documents:
 
 ### 1. REST API Entry Point
 
@@ -52,26 +52,26 @@ POST /api/v1/invoices
 Content-Type: application/xml
 X-Correlation-ID: <optional-correlation-id>
 
-<Invoice>...</Invoice>
+<Document>...</Document>
 ```
 
 ### 2. Kafka Consumer Entry Point
 
 ```
-Topic: invoice.intake
+Topic: document.intake
 Key: correlation-id
-Value: <Invoice XML content>
+Value: <Document XML content>
 ```
 
 ---
 
-## Flow 1: REST API Invoice Submission
+## Flow 1: REST API Document Submission
 
 ### Sequence Diagram
 
 ```
 ┌────────┐     ┌────────────────────┐     ┌─────────────┐     ┌─────────────────┐     ┌────────────────┐     ┌──────────┐     ┌───────┐
-│ Client │     │InvoiceIntakeController│  │ProducerTemplate│  │   CamelConfig   │     │InvoiceIntakeService│ │  Database  │   │ Kafka │
+│ Client │     │DocumentIntakeController│  │ProducerTemplate│  │   CamelConfig   │     │DocumentIntakeService│ │  Database  │   │ Kafka │
 └───┬────┘     └──────────┬───────────┘  └──────┬────────┘   └────────┬────────┘     └────────┬───────┘     └─────┬────┘     └───┬───┘
     │                     │                     │                     │                       │                   │              │
     │ POST /api/v1/invoices                     │                     │                       │                   │              │
@@ -85,7 +85,7 @@ Value: <Invoice XML content>
     │                     │                     │ route: direct:invoice-intake                │                   │              │
     │                     │                     │────────────────────▶│                       │                   │              │
     │                     │                     │                     │                       │                   │              │
-    │                     │                     │                     │ submitInvoice()       │                   │              │
+    │                     │                     │                     │ submitDocument()       │                   │              │
     │                     │                     │                     │──────────────────────▶│                   │              │
     │                     │                     │                     │                       │                   │              │
     │                     │                     │                     │                       │ save(RECEIVED)    │              │
@@ -101,7 +101,7 @@ Value: <Invoice XML content>
     │                     │                     │                     │                       │──────────────────▶│              │
     │                     │                     │                     │                       │                   │              │
     │                     │                     │                     │◀──────────────────────│                   │              │
-    │                     │                     │                     │ IncomingInvoice       │                   │              │
+    │                     │                     │                     │ IncomingDocument       │                   │              │
     │                     │                     │                     │                       │                   │              │
     │                     │                     │                     │ if valid: publish to Kafka               │              │
     │                     │                     │                     │───────────────────────────────────────────────────────▶│
@@ -123,31 +123,31 @@ Value: <Invoice XML content>
 1. **Client sends POST request**
    - Endpoint: `POST /api/v1/invoices`
    - Headers: `Content-Type: application/xml`, `X-Correlation-ID: <optional>`
-   - Body: XML invoice content
+   - Body: XML document content
 
-2. **InvoiceIntakeController receives request**
-   - File: `application/controller/InvoiceIntakeController.java`
+2. **DocumentIntakeController receives request**
+   - File: `application/controller/DocumentIntakeController.java`
    - Generates correlation ID if not provided
    - Sends to Camel route via `ProducerTemplate`
 
 3. **Camel Route processes message**
    - File: `infrastructure/config/CamelConfig.java`
-   - Route ID: `invoice-intake-direct`
-   - Calls `InvoiceIntakeService.submitInvoice()`
+   - Route ID: `document-intake-direct`
+   - Calls `DocumentIntakeService.submitDocument()`
 
-4. **InvoiceIntakeService orchestrates business logic**
-   - File: `application/service/InvoiceIntakeService.java`
+4. **DocumentIntakeService orchestrates business logic**
+   - File: `application/service/DocumentIntakeService.java`
    - Extracts invoice number from XML
    - Checks for duplicate invoice numbers
-   - Creates `IncomingInvoice` aggregate
+   - Creates `IncomingDocument` aggregate
    - Saves to database (status: RECEIVED)
    - Transitions to VALIDATING status
    - Performs XSD validation
    - Marks as VALIDATED or INVALID
 
 5. **Camel Route handles result**
-   - If valid: Creates `InvoiceReceivedEvent` and publishes to Kafka
-   - Marks invoice as FORWARDED
+   - If valid: Creates `DocumentReceivedEvent` and publishes to Kafka
+   - Marks document as FORWARDED
    - If invalid: Logs failure, does not forward
 
 6. **Response returned to client**
@@ -155,13 +155,13 @@ Value: <Invoice XML content>
 
 ---
 
-## Flow 2: Kafka Invoice Consumption
+## Flow 2: Kafka Document Consumption
 
 ### Sequence Diagram
 
 ```
 ┌───────┐     ┌─────────────────┐     ┌─────────────────┐     ┌──────────┐     ┌───────┐
-│ Kafka │     │   CamelConfig   │     │InvoiceIntakeService│ │  Database  │   │ Kafka │
+│ Kafka │     │   CamelConfig   │     │DocumentIntakeService│ │  Database  │   │ Kafka │
 │(intake)│    │  Kafka Route    │     │                   │   │            │   │(received)│
 └───┬───┘     └────────┬────────┘     └────────┬──────────┘   └─────┬────┘   └────┬────┘
     │                  │                       │                    │              │
@@ -169,7 +169,7 @@ Value: <Invoice XML content>
     │ (XML content)    │                       │                    │              │
     │─────────────────▶│                       │                    │              │
     │                  │                       │                    │              │
-    │                  │ submitInvoice()       │                    │              │
+    │                  │ submitDocument()       │                    │              │
     │                  │──────────────────────▶│                    │              │
     │                  │                       │                    │              │
     │                  │                       │ save(RECEIVED)     │              │
@@ -184,7 +184,7 @@ Value: <Invoice XML content>
     │                  │                       │───────────────────▶│              │
     │                  │                       │                    │              │
     │                  │◀──────────────────────│                    │              │
-    │                  │ IncomingInvoice       │                    │              │
+    │                  │ IncomingDocument       │                    │              │
     │                  │                       │                    │              │
     │                  │ if valid: publish     │                    │              │
     │                  │───────────────────────────────────────────────────────▶│
@@ -198,12 +198,12 @@ Value: <Invoice XML content>
 ### Step-by-Step Flow
 
 1. **Kafka message consumed**
-   - Topic: `invoice.intake`
+   - Topic: `document.intake`
    - Consumer Group: `intake-service`
    - Correlation ID from Kafka message key
 
 2. **Camel Kafka Route processes message**
-   - Route ID: `invoice-intake-kafka`
+   - Route ID: `document-intake-kafka`
    - Same processing logic as REST route
 
 3. **Validation and forwarding**
@@ -211,7 +211,7 @@ Value: <Invoice XML content>
 
 ---
 
-## Invoice State Machine
+## Document State Machine
 
 ```
                                     ┌─────────────┐
@@ -233,7 +233,7 @@ Value: <Invoice XML content>
          │                        markValidated()
          │                         (valid=false)
          │
-         └── Initial state when invoice is created
+         └── Initial state when document is created
 ```
 
 ### State Transitions
@@ -252,7 +252,7 @@ Value: <Invoice XML content>
 
 ### Dead Letter Queue (DLQ)
 
-Failed messages are sent to `invoice.intake.dlq` after retry exhaustion.
+Failed messages are sent to `document.intake.dlq` after retry exhaustion.
 
 ```
 Error occurs
@@ -267,7 +267,7 @@ Retry (attempt 2, delay 2s - exponential backoff)
 Retry (attempt 3, delay 4s - exponential backoff)
     │
     ▼ (still failing)
-Send to DLQ (invoice.intake.dlq)
+Send to DLQ (document.intake.dlq)
 ```
 
 ### Error Scenarios
@@ -284,17 +284,17 @@ Send to DLQ (invoice.intake.dlq)
 
 ## Kafka Events
 
-### InvoiceReceivedEvent (Published)
+### DocumentReceivedEvent (Published)
 
 ```json
 {
   "eventId": "uuid",
-  "eventType": "invoice.received",
+  "eventType": "document.received",
   "occurredAt": "2025-12-07T10:30:00Z",
   "version": 1,
-  "invoiceId": "uuid",
+  "documentId": "uuid",
   "invoiceNumber": "INV-2025-001",
-  "xmlContent": "<Invoice>...</Invoice>",
+  "xmlContent": "<Document>...</Document>",
   "correlationId": "uuid"
 }
 ```
@@ -303,15 +303,15 @@ Send to DLQ (invoice.intake.dlq)
 
 | Topic | Direction | Purpose |
 |-------|-----------|---------|
-| `invoice.intake` | Consumer | Receive invoices from external systems |
-| `invoice.received` | Producer | Forward validated invoices to processing |
-| `invoice.intake.dlq` | Producer | Dead letter queue for failed messages |
+| `document.intake` | Consumer | Receive documents from external systems |
+| `document.received` | Producer | Forward validated documents to processing |
+| `document.intake.dlq` | Producer | Dead letter queue for failed messages |
 
 ---
 
 ## Component Responsibilities
 
-### InvoiceIntakeController
+### DocumentIntakeController
 - REST API endpoint handler
 - Request/response mapping
 - Delegates to Camel route via ProducerTemplate
@@ -322,23 +322,23 @@ Send to DLQ (invoice.intake.dlq)
 - Kafka integration
 - Event creation and publishing
 
-### InvoiceIntakeService
+### DocumentIntakeService
 - Business logic orchestration
 - Transaction management
 - Idempotency checks
 - Coordinates domain objects and repositories
 
-### IncomingInvoice (Aggregate Root)
+### IncomingDocument (Aggregate Root)
 - Enforces state machine transitions
 - Validates business invariants
-- Encapsulates invoice lifecycle
+- Encapsulates document lifecycle
 
 ### XmlValidationService
 - XSD schema validation
 - Invoice number extraction
 - Integration with teda library
 
-### IncomingInvoiceRepository
+### IncomingDocumentRepository
 - Data persistence abstraction
 - Domain-oriented query methods
 
@@ -346,10 +346,10 @@ Send to DLQ (invoice.intake.dlq)
 
 ## Database Schema
 
-### incoming_invoices Table
+### incoming_documents Table
 
 ```sql
-CREATE TABLE incoming_invoices (
+CREATE TABLE incoming_documents (
     id UUID PRIMARY KEY,
     invoice_number VARCHAR(100) UNIQUE NOT NULL,
     xml_content TEXT NOT NULL,
@@ -374,9 +374,9 @@ CREATE TABLE incoming_invoices (
 app:
   kafka:
     topics:
-      invoice-intake: invoice.intake
-      invoice-received: invoice.received
-      intake-dlq: invoice.intake.dlq
+      document-intake: document.intake
+      document-received: document.received
+      intake-dlq: document.intake.dlq
 ```
 
 ### Camel Error Handler
