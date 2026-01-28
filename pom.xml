@@ -21,7 +21,7 @@
 
         <spring-boot.version>3.2.5</spring-boot.version>
         <spring-cloud.version>2023.0.1</spring-cloud.version>
-        <camel.version>4.3.0</camel.version>
+        <camel.version>4.14.4</camel.version>
         <teda.version>1.0.0</teda.version>
         <lombok.version>1.18.30</lombok.version>
         <mapstruct.version>1.5.5.Final</mapstruct.version>
