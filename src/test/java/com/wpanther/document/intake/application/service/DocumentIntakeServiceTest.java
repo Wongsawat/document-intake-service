@@ -5,6 +5,7 @@ import com.wpanther.document.intake.domain.model.DocumentStatus;
 import com.wpanther.document.intake.domain.model.ValidationResult;
 import com.wpanther.document.intake.domain.repository.IncomingDocumentRepository;
 import com.wpanther.document.intake.domain.service.XmlValidationService;
+import com.wpanther.document.intake.infrastructure.messaging.EventPublisher;
 import com.wpanther.document.intake.infrastructure.validation.DocumentType;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -41,6 +42,9 @@ class DocumentIntakeServiceTest {
 
     @Mock
     private XmlValidationService validationService;
+
+    @Mock
+    private EventPublisher eventPublisher;
 
     @InjectMocks
     private DocumentIntakeService documentIntakeService;

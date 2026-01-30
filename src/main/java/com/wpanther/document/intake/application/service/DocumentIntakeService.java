@@ -1,15 +1,19 @@
 package com.wpanther.document.intake.application.service;
 
+import com.wpanther.document.intake.domain.event.DocumentReceivedCountingEvent;
+import com.wpanther.document.intake.domain.event.DocumentReceivedEvent;
 import com.wpanther.document.intake.domain.model.IncomingDocument;
 import com.wpanther.document.intake.domain.model.ValidationResult;
 import com.wpanther.document.intake.domain.repository.IncomingDocumentRepository;
 import com.wpanther.document.intake.domain.service.XmlValidationService;
+import com.wpanther.document.intake.infrastructure.messaging.EventPublisher;
 import com.wpanther.document.intake.infrastructure.validation.DocumentType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.ZoneId;
 import java.util.UUID;
 
 /**
@@ -22,11 +26,14 @@ public class DocumentIntakeService {
 
     private final IncomingDocumentRepository documentRepository;
     private final XmlValidationService validationService;
+    private final EventPublisher eventPublisher;
 
     public DocumentIntakeService(IncomingDocumentRepository documentRepository,
-                                XmlValidationService validationService) {
+                                XmlValidationService validationService,
+                                EventPublisher eventPublisher) {
         this.documentRepository = documentRepository;
         this.validationService = validationService;
+        this.eventPublisher = eventPublisher;
     }
 
     /**
@@ -68,6 +75,15 @@ public class DocumentIntakeService {
         document = documentRepository.save(document);
         log.info("Created incoming document: {} with ID: {}", invoiceNumber, document.getId());
 
+        // Publish counting event IMMEDIATELY (before validation)
+        // This ensures ALL received documents are counted, regardless of validation outcome
+        DocumentReceivedCountingEvent countingEvent = new DocumentReceivedCountingEvent(
+            document.getId().toString(),
+            document.getCorrelationId(),
+            document.getReceivedAt().atZone(ZoneId.systemDefault()).toInstant()
+        );
+        eventPublisher.publishDocumentReceivedCounting(countingEvent);
+
         // Start validation
         document.startValidation();
         document = documentRepository.save(document);
@@ -81,6 +97,19 @@ public class DocumentIntakeService {
 
         log.info("Document {} validation result: valid={}, errors={}, warnings={}",
             invoiceNumber, validationResult.valid(), validationResult.errorCount(), validationResult.warningCount());
+
+        // Publish statistics event AFTER validation (only for valid documents)
+        // This event contains full document details and is routed to document-type-specific topics
+        if (document.isValid()) {
+            DocumentReceivedEvent statsEvent = new DocumentReceivedEvent(
+                document.getId().toString(),
+                document.getInvoiceNumber(),
+                document.getXmlContent(),
+                document.getCorrelationId(),
+                document.getDocumentType().name()
+            );
+            eventPublisher.publishDocumentReceivedForStatistics(statsEvent, document.getDocumentType());
+        }
 
         return document;
     }

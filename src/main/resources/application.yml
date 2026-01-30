@@ -50,6 +50,8 @@ app:
       debit-credit-note: document.received.debit-credit-note
       cancellation: document.received.cancellation
       abbreviated: document.received.abbreviated
+      # Topic for counting all received documents (before validation)
+      document-received: document.received
     bootstrap-servers: ${KAFKA_BROKERS:localhost:9092}
 
 # Eureka client configuration

@@ -38,6 +38,7 @@ import static org.assertj.core.api.Assertions.assertThat;
     "app.kafka.topics.debit-credit-note=document.received.debit-credit-note",
     "app.kafka.topics.cancellation=document.received.cancellation",
     "app.kafka.topics.abbreviated=document.received.abbreviated",
+    "app.kafka.topics.document-received=document.received",
     "app.kafka.bootstrap-servers=localhost:9092"
 })
 @DisplayName("CamelConfig Unit Tests")
@@ -64,7 +65,9 @@ class CamelConfigTest {
             "document.received.invoice",
             "document.received.debit-credit-note",
             "document.received.cancellation",
-            "document.received.abbreviated"
+            "document.received.abbreviated",
+            "document.received",
+            "localhost:9092"
         );
     }
 
