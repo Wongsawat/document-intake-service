@@ -2,11 +2,17 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Git Commit Conventions
+
+When creating git commits for this repository:
+- **Do NOT include** `Co-Authored-By:` or any co-author attribution in commit messages
+- Keep commit messages focused and concise
+
 ## Project Overview
 
 The **Document Intake Service** (port 8081) is a Spring Boot microservice that serves as the gateway for receiving and validating Thai e-Tax XML documents. It performs three-layer validation (well-formedness, XSD schema, Schematron rules) using the teda library, then routes validated documents to document-type-specific Kafka topics.
 
-**Tech Stack**: Java 21, Spring Boot 3.2.5, Apache Camel 4.3, PostgreSQL, Kafka, Eureka
+**Tech Stack**: Java 21, Spring Boot 3.2.5, Apache Camel 4.14.4, PostgreSQL, Kafka, Eureka
 
 **Package**: `com.wpanther.document.intake`
 

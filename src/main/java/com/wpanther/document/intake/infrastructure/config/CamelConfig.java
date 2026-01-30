@@ -1,7 +1,9 @@
 package com.wpanther.document.intake.infrastructure.config;
 
 import com.wpanther.document.intake.application.service.DocumentIntakeService;
+import com.wpanther.document.intake.domain.event.DocumentReceivedEvent;
 import com.wpanther.document.intake.domain.model.IncomingDocument;
+import com.wpanther.document.intake.infrastructure.messaging.EventPublisher;
 import com.wpanther.document.intake.infrastructure.validation.DocumentType;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.camel.builder.RouteBuilder;
@@ -9,7 +11,6 @@ import org.apache.camel.model.dataformat.JsonLibrary;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
-import java.util.HashMap;
 import java.util.Map;
 
 /**
@@ -20,6 +21,7 @@ import java.util.Map;
 public class CamelConfig extends RouteBuilder {
 
     private final DocumentIntakeService intakeService;
+    private final EventPublisher eventPublisher;
     private final String documentIntakeTopic;
     private final String intakeDlqTopic;
 
@@ -28,6 +30,7 @@ public class CamelConfig extends RouteBuilder {
 
     public CamelConfig(
             DocumentIntakeService intakeService,
+            EventPublisher eventPublisher,
             @Value("${app.kafka.topics.invoice-intake}") String documentIntakeTopic,
             @Value("${app.kafka.topics.intake-dlq}") String intakeDlqTopic,
             @Value("${app.kafka.topics.tax-invoice}") String taxInvoiceTopic,
@@ -37,6 +40,7 @@ public class CamelConfig extends RouteBuilder {
             @Value("${app.kafka.topics.cancellation}") String cancellationTopic,
             @Value("${app.kafka.topics.abbreviated}") String abbreviatedTopic) {
         this.intakeService = intakeService;
+        this.eventPublisher = eventPublisher;
         this.documentIntakeTopic = documentIntakeTopic;
         this.intakeDlqTopic = intakeDlqTopic;
 
@@ -74,7 +78,13 @@ public class CamelConfig extends RouteBuilder {
 
                 // Prepare event if valid
                 if (document.isValid()) {
-                    Map<String, Object> event = createDocumentReceivedEvent(document);
+                    DocumentReceivedEvent event = new DocumentReceivedEvent(
+                        document.getId().toString(),
+                        document.getInvoiceNumber(),
+                        document.getXmlContent(),
+                        document.getCorrelationId(),
+                        document.getDocumentType().name()
+                    );
                     exchange.getIn().setBody(event);
                     exchange.getIn().setHeader("documentId", document.getId().toString());
                     exchange.getIn().setHeader("documentType", document.getDocumentType().name());
@@ -88,31 +98,13 @@ public class CamelConfig extends RouteBuilder {
                     .log("Document validation failed, not forwarding")
                     .stop()
             .end()
-            .marshal().json(JsonLibrary.Jackson)
-            // Content-based routing by document type
-            .choice()
-                .when(header("documentType").isEqualTo(DocumentType.TAX_INVOICE.name()))
-                    .to("kafka:" + documentTypeTopics.get(DocumentType.TAX_INVOICE))
-                    .log("Published TaxInvoice to topic: " + documentTypeTopics.get(DocumentType.TAX_INVOICE))
-                .when(header("documentType").isEqualTo(DocumentType.RECEIPT.name()))
-                    .to("kafka:" + documentTypeTopics.get(DocumentType.RECEIPT))
-                    .log("Published Receipt to topic: " + documentTypeTopics.get(DocumentType.RECEIPT))
-                .when(header("documentType").isEqualTo(DocumentType.INVOICE.name()))
-                    .to("kafka:" + documentTypeTopics.get(DocumentType.INVOICE))
-                    .log("Published Invoice to topic: " + documentTypeTopics.get(DocumentType.INVOICE))
-                .when(header("documentType").isEqualTo(DocumentType.DEBIT_CREDIT_NOTE.name()))
-                    .to("kafka:" + documentTypeTopics.get(DocumentType.DEBIT_CREDIT_NOTE))
-                    .log("Published DebitCreditNote to topic: " + documentTypeTopics.get(DocumentType.DEBIT_CREDIT_NOTE))
-                .when(header("documentType").isEqualTo(DocumentType.CANCELLATION_NOTE.name()))
-                    .to("kafka:" + documentTypeTopics.get(DocumentType.CANCELLATION_NOTE))
-                    .log("Published CancellationNote to topic: " + documentTypeTopics.get(DocumentType.CANCELLATION_NOTE))
-                .when(header("documentType").isEqualTo(DocumentType.ABBREVIATED_TAX_INVOICE.name()))
-                    .to("kafka:" + documentTypeTopics.get(DocumentType.ABBREVIATED_TAX_INVOICE))
-                    .log("Published AbbreviatedTaxInvoice to topic: " + documentTypeTopics.get(DocumentType.ABBREVIATED_TAX_INVOICE))
-                .otherwise()
-                    .log("Unknown document type: ${header.documentType}, sending to DLQ")
-                    .to("kafka:" + intakeDlqTopic)
-            .end()
+            .process(exchange -> {
+                DocumentReceivedEvent event = exchange.getIn().getBody(DocumentReceivedEvent.class);
+                String documentType = exchange.getIn().getHeader("documentType", String.class);
+                String targetTopic = documentTypeTopics.get(DocumentType.valueOf(documentType));
+                eventPublisher.publishDocumentReceived(event, targetTopic);
+            })
+            .log("Published document to topic")
             // Mark as forwarded
             .process(exchange -> {
                 String documentId = exchange.getIn().getHeader("documentId", String.class);
@@ -134,7 +126,13 @@ public class CamelConfig extends RouteBuilder {
 
                 // Prepare event if valid
                 if (document.isValid()) {
-                    Map<String, Object> event = createDocumentReceivedEvent(document);
+                    DocumentReceivedEvent event = new DocumentReceivedEvent(
+                        document.getId().toString(),
+                        document.getInvoiceNumber(),
+                        document.getXmlContent(),
+                        document.getCorrelationId(),
+                        document.getDocumentType().name()
+                    );
                     exchange.getIn().setBody(event);
                     exchange.getIn().setHeader("documentId", document.getId().toString());
                     exchange.getIn().setHeader("documentType", document.getDocumentType().name());
@@ -148,31 +146,13 @@ public class CamelConfig extends RouteBuilder {
                     .log("Document validation failed, not forwarding")
                     .stop()
             .end()
-            .marshal().json(JsonLibrary.Jackson)
-            // Content-based routing by document type
-            .choice()
-                .when(header("documentType").isEqualTo(DocumentType.TAX_INVOICE.name()))
-                    .to("kafka:" + documentTypeTopics.get(DocumentType.TAX_INVOICE))
-                    .log("Published TaxInvoice to topic: " + documentTypeTopics.get(DocumentType.TAX_INVOICE))
-                .when(header("documentType").isEqualTo(DocumentType.RECEIPT.name()))
-                    .to("kafka:" + documentTypeTopics.get(DocumentType.RECEIPT))
-                    .log("Published Receipt to topic: " + documentTypeTopics.get(DocumentType.RECEIPT))
-                .when(header("documentType").isEqualTo(DocumentType.INVOICE.name()))
-                    .to("kafka:" + documentTypeTopics.get(DocumentType.INVOICE))
-                    .log("Published Invoice to topic: " + documentTypeTopics.get(DocumentType.INVOICE))
-                .when(header("documentType").isEqualTo(DocumentType.DEBIT_CREDIT_NOTE.name()))
-                    .to("kafka:" + documentTypeTopics.get(DocumentType.DEBIT_CREDIT_NOTE))
-                    .log("Published DebitCreditNote to topic: " + documentTypeTopics.get(DocumentType.DEBIT_CREDIT_NOTE))
-                .when(header("documentType").isEqualTo(DocumentType.CANCELLATION_NOTE.name()))
-                    .to("kafka:" + documentTypeTopics.get(DocumentType.CANCELLATION_NOTE))
-                    .log("Published CancellationNote to topic: " + documentTypeTopics.get(DocumentType.CANCELLATION_NOTE))
-                .when(header("documentType").isEqualTo(DocumentType.ABBREVIATED_TAX_INVOICE.name()))
-                    .to("kafka:" + documentTypeTopics.get(DocumentType.ABBREVIATED_TAX_INVOICE))
-                    .log("Published AbbreviatedTaxInvoice to topic: " + documentTypeTopics.get(DocumentType.ABBREVIATED_TAX_INVOICE))
-                .otherwise()
-                    .log("Unknown document type: ${header.documentType}, sending to DLQ")
-                    .to("kafka:" + intakeDlqTopic)
-            .end()
+            .process(exchange -> {
+                DocumentReceivedEvent event = exchange.getIn().getBody(DocumentReceivedEvent.class);
+                String documentType = exchange.getIn().getHeader("documentType", String.class);
+                String targetTopic = documentTypeTopics.get(DocumentType.valueOf(documentType));
+                eventPublisher.publishDocumentReceived(event, targetTopic);
+            })
+            .log("Published document to topic")
             // Mark as forwarded
             .process(exchange -> {
                 String documentId = exchange.getIn().getHeader("documentId", String.class);
@@ -180,22 +160,11 @@ public class CamelConfig extends RouteBuilder {
                     intakeService.markForwarded(java.util.UUID.fromString(documentId));
                 }
             });
-    }
 
-    /**
-     * Create DocumentReceivedEvent payload
-     */
-    private Map<String, Object> createDocumentReceivedEvent(IncomingDocument document) {
-        Map<String, Object> event = new HashMap<>();
-        event.put("eventId", java.util.UUID.randomUUID().toString());
-        event.put("occurredAt", java.time.Instant.now().toString());
-        event.put("eventType", "document.received");
-        event.put("version", 1);
-        event.put("documentId", document.getId().toString());
-        event.put("invoiceNumber", document.getInvoiceNumber());
-        event.put("xmlContent", document.getXmlContent());
-        event.put("correlationId", document.getCorrelationId());
-        event.put("documentType", document.getDocumentType().name());
-        return event;
+        // Document received event producer route
+        from("direct:publish-document-received")
+            .routeId("document-received-producer")
+            .marshal().json(JsonLibrary.Jackson)
+            .routingSlip().simple("${header.targetTopic}");
     }
 }

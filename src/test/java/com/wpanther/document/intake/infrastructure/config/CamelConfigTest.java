@@ -1,9 +1,11 @@
 package com.wpanther.document.intake.infrastructure.config;
 
 import com.wpanther.document.intake.application.service.DocumentIntakeService;
+import com.wpanther.document.intake.domain.event.DocumentReceivedEvent;
 import com.wpanther.document.intake.domain.model.IncomingDocument;
 import com.wpanther.document.intake.domain.model.DocumentStatus;
 import com.wpanther.document.intake.domain.model.ValidationResult;
+import com.wpanther.document.intake.infrastructure.messaging.EventPublisher;
 import com.wpanther.document.intake.infrastructure.validation.DocumentType;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -15,7 +17,6 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.TestPropertySource;
 
 import java.lang.reflect.Field;
-import java.lang.reflect.Method;
 import java.time.LocalDateTime;
 import java.util.Map;
 import java.util.UUID;
@@ -45,6 +46,9 @@ class CamelConfigTest {
     @Mock
     private DocumentIntakeService documentIntakeService;
 
+    @Mock
+    private EventPublisher eventPublisher;
+
     private CamelConfig camelConfig;
 
     @BeforeEach
@@ -52,6 +56,7 @@ class CamelConfigTest {
         // Create CamelConfig with mocked service and test properties
         camelConfig = new CamelConfig(
             documentIntakeService,
+            eventPublisher,
             "document.intake",
             "document.intake.dlq",
             "document.received.tax-invoice",
@@ -111,92 +116,70 @@ class CamelConfigTest {
         }
     }
 
-    // ==================== Helper Method Tests ====================
+    // ==================== Event Tests ====================
 
     @Test
-    @DisplayName("createDocumentReceivedEvent creates event with all required fields")
-    void testCreateDocumentReceivedEventStructure() throws Exception {
-        IncomingDocument document = IncomingDocument.builder()
-            .id(UUID.randomUUID())
-            .invoiceNumber("INV-2024-TEST-001")
-            .xmlContent("<test>xml</test>")
-            .source("REST")
-            .correlationId("corr-test-001")
-            .documentType(DocumentType.TAX_INVOICE)
-            .status(DocumentStatus.VALIDATED)
-            .validationResult(ValidationResult.success())
-            .receivedAt(LocalDateTime.now())
-            .build();
-
-        Method createEventMethod = CamelConfig.class.getDeclaredMethod("createDocumentReceivedEvent", IncomingDocument.class);
-        createEventMethod.setAccessible(true);
-        @SuppressWarnings("unchecked")
-        Map<String, Object> event = (Map<String, Object>) createEventMethod.invoke(camelConfig, document);
+    @DisplayName("DocumentReceivedEvent creates event with all required fields")
+    void testDocumentReceivedEventStructure() {
+        String documentId = UUID.randomUUID().toString();
+        DocumentReceivedEvent event = new DocumentReceivedEvent(
+            documentId,
+            "INV-2024-TEST-001",
+            "<test>xml</test>",
+            "corr-test-001",
+            "TAX_INVOICE"
+        );
 
         assertThat(event).isNotNull();
-        assertThat(event).containsKeys("eventId", "occurredAt", "eventType", "version",
-            "documentId", "invoiceNumber", "xmlContent", "correlationId", "documentType");
-
-        assertThat(event.get("eventId")).isNotNull();
-        assertThat(event.get("occurredAt")).isNotNull();
-        assertThat(event.get("eventType")).isEqualTo("document.received");
-        assertThat(event.get("version")).isEqualTo(1);
-        assertThat(event.get("documentId")).isEqualTo(document.getId().toString());
-        assertThat(event.get("invoiceNumber")).isEqualTo("INV-2024-TEST-001");
-        assertThat(event.get("xmlContent")).isEqualTo("<test>xml</test>");
-        assertThat(event.get("correlationId")).isEqualTo("corr-test-001");
-        assertThat(event.get("documentType")).isEqualTo("TAX_INVOICE");
+        assertThat(event.getEventId()).isNotNull();
+        assertThat(event.getOccurredAt()).isNotNull();
+        assertThat(event.getEventType()).isEqualTo("document.received");
+        assertThat(event.getVersion()).isEqualTo(1);
+        assertThat(event.getDocumentId()).isEqualTo(documentId);
+        assertThat(event.getInvoiceNumber()).isEqualTo("INV-2024-TEST-001");
+        assertThat(event.getXmlContent()).isEqualTo("<test>xml</test>");
+        assertThat(event.getCorrelationId()).isEqualTo("corr-test-001");
+        assertThat(event.getDocumentType()).isEqualTo("TAX_INVOICE");
     }
 
     @Test
-    @DisplayName("createDocumentReceivedEvent handles null correlation ID")
-    void testCreateDocumentReceivedEventWithNullCorrelationId() throws Exception {
-        IncomingDocument document = IncomingDocument.builder()
-            .id(UUID.randomUUID())
-            .invoiceNumber("INV-2024-TEST-002")
-            .xmlContent("<test>xml2</test>")
-            .source("REST")
-            .correlationId(null)
-            .documentType(DocumentType.RECEIPT)
-            .status(DocumentStatus.VALIDATED)
-            .validationResult(ValidationResult.success())
-            .receivedAt(LocalDateTime.now())
-            .build();
+    @DisplayName("DocumentReceivedEvent handles null correlation ID")
+    void testDocumentReceivedEventWithNullCorrelationId() {
+        String documentId = UUID.randomUUID().toString();
+        DocumentReceivedEvent event = new DocumentReceivedEvent(
+            documentId,
+            "INV-2024-TEST-002",
+            "<test>xml2</test>",
+            null,
+            "RECEIPT"
+        );
 
-        Method createEventMethod = CamelConfig.class.getDeclaredMethod("createDocumentReceivedEvent", IncomingDocument.class);
-        createEventMethod.setAccessible(true);
-        @SuppressWarnings("unchecked")
-        Map<String, Object> event = (Map<String, Object>) createEventMethod.invoke(camelConfig, document);
-
-        assertThat(event.get("correlationId")).isNull();
-        assertThat(event.get("documentType")).isEqualTo("RECEIPT");
+        assertThat(event.getCorrelationId()).isNull();
+        assertThat(event.getDocumentType()).isEqualTo("RECEIPT");
     }
 
     @Test
-    @DisplayName("createDocumentReceivedEvent generates unique event IDs")
-    void testCreateDocumentReceivedEventGeneratesUniqueIds() throws Exception {
-        IncomingDocument document = IncomingDocument.builder()
-            .id(UUID.randomUUID())
-            .invoiceNumber("INV-2024-TEST-003")
-            .xmlContent("<test>xml3</test>")
-            .source("REST")
-            .documentType(DocumentType.INVOICE)
-            .status(DocumentStatus.VALIDATED)
-            .validationResult(ValidationResult.success())
-            .receivedAt(LocalDateTime.now())
-            .build();
+    @DisplayName("DocumentReceivedEvent generates unique event IDs")
+    void testDocumentReceivedEventGeneratesUniqueIds() {
+        String documentId = UUID.randomUUID().toString();
+        DocumentReceivedEvent event1 = new DocumentReceivedEvent(
+            documentId,
+            "INV-2024-TEST-003",
+            "<test>xml3</test>",
+            null,
+            "INVOICE"
+        );
+        DocumentReceivedEvent event2 = new DocumentReceivedEvent(
+            documentId,
+            "INV-2024-TEST-003",
+            "<test>xml3</test>",
+            null,
+            "INVOICE"
+        );
 
-        Method createEventMethod = CamelConfig.class.getDeclaredMethod("createDocumentReceivedEvent", IncomingDocument.class);
-        createEventMethod.setAccessible(true);
-
-        @SuppressWarnings("unchecked")
-        Map<String, Object> event1 = (Map<String, Object>) createEventMethod.invoke(camelConfig, document);
-        @SuppressWarnings("unchecked")
-        Map<String, Object> event2 = (Map<String, Object>) createEventMethod.invoke(camelConfig, document);
-
-        assertThat(event1.get("eventId")).isNotNull();
-        assertThat(event2.get("eventId")).isNotNull();
-        assertThat(event1.get("eventId")).isNotEqualTo(event2.get("eventId"));
+        assertThat(event1.getEventId()).isNotNull();
+        assertThat(event2.getEventId()).isNotNull();
+        assertThat(event1.getEventId()).isNotEqualTo(event2.getEventId());
     }
 
     // ==================== Document Type Coverage Tests ====================
