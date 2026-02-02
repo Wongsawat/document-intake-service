@@ -1,8 +1,10 @@
 package com.wpanther.document.intake.infrastructure.messaging;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.wpanther.document.intake.domain.event.DocumentReceivedTraceEvent;
 import com.wpanther.document.intake.domain.event.StartSagaCommand;
-import com.wpanther.document.intake.infrastructure.outbox.OutboxService;
+import com.wpanther.saga.infrastructure.outbox.OutboxService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -24,6 +26,7 @@ import java.util.Map;
 public class EventPublisher {
 
     private final OutboxService outboxService;
+    private final ObjectMapper objectMapper;
 
     /**
      * Publish command to start saga in orchestrator.
@@ -33,17 +36,22 @@ public class EventPublisher {
      */
     @Transactional(propagation = Propagation.MANDATORY)
     public void publishStartSagaCommand(StartSagaCommand command) {
-        outboxService.writeEvent(
+        Map<String, String> headers = Map.of(
+            "correlationId", command.getCorrelationId(),
+            "documentType", command.getDocumentType()
+        );
+
+        String headersJson = toJson(headers);
+
+        outboxService.saveWithRouting(
+            command,
             "IncomingDocument",
             command.getDocumentId(),
-            "StartSagaCommand",
             "saga.commands.orchestrator",
-            command,
-            Map.of(
-                "correlationId", command.getCorrelationId(),
-                "documentType", command.getDocumentType()
-            )
+            command.getCorrelationId(),  // partition key
+            headersJson                   // headers
         );
+
         log.info("Published StartSagaCommand for document: {}", command.getDocumentId());
     }
 
@@ -55,17 +63,31 @@ public class EventPublisher {
      */
     @Transactional(propagation = Propagation.MANDATORY)
     public void publishTraceEvent(DocumentReceivedTraceEvent event) {
-        outboxService.writeEvent(
+        Map<String, String> headers = Map.of(
+            "correlationId", event.getCorrelationId(),
+            "documentType", event.getDocumentType()
+        );
+
+        String headersJson = toJson(headers);
+
+        outboxService.saveWithRouting(
+            event,
             "IncomingDocument",
             event.getDocumentId(),
-            "DocumentReceivedTraceEvent",
             "trace.document.received",
-            event,
-            Map.of(
-                "correlationId", event.getCorrelationId(),
-                "documentType", event.getDocumentType()
-            )
+            event.getCorrelationId(),  // partition key
+            headersJson                  // headers
         );
+
         log.debug("Published DocumentReceivedTraceEvent for document: {}", event.getDocumentId());
+    }
+
+    private String toJson(Map<String, String> map) {
+        try {
+            return objectMapper.writeValueAsString(map);
+        } catch (JsonProcessingException e) {
+            log.warn("Failed to serialize headers to JSON", e);
+            return null;
+        }
     }
 }

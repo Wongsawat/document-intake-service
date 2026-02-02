@@ -10,11 +10,95 @@ When creating git commits for this repository:
 
 ## Project Overview
 
-The **Document Intake Service** (port 8081) is a Spring Boot microservice that serves as the gateway for receiving and validating Thai e-Tax XML documents. It performs three-layer validation (well-formedness, XSD schema, Schematron rules) using the teda library, then routes validated documents to document-type-specific Kafka topics.
+The **Document Intake Service** (port 8081) is a Spring Boot microservice that serves as the gateway for receiving and validating Thai e-Tax XML documents. It performs three-layer validation (well-formedness, XSD schema, Schematron rules) using the teda library, then publishes commands to the Saga Orchestrator via the outbox pattern.
 
-**Tech Stack**: Java 21, Spring Boot 3.2.5, Apache Camel 4.14.4, PostgreSQL, Kafka, Eureka
+**Tech Stack**: Java 21, Spring Boot 3.2.5, Apache Camel 4.14.4, PostgreSQL, Kafka, Eureka, Debezium CDC
 
 **Package**: `com.wpanther.document.intake`
+
+## Saga Orchestrator Pattern
+
+This service implements the **Outbox Pattern** with Debezium CDC for reliable event delivery to the Saga Orchestrator.
+
+### Architecture Flow
+
+```
+External System/REST/Kafka
+    ↓
+DocumentIntakeService.submitInvoice()
+    ↓
+┌─────────────────────────────────────────────────────────────┐
+│  Transaction Boundary                                       │
+│  ┌───────────────────────────────────────────────────────┐  │
+│  │ 1. Save IncomingDocument (status=RECEIVED)            │  │
+│  │ 2. Write DocumentReceivedTraceEvent (status=RECEIVED) │  │
+│  │    → outbox_events table                              │  │
+│  │ 3. Update status=VALIDATING                            │  │
+│  │ 4. Perform validation (XSD + Schematron)              │  │
+│  │ 5. Update status=VALIDATED/INVALID                     │  │
+│  │ 6. Write DocumentReceivedTraceEvent (status=VALIDATED) │  │
+│  │    → outbox_events table                              │  │
+│  │ 7. If valid:                                          │  │
+│  │    a. Write StartSagaCommand                          │  │
+│  │       → outbox_events table                          │  │
+│  │    b. Update status=FORWARDED                          │  │
+│  │    c. Write DocumentReceivedTraceEvent (FORWARDED)     │  │
+│  │       → outbox_events table                          │  │
+│  └───────────────────────────────────────────────────────┘  │
+└─────────────────────────────────────────────────────────────┘
+    ↓
+Debezium CDC (reads outbox_events table)
+    ↓
+Kafka Topics:
+  - saga.commands.orchestrator (StartSagaCommand)
+  - trace.document.received (DocumentReceivedTraceEvent)
+```
+
+### Outbox Table Schema
+
+```sql
+CREATE TABLE outbox_events (
+    id UUID PRIMARY KEY,
+    aggregate_type VARCHAR(100) NOT NULL,      -- e.g., "IncomingDocument"
+    aggregate_id VARCHAR(100) NOT NULL,         -- e.g., document ID
+    event_type VARCHAR(100) NOT NULL,           -- e.g., "StartSagaCommand"
+    topic VARCHAR(255) NOT NULL,                -- Kafka topic name
+    partition_key VARCHAR(255),                 -- Kafka partition key
+    payload JSON NOT NULL,                      -- Event payload (JSON)
+    headers JSON,                               -- Kafka headers (JSON)
+    status VARCHAR(20),                         -- "PENDING", "PUBLISHED"
+    created_at TIMESTAMP NOT NULL,
+    published_at TIMESTAMP
+);
+```
+
+### Event Types
+
+**StartSagaCommand** (sent to `saga.commands.orchestrator`):
+```json
+{
+  "commandId": "uuid",
+  "occurredAt": "2025-12-03T10:30:00Z",
+  "documentId": "uuid",
+  "documentType": "TAX_INVOICE",
+  "invoiceNumber": "INV-2025-001",
+  "xmlContent": "<TaxInvoice_CrossIndustryInvoice>...</>",
+  "correlationId": "uuid",
+  "source": "API"
+}
+```
+
+**DocumentReceivedTraceEvent** (sent to `trace.document.received`):
+```json
+{
+  "documentId": "uuid",
+  "documentType": "TAX_INVOICE",
+  "invoiceNumber": "INV-2025-001",
+  "correlationId": "uuid",
+  "status": "RECEIVED|VALIDATING|VALIDATED|FORWARDED|INVALID",
+  "source": "API|KAFKA"
+}
+```
 
 ## Build and Run Commands
 
@@ -57,6 +141,7 @@ mvn verify
 - Kafka on `localhost:9092`
 - Eureka on `localhost:8761` (optional)
 - teda library installed: `cd ../../../../teda && mvn clean install`
+- **Debezium Kafka Connect** (for outbox CDC to Kafka)
 
 ### Test Configuration
 
@@ -87,16 +172,24 @@ com.wpanther.document.intake/
 ├── domain/           # Core business logic (no framework dependencies)
 │   ├── model/        # IncomingDocument, ValidationResult, DocumentStatus
 │   ├── repository/   # IncomingDocumentRepository interface
-│   └── service/      # XmlValidationService interface
+│   ├── service/      # XmlValidationService interface
+│   └── event/        # Integration events (Kafka DTOs)
+│       ├── StartSagaCommand.java
+│       └── DocumentReceivedTraceEvent.java
 │
 ├── application/      # Use cases and orchestration
 │   ├── controller/   # DocumentIntakeController (REST API)
 │   └── service/      # DocumentIntakeService (orchestration)
 │
 └── infrastructure/   # Framework and external concerns
-    ├── persistence/  # IncomingDocumentEntity, JpaIncomingDocumentRepository, IncomingDocumentRepositoryImpl
-    ├── validation/   # XmlValidationServiceImpl, DocumentType, ValidationErrorHandler
-    └── config/       # CamelConfig (Camel routes)
+    ├── persistence/  # IncomingDocumentEntity, JpaIncomingDocumentRepository
+    ├── validation/   # XmlValidationServiceImpl, DocumentType
+    ├── messaging/    # EventPublisher (uses OutboxService)
+    ├── outbox/       # Outbox pattern implementation
+    │   ├── OutboxService.java
+    │   ├── JpaOutboxEventRepository.java
+    │   └── OutboxEventEntity.java
+    └── config/       # CamelConfig (Camel consumer routes only)
 ```
 
 ### Document State Machine
@@ -110,23 +203,25 @@ RECEIVED → VALIDATING → VALIDATED → FORWARDED
 State transitions are enforced in `IncomingDocument` aggregate:
 - `startValidation()`: RECEIVED → VALIDATING
 - `markValidated(result)`: VALIDATING → VALIDATED/INVALID (based on result)
-- `markForwarded()`: VALIDATED → FORWARDED
+- `markForwarded()`: VALIDATED → FORWARDED (after saga command published)
 - `markFailed(msg)`: Any → FAILED
 
 ### Supported Document Types
 
 The service supports 6 Thai e-Tax document types via the `DocumentType` enum (`infrastructure/validation/DocumentType.java`):
 
-| Type | Namespace | Output Topic |
+| Type | Namespace | Saga Command |
 |------|-----------|--------------|
-| `TAX_INVOICE` | `urn:etda:uncefact:data:standard:TaxInvoice_CrossIndustryInvoice:2` | `document.received.tax-invoice` |
-| `RECEIPT` | `urn:etda:uncefact:data:standard:Receipt_CrossIndustryInvoice:2` | `document.received.receipt` |
-| `INVOICE` | `urn:etda:uncefact:data:standard:Invoice_CrossIndustryInvoice:2` | `document.received.invoice` |
-| `DEBIT_CREDIT_NOTE` | `urn:etda:uncefact:data:standard:DebitCreditNote_CrossIndustryInvoice:2` | `document.received.debit-credit-note` |
-| `CANCELLATION_NOTE` | `urn:etda:uncefact:data:standard:CancellationNote_CrossIndustryInvoice:2` | `document.received.cancellation` |
-| `ABBREVIATED_TAX_INVOICE` | `urn:etda:uncefact:data:standard:AbbreviatedTaxInvoice_CrossIndustryInvoice:2` | `document.received.abbreviated` |
+| `TAX_INVOICE` | `urn:etda:uncefact:data:standard:TaxInvoice_CrossIndustryInvoice:2` | orchestrator-service |
+| `RECEIPT` | `urn:etda:uncefact:data:standard:Receipt_CrossIndustryInvoice:2` | orchestrator-service |
+| `INVOICE` | `urn:etda:uncefact:data:standard:Invoice_CrossIndustryInvoice:2` | orchestrator-service |
+| `DEBIT_CREDIT_NOTE` | `urn:etda:uncefact:data:standard:DebitCreditNote_CrossIndustryInvoice:2` | orchestrator-service |
+| `CANCELLATION_NOTE` | `urn:etda:uncefact:data:standard:CancellationNote_CrossIndustryInvoice:2` | orchestrator-service |
+| `ABBREVIATED_TAX_INVOICE` | `urn:etda:uncefact:data:standard:AbbreviatedTaxInvoice_CrossIndustryInvoice:2` | orchestrator-service |
 
 Document type is auto-detected from XML namespace URI or root element name.
+
+All validated documents are sent to the **orchestrator-service** via `saga.commands.orchestrator` topic, regardless of document type. The orchestrator routes to appropriate processing services.
 
 ### Three-Layer XML Validation
 
@@ -164,46 +259,49 @@ JAXBContext jaxbContext = JAXBContext.newInstance(contextPath);
 
 Routes defined in `CamelConfig.java`:
 
-1. **REST Intake** (`direct:invoice-intake`): REST controller → validates → content-based routing to document-type-specific Kafka topic
-2. **Kafka Intake** (`kafka:document.intake`): Kafka → validates → content-based routing
+1. **REST Intake** (`direct:invoice-intake`): REST controller → validates → publishes events via outbox
+2. **Kafka Intake** (`kafka:document.intake`): Kafka → validates → publishes events via outbox
+
+**Note**: Producer routes have been removed. Events are now published via the outbox pattern and Debezium CDC.
 
 Both routes use:
 - Dead Letter Channel (`document.intake.dlq`) with 3 retries + exponential backoff
-- Content-based routing by `documentType` header to route to the correct output topic
+- DocumentIntakeService handles validation and event publishing
 
 ### Kafka Topics
 
-| Topic | Direction | Purpose |
-|-------|-----------|---------|
-| `document.intake` | Consumer | Receive documents from external systems |
-| `document.received.tax-invoice` | Producer | Forward validated TaxInvoice documents |
-| `document.received.receipt` | Producer | Forward validated Receipt documents |
-| `document.received.invoice` | Producer | Forward validated Invoice documents |
-| `document.received.debit-credit-note` | Producer | Forward validated DebitCreditNote documents |
-| `document.received.cancellation` | Producer | Forward validated CancellationNote documents |
-| `document.received.abbreviated` | Producer | Forward validated AbbreviatedTaxInvoice documents |
-| `document.intake.dlq` | Producer | Dead letter queue for failed messages |
+| Topic | Direction | Purpose | Event Type |
+|-------|-----------|---------|------------|
+| `document.intake` | Consumer | Receive documents from external systems | - |
+| `saga.commands.orchestrator` | Producer | Start saga for validated documents | StartSagaCommand |
+| `trace.document.received` | Producer | Trace document lifecycle for notifications | DocumentReceivedTraceEvent |
+| `document.intake.dlq` | Producer | Dead letter queue for failed messages | - |
+
+**LEGACY topics** (kept for reference during migration):
+- `document.received.tax-invoice`
+- `document.received.receipt`
+- `document.received.invoice`
+- etc.
+
+These are no longer used. The orchestrator-service now handles routing to processing services.
 
 Topic names are configurable via `app.kafka.topics.*` in `application.yml`.
 
-### Kafka Event Schema
-
-Events published to output topics use this schema (defined in `CamelConfig.createDocumentReceivedEvent()`):
-```json
-{
-  "eventId": "uuid",
-  "eventType": "document.received",
-  "occurredAt": "2025-12-03T10:30:00Z",
-  "version": 1,
-  "documentId": "uuid",
-  "invoiceNumber": "INV-2025-001",
-  "documentType": "TAX_INVOICE",
-  "xmlContent": "<TaxInvoice_CrossIndustryInvoice>...</TaxInvoice_CrossIndustryInvoice>",
-  "correlationId": "uuid"
-}
-```
-
 ## Key Implementation Details
+
+### Outbox Pattern
+
+**OutboxService** (`infrastructure/outbox/OutboxService.java`):
+- Uses `MANDATORY` transaction propagation to ensure atomicity
+- Writes events to `outbox_events` table within the same transaction as domain state changes
+- Debezium CDC reads the table and publishes to Kafka
+- Provides guaranteed exactly-once delivery
+
+**EventPublisher** (`infrastructure/messaging/EventPublisher.java`):
+- Wraps OutboxService for domain use
+- Methods:
+  - `publishStartSagaCommand(StartSagaCommand)` - to `saga.commands.orchestrator`
+  - `publishTraceEvent(DocumentReceivedTraceEvent)` - to `trace.document.received`
 
 ### REST API
 
@@ -218,6 +316,7 @@ Flyway migrations in `src/main/resources/db/migration/`:
 - `V1__create_incoming_invoices_table.sql`: Main table with JSONB `validation_result` column
 - `V2__create_outbox_events_table.sql`: Outbox pattern support
 - `V3__add_document_type_column.sql`: Document type column for content-based routing
+- `V4__enhance_outbox_for_debezium.sql`: Enhanced outbox schema for Debezium CDC
 
 Entity uses `@JdbcTypeCode(SqlTypes.JSON)` for JSONB mapping.
 
@@ -227,6 +326,31 @@ Entity uses `@JdbcTypeCode(SqlTypes.JSON)` for JSONB mapping.
 - `connection-timeout: 30000ms`
 
 For high-volume scenarios, consider increasing pool size via environment variables in `application.yml`.
+
+### Debezium CDC Configuration
+
+For the outbox pattern to work, Debezium must be configured:
+
+**Connector Configuration** (`intake-connector.json`):
+```json
+{
+  "name": "outbox-connector-intake",
+  "config": {
+    "connector.class": "io.debezium.connector.postgresql.PostgresConnector",
+    "database.hostname": "postgres",
+    "database.port": "5432",
+    "database.dbname": "intake_db",
+    "table.include.list": "public.outbox_events",
+    "transforms": "outbox",
+    "transforms.outbox.type": "io.debezium.transforms.outbox.EventRouter",
+    "transforms.outbox.route.by.field": "topic",
+    "transforms.outbox.route.topic.replacement": "${routedByValue}",
+    "transforms.outbox.table.field.event.key": "partition_key",
+    "transforms.outbox.table.field.event.payload": "payload",
+    "transforms.outbox.table.fields.additional.placement": "headers:header"
+  }
+}
+```
 
 ### Monitoring
 
@@ -277,6 +401,12 @@ XSD schemas and Schematron rules are bundled in the **teda library** at:
 - This service uses `baseline-on-migrate: true` for existing database compatibility
 - First run will baseline at version 0, then apply migrations
 
+**Events Not Published to Kafka**
+- Verify Debezium connector is running: `curl http://localhost:8083/connectors`
+- Check connector status: `curl http://localhost:8083/connectors/outbox-connector-intake/status`
+- Verify outbox_events table has entries: `psql -d intake_db -c "SELECT * FROM outbox_events ORDER BY created_at DESC LIMIT 5"`
+- Check PostgreSQL wal_level=logical
+
 ## Testing Patterns
 
 ### Invalid Sample Categories
@@ -295,10 +425,11 @@ The `src/test/resources/samples/invalid/` directory contains 15+ invalid samples
 
 ### Test Class Conventions
 
-- `*Test` - Unit tests for individual classes
+- `*Test` - Unit tests for individual classes (using Mockito)
 - `*IntegrationTest` - Full stack tests with Spring context
 - Domain tests in `domain/model/` test business logic and state transitions
 - Validation tests use real XML samples from `samples/` directory
+- Outbox tests in `infrastructure/outbox/` test outbox pattern implementation
 
 ## Dependencies
 
@@ -322,7 +453,21 @@ This service depends on the **teda library** (`com.wpanther:thai-etax-invoice`) 
 
 ## Relation to Other Services
 
-This service is part of the Thai e-Tax document processing pipeline:
-- Forwards validated documents to **Document Processing Service** (port 8082)
-- Publishes events consumed by **Notification Service** (port 8085)
-- Part of the 7-microservice event-driven architecture
+This service is the entry point for the Thai e-Tax document processing pipeline using the Saga Orchestrator pattern:
+
+**Upstream:**
+- External systems submit documents via REST API or Kafka (`document.intake`)
+
+**Downstream:**
+- **orchestrator-service** (port 8093) - Consumes `saga.commands.orchestrator`, orchestrates multi-step processing
+- **notification-service** (port 8085) - Consumes `trace.document.received` for lifecycle tracking
+
+**Processing Services** (orchestrated by orchestrator-service):
+- invoice-processing-service (port 8082)
+- taxinvoice-processing-service (port 8088)
+- xml-signing-service (port 8086)
+- invoice-pdf-generation-service (port 8090)
+- taxinvoice-pdf-generation-service (port 8089)
+- pdf-signing-service (port 8087)
+- document-storage-service (port 8084)
+- ebms-sending-service (port 8092)

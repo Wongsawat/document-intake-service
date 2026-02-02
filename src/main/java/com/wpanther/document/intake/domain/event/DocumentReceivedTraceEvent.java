@@ -1,11 +1,10 @@
 package com.wpanther.document.intake.domain.event;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.wpanther.saga.domain.model.IntegrationEvent;
 import lombok.Builder;
 import lombok.Getter;
-
-import java.time.Instant;
-import java.util.UUID;
+import lombok.extern.jackson.Jacksonized;
 
 /**
  * Trace event for notification-service.
@@ -16,21 +15,10 @@ import java.util.UUID;
  */
 @Getter
 @Builder
-public class DocumentReceivedTraceEvent {
+@Jacksonized  // Enable Jackson builder deserialization
+public class DocumentReceivedTraceEvent extends IntegrationEvent {
 
-    /**
-     * Unique identifier for this trace event.
-     */
-    @JsonProperty("eventId")
-    @Builder.Default
-    private final UUID eventId = UUID.randomUUID();
-
-    /**
-     * Timestamp when this event was created.
-     */
-    @JsonProperty("occurredAt")
-    @Builder.Default
-    private final Instant occurredAt = Instant.now();
+    private static final long serialVersionUID = 1L;
 
     /**
      * ID of the IncomingDocument.
@@ -67,4 +55,34 @@ public class DocumentReceivedTraceEvent {
      */
     @JsonProperty("source")
     private final String source;
+
+    /**
+     * Constructor for creating a new DocumentReceivedTraceEvent.
+     * Initializes the base IntegrationEvent fields.
+     */
+    public DocumentReceivedTraceEvent() {
+        super();
+        this.documentId = null;
+        this.documentType = null;
+        this.invoiceNumber = null;
+        this.correlationId = null;
+        this.status = null;
+        this.source = null;
+    }
+
+    /**
+     * Full constructor for Builder.
+     * Note: eventId, occurredAt, eventType, and version are set by IntegrationEvent base class.
+     */
+    @Builder
+    private DocumentReceivedTraceEvent(String documentId, String documentType, String invoiceNumber,
+                                       String correlationId, String status, String source) {
+        super();
+        this.documentId = documentId;
+        this.documentType = documentType;
+        this.invoiceNumber = invoiceNumber;
+        this.correlationId = correlationId;
+        this.status = status;
+        this.source = source;
+    }
 }
