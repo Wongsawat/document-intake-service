@@ -110,7 +110,7 @@ class DocumentIntakeServiceTest {
     // ==================== Happy Path Tests ====================
 
     @Test
-    @DisplayName("Submit document with valid XML succeeds")
+    @DisplayName("Submit document with valid XML succeeds and forwards")
     void testSubmitInvoiceWithValidXml() {
         IncomingDocument result = documentIntakeService.submitInvoice(VALID_XML, "REST", "corr-123");
 
@@ -119,7 +119,8 @@ class DocumentIntakeServiceTest {
         assertThat(result.getSource()).isEqualTo("REST");
         assertThat(result.getCorrelationId()).isEqualTo("corr-123");
         assertThat(result.getDocumentType()).isEqualTo(DocumentType.TAX_INVOICE);
-        assertThat(result.getStatus()).isEqualTo(DocumentStatus.VALIDATED);
+        // After saga command is published, document is marked as FORWARDED
+        assertThat(result.getStatus()).isEqualTo(DocumentStatus.FORWARDED);
         assertThat(result.isValid()).isTrue();
     }
 
@@ -134,14 +135,14 @@ class DocumentIntakeServiceTest {
     @Test
     @DisplayName("Submit document transitions states correctly")
     void testSubmitInvoiceTransitionsStatesCorrectly() {
-        // Verify that save is called 3 times for state transitions
+        // Verify that save is called 4 times for state transitions
         ArgumentCaptor<IncomingDocument> captor = ArgumentCaptor.forClass(IncomingDocument.class);
         when(documentRepository.save(captor.capture())).thenAnswer(invocation -> invocation.getArgument(0));
 
         documentIntakeService.submitInvoice(VALID_XML, "KAFKA", "corr-456");
 
-        // Should have saved 3 times: initial, VALIDATING, VALIDATED
-        assertThat(captor.getAllValues()).hasSize(3);
+        // Should have saved 4 times: initial, VALIDATING, VALIDATED, FORWARDED
+        assertThat(captor.getAllValues()).hasSize(4);
     }
 
     // ==================== Validation Error Tests ====================
@@ -378,6 +379,7 @@ class DocumentIntakeServiceTest {
             .source("REST")
             .correlationId("corr-123")
             .documentType(DocumentType.TAX_INVOICE)
+            .validationResult(ValidationResult.success())
             .build();
 
         when(documentRepository.save(any())).thenReturn(document);
@@ -391,9 +393,8 @@ class DocumentIntakeServiceTest {
         IncomingDocument retrieved = documentIntakeService.getDocument(documentId);
         assertThat(retrieved).isNotNull();
 
-        // Mark forwarded
-        documentIntakeService.markForwarded(documentId);
-        assertThat(document.getStatus()).isEqualTo(DocumentStatus.FORWARDED);
+        // Note: submitInvoice already marks as forwarded, so the markForwarded method
+        // is tested separately in testMarkForwardedUpdatesStatus
     }
 
     // ==================== Different Document Types Tests ====================
