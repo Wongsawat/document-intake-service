@@ -5,12 +5,9 @@ import com.wpanther.document.intake.infrastructure.validation.DocumentType;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
-import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.annotations.UpdateTimestamp;
-import org.hibernate.type.SqlTypes;
 
 import java.time.LocalDateTime;
-import java.util.Map;
 import java.util.UUID;
 
 /**
@@ -54,9 +51,8 @@ public class IncomingDocumentEntity {
     @Column(name = "status", nullable = false, length = 20)
     private DocumentStatus status;
 
-    @JdbcTypeCode(SqlTypes.JSON)
-    @Column(name = "validation_result")
-    private Map<String, Object> validationResult;
+    @Column(name = "validation_result", columnDefinition = "TEXT")
+    private String validationResult;
 
     @CreationTimestamp
     @Column(name = "received_at", nullable = false, updatable = false)

@@ -7,8 +7,6 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import java.time.LocalDateTime;
-import java.util.HashMap;
-import java.util.Map;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -84,8 +82,7 @@ class IncomingDocumentEntityTest {
     void testBuilderCreatesEntityWithAllFields() {
         UUID id = UUID.randomUUID();
         LocalDateTime now = LocalDateTime.now();
-        Map<String, Object> validationResult = new HashMap<>();
-        validationResult.put("valid", true);
+        String validationResult = "{\"valid\":true,\"errors\":[],\"warnings\":[]}";
 
         IncomingDocumentEntity fullEntity = IncomingDocumentEntity.builder()
             .id(id)
@@ -148,21 +145,18 @@ class IncomingDocumentEntityTest {
         }
     }
 
-    // ==================== JSONB Field Tests ====================
+    // ==================== JSON Field Tests ====================
 
     @Test
-    @DisplayName("Entity stores validationResult as JSONB map")
-    void testValidationResultJsonb() {
-        Map<String, Object> validationResult = new HashMap<>();
-        validationResult.put("valid", true);
-        validationResult.put("errors", new String[]{});
-        validationResult.put("warnings", new String[]{"Warning 1"});
+    @DisplayName("Entity stores validationResult as JSON text")
+    void testValidationResultJson() {
+        String validationResult = "{\"valid\":true,\"errors\":[],\"warnings\":[\"Warning 1\"]}";
 
         entity.setValidationResult(validationResult);
 
         assertThat(entity.getValidationResult()).isNotNull();
-        assertThat(entity.getValidationResult().get("valid")).isEqualTo(true);
-        assertThat(entity.getValidationResult().get("warnings")).isInstanceOf(String[].class);
+        assertThat(entity.getValidationResult()).contains("valid");
+        assertThat(entity.getValidationResult()).contains("Warning 1");
     }
 
     @Test
@@ -176,11 +170,11 @@ class IncomingDocumentEntityTest {
     @Test
     @DisplayName("Entity handles empty validationResult")
     void testEmptyValidationResult() {
-        Map<String, Object> emptyResult = new HashMap<>();
+        String emptyResult = "{}";
         entity.setValidationResult(emptyResult);
 
         assertThat(entity.getValidationResult()).isNotNull();
-        assertThat(entity.getValidationResult()).isEmpty();
+        assertThat(entity.getValidationResult()).isEqualTo("{}");
     }
 
     // ==================== Field Assignment Tests ====================
@@ -189,9 +183,7 @@ class IncomingDocumentEntityTest {
     @DisplayName("Setters update all fields correctly")
     void testSettersUpdateFields() {
         UUID id = UUID.randomUUID();
-        Map<String, Object> validationResult = new HashMap<>();
-        validationResult.put("valid", false);
-        validationResult.put("errors", new String[]{"Error 1"});
+        String validationResult = "{\"valid\":false,\"errors\":[\"Error 1\"],\"warnings\":[]}";
 
         entity.setId(id);
         entity.setInvoiceNumber("INV-2024-999");
@@ -234,8 +226,7 @@ class IncomingDocumentEntityTest {
     void testAllArgsConstructor() {
         UUID id = UUID.randomUUID();
         LocalDateTime now = LocalDateTime.now();
-        Map<String, Object> validationResult = new HashMap<>();
-        validationResult.put("valid", true);
+        String validationResult = "{\"valid\":true,\"errors\":[],\"warnings\":[]}";
 
         IncomingDocumentEntity fullEntity = new IncomingDocumentEntity(
             id,

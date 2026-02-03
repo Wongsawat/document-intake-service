@@ -11,7 +11,6 @@ import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.test.context.ActiveProfiles;
 
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -44,7 +43,7 @@ class JpaIncomingDocumentRepositoryTest {
             .correlationId("corr-test-001")
             .documentType(DocumentType.TAX_INVOICE)
             .status(DocumentStatus.RECEIVED)
-            .validationResult(Map.of("valid", true, "errors", List.of(), "warnings", List.of()))
+            .validationResult("{\"valid\":true,\"errors\":[],\"warnings\":[]}")
             .build();
 
         testEntity = repository.save(testEntity);

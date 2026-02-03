@@ -56,21 +56,35 @@ Kafka Topics:
 
 ### Outbox Table Schema
 
+The outbox table follows the saga-commons `JpaOutboxEventEntity` schema:
+
 ```sql
 CREATE TABLE outbox_events (
     id UUID PRIMARY KEY,
     aggregate_type VARCHAR(100) NOT NULL,      -- e.g., "IncomingDocument"
     aggregate_id VARCHAR(100) NOT NULL,         -- e.g., document ID
     event_type VARCHAR(100) NOT NULL,           -- e.g., "StartSagaCommand"
-    topic VARCHAR(255) NOT NULL,                -- Kafka topic name
-    partition_key VARCHAR(255),                 -- Kafka partition key
-    payload JSON NOT NULL,                      -- Event payload (JSON)
-    headers JSON,                               -- Kafka headers (JSON)
-    status VARCHAR(20),                         -- "PENDING", "PUBLISHED"
+    topic VARCHAR(255) NOT NULL,                -- Kafka topic name (Debezium EventRouter)
+    partition_key VARCHAR(255),                 -- Kafka partition key (ordering)
+    payload JSON NOT NULL,                      -- Event payload (JSONB)
+    headers JSON,                               -- Kafka headers (JSONB)
+    status VARCHAR(20),                         -- "PENDING", "PUBLISHED", "FAILED"
+    retry_count INTEGER DEFAULT 0,              -- For polling-based retry
+    error_message VARCHAR(1000),                -- Last error message
     created_at TIMESTAMP NOT NULL,
     published_at TIMESTAMP
 );
+
+-- Indexes for performance
+CREATE INDEX idx_outbox_status ON outbox_events(status);
+CREATE INDEX idx_outbox_created ON outbox_events(created_at);
+CREATE INDEX idx_outbox_aggregate ON outbox_events(aggregate_id, aggregate_type);
 ```
+
+**Migration sequence**:
+- `V2__create_outbox_events_table.sql`: Initial outbox table
+- `V4__enhance_outbox_for_debezium.sql`: Added Debezium CDC fields (`topic`, `partition_key`, `headers`)
+- `V5__add_saga_commons_outbox_columns.sql`: Added saga-commons standard columns (`retry_count`, `error_message`)
 
 ### Event Types
 
@@ -184,11 +198,7 @@ com.wpanther.document.intake/
 └── infrastructure/   # Framework and external concerns
     ├── persistence/  # IncomingDocumentEntity, JpaIncomingDocumentRepository
     ├── validation/   # XmlValidationServiceImpl, DocumentType
-    ├── messaging/    # EventPublisher (uses OutboxService)
-    ├── outbox/       # Outbox pattern implementation
-    │   ├── OutboxService.java
-    │   ├── JpaOutboxEventRepository.java
-    │   └── OutboxEventEntity.java
+    ├── messaging/    # EventPublisher (uses saga-commons OutboxService)
     └── config/       # CamelConfig (Camel consumer routes only)
 ```
 
@@ -291,17 +301,32 @@ Topic names are configurable via `app.kafka.topics.*` in `application.yml`.
 
 ### Outbox Pattern
 
-**OutboxService** (`infrastructure/outbox/OutboxService.java`):
+The outbox pattern is implemented using **saga-commons** library components:
+
+**OutboxService** (from saga-commons):
 - Uses `MANDATORY` transaction propagation to ensure atomicity
 - Writes events to `outbox_events` table within the same transaction as domain state changes
-- Debezium CDC reads the table and publishes to Kafka
-- Provides guaranteed exactly-once delivery
+- Provides two publish methods:
+  - `publish(IntegrationEvent, String aggregateType, String aggregateId, String payload)` - for polling-based publishers
+  - `publishWithRouting(IntegrationEvent, String aggregateType, String aggregateId, String payload, String topic, String partitionKey, String headers)` - for Debezium CDC
+
+**JpaOutboxEventRepository** (from saga-commons):
+- Spring Data JPA implementation of `OutboxEventRepository`
+- Automatically configured via `@EnableJpaRepositories` scanning
+- Maps `JpaOutboxEventEntity` to domain `OutboxEvent`
 
 **EventPublisher** (`infrastructure/messaging/EventPublisher.java`):
-- Wraps OutboxService for domain use
+- Wrapper around OutboxService for domain use
 - Methods:
   - `publishStartSagaCommand(StartSagaCommand)` - to `saga.commands.orchestrator`
   - `publishTraceEvent(DocumentReceivedTraceEvent)` - to `trace.document.received`
+- Uses `publishWithRouting()` to include Debezium CDC fields
+
+**Debezium CDC Flow**:
+1. Service writes domain state + outbox event in same transaction
+2. Debezium connector reads `outbox_events` table via logical replication
+3. EventRouter transform routes events to Kafka topics based on `topic` field
+4. Events are published with `partition_key` as message key and `headers` as metadata
 
 ### REST API
 
@@ -432,6 +457,41 @@ The `src/test/resources/samples/invalid/` directory contains 15+ invalid samples
 - Outbox tests in `infrastructure/outbox/` test outbox pattern implementation
 
 ## Dependencies
+
+### saga-commons (1.0.0-SNAPSHOT)
+
+This service uses the saga-commons library for outbox pattern support:
+- **OutboxEvent**: Domain model with Debezium CDC fields (`topic`, `partitionKey`, `headers`)
+- **OutboxEventRepository**: Repository interface for outbox persistence
+- **OutboxService**: Service for publishing events to the outbox within transactions
+- **OutboxStatus**: Enum for event status (`PENDING`, `PUBLISHED`, `FAILED`)
+- **Auto-configuration**: Automatically creates beans when repository implementation is available
+
+**Auto-Configuration**:
+- `OutboxEventJpaConfig`: Activated when Spring Data JPA is on the classpath
+- Creates `JpaOutboxEventRepository` bean when `SpringDataJpaOutboxEventRepository` is scanned
+- Creates `OutboxService` bean when `OutboxEventRepository` is available
+- Creates `OutboxCleanupService` bean when `saga.outbox.cleanup.enabled=true`
+
+**Debezium CDC Support**:
+The outbox table includes Debezium-specific fields for EventRouter pattern:
+```sql
+CREATE TABLE outbox_events (
+    id UUID PRIMARY KEY,
+    aggregate_type VARCHAR(100) NOT NULL,
+    aggregate_id VARCHAR(100) NOT NULL,
+    event_type VARCHAR(100) NOT NULL,
+    topic VARCHAR(255) NOT NULL,        -- Kafka topic for EventRouter
+    partition_key VARCHAR(255),         -- Kafka partition key
+    payload JSON NOT NULL,
+    headers JSON,                       -- Kafka headers as JSON
+    status VARCHAR(20),
+    created_at TIMESTAMP NOT NULL,
+    published_at TIMESTAMP
+);
+```
+
+### teda Library (1.0.0)
 
 This service depends on the **teda library** (`com.wpanther:thai-etax-invoice`) which provides:
 - JAXB-generated classes for all 6 Thai e-Tax document types

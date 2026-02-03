@@ -1,5 +1,6 @@
 package com.wpanther.document.intake.infrastructure.persistence;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.wpanther.document.intake.domain.model.DocumentStatus;
 import com.wpanther.document.intake.domain.model.IncomingDocument;
 import com.wpanther.document.intake.domain.model.ValidationResult;
@@ -9,7 +10,6 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.StreamSupport;
@@ -24,9 +24,11 @@ public class IncomingDocumentRepositoryImpl implements IncomingDocumentRepositor
     private static final Logger log = LoggerFactory.getLogger(IncomingDocumentRepositoryImpl.class);
 
     private final JpaIncomingDocumentRepository jpaRepository;
+    private final ObjectMapper objectMapper;
 
-    public IncomingDocumentRepositoryImpl(JpaIncomingDocumentRepository jpaRepository) {
+    public IncomingDocumentRepositoryImpl(JpaIncomingDocumentRepository jpaRepository, ObjectMapper objectMapper) {
         this.jpaRepository = jpaRepository;
+        this.objectMapper = objectMapper;
     }
 
     @Override
@@ -107,32 +109,26 @@ public class IncomingDocumentRepositoryImpl implements IncomingDocumentRepositor
     }
 
     /**
-     * Convert ValidationResult to Map for JSONB storage
+     * Convert ValidationResult to JSON string for storage
      */
-    @SuppressWarnings("unchecked")
-    private Map<String, Object> mapValidationResult(ValidationResult result) {
-        return Map.of(
-            "valid", result.valid(),
-            "errors", result.errors(),
-            "warnings", result.warnings()
-        );
+    private String mapValidationResult(ValidationResult result) {
+        try {
+            return objectMapper.writeValueAsString(result);
+        } catch (Exception e) {
+            log.error("Failed to serialize ValidationResult to JSON", e);
+            throw new RuntimeException("Failed to serialize ValidationResult", e);
+        }
     }
 
     /**
-     * Convert Map from JSONB storage to ValidationResult
+     * Convert JSON string from storage to ValidationResult
      */
-    @SuppressWarnings("unchecked")
-    private ValidationResult mapValidationResultFromEntity(Map<String, Object> map) {
-        Boolean valid = (Boolean) map.get("valid");
-        List<String> errors = (List<String>) map.get("errors");
-        List<String> warnings = (List<String>) map.get("warnings");
-
-        if (valid) {
-            return errors == null || errors.isEmpty()
-                ? ValidationResult.validWithWarnings(warnings != null ? warnings : List.of())
-                : ValidationResult.invalid(errors, warnings != null ? warnings : List.of());
-        } else {
-            return ValidationResult.invalid(errors != null ? errors : List.of(), warnings != null ? warnings : List.of());
+    private ValidationResult mapValidationResultFromEntity(String json) {
+        try {
+            return objectMapper.readValue(json, ValidationResult.class);
+        } catch (Exception e) {
+            log.error("Failed to deserialize ValidationResult from JSON: {}", json, e);
+            throw new RuntimeException("Failed to deserialize ValidationResult", e);
         }
     }
 }
