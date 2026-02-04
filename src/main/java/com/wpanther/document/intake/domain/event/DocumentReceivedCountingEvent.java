@@ -2,6 +2,7 @@ package com.wpanther.document.intake.domain.event;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.wpanther.saga.domain.model.IntegrationEvent;
 import lombok.Getter;
 
 import java.time.Instant;
@@ -34,7 +35,7 @@ public class DocumentReceivedCountingEvent extends IntegrationEvent {
      * @param receivedAt the timestamp when the document was received
      */
     public DocumentReceivedCountingEvent(String documentId, String correlationId, Instant receivedAt) {
-        super(EVENT_TYPE);
+        super();
         this.documentId = documentId;
         this.correlationId = correlationId;
         this.receivedAt = receivedAt;
