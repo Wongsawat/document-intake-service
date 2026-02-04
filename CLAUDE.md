@@ -197,9 +197,10 @@ com.wpanther.document.intake/
 │
 └── infrastructure/   # Framework and external concerns
     ├── persistence/  # IncomingDocumentEntity, JpaIncomingDocumentRepository
+    │   └── outbox/   # OutboxEventEntity, JpaOutboxEventRepository, SpringDataOutboxRepository
     ├── validation/   # XmlValidationServiceImpl, DocumentType
     ├── messaging/    # EventPublisher (uses saga-commons OutboxService)
-    └── config/       # CamelConfig (Camel consumer routes only)
+    └── config/       # CamelConfig, OutboxConfig (registers OutboxEventRepository bean)
 ```
 
 ### Document State Machine
@@ -310,10 +311,14 @@ The outbox pattern is implemented using **saga-commons** library components:
   - `publish(IntegrationEvent, String aggregateType, String aggregateId, String payload)` - for polling-based publishers
   - `publishWithRouting(IntegrationEvent, String aggregateType, String aggregateId, String payload, String topic, String partitionKey, String headers)` - for Debezium CDC
 
-**JpaOutboxEventRepository** (from saga-commons):
-- Spring Data JPA implementation of `OutboxEventRepository`
-- Automatically configured via `@EnableJpaRepositories` scanning
-- Maps `JpaOutboxEventEntity` to domain `OutboxEvent`
+**JpaOutboxEventRepository** (service-specific implementation):
+- Each service provides its own JPA implementation of `OutboxEventRepository` from saga-commons
+- Located in `infrastructure/persistence/outbox/` package:
+  - `OutboxEventEntity` - JPA entity with Lombok builder pattern
+  - `SpringDataOutboxRepository` - Spring Data JPA interface
+  - `JpaOutboxEventRepository` - Implementation of saga-commons interface
+- Bean registered via `OutboxConfig` configuration class
+- Converts between domain `OutboxEvent` and JPA entity `OutboxEventEntity`
 
 **EventPublisher** (`infrastructure/messaging/EventPublisher.java`):
 - Wrapper around OutboxService for domain use
@@ -467,9 +472,14 @@ This service uses the saga-commons library for outbox pattern support:
 - **OutboxStatus**: Enum for event status (`PENDING`, `PUBLISHED`, `FAILED`)
 - **Auto-configuration**: Automatically creates beans when repository implementation is available
 
+**Service-Specific Implementation**:
+Each service provides its own JPA implementation of `OutboxEventRepository`:
+- `OutboxEventEntity` - JPA entity mapping to `outbox_events` table
+- `SpringDataOutboxRepository` - Spring Data JPA interface with query methods
+- `JpaOutboxEventRepository` - Implementation of saga-commons `OutboxEventRepository`
+- `OutboxConfig` - Spring configuration class that registers the repository bean
+
 **Auto-Configuration**:
-- `OutboxEventJpaConfig`: Activated when Spring Data JPA is on the classpath
-- Creates `JpaOutboxEventRepository` bean when `SpringDataJpaOutboxEventRepository` is scanned
 - Creates `OutboxService` bean when `OutboxEventRepository` is available
 - Creates `OutboxCleanupService` bean when `saga.outbox.cleanup.enabled=true`
 
