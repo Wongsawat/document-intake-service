@@ -1,282 +1,291 @@
 # Document Intake Service
 
-Gateway microservice for receiving and validating XML documents in the Invoice Processing System.
+Gateway microservice for receiving and validating Thai e-Tax XML documents. Part of the Thai e-Tax Invoice processing pipeline.
 
 ## Overview
 
-The Document Intake Service is the **first checkpoint** for XML documents entering the system. It:
+- **Port**: 8081
+- **Database**: PostgreSQL (`intake_db`)
+- **Tech Stack**: Java 21, Spring Boot 3.2.5, Apache Camel, Kafka, Debezium CDC
+- **Package**: `com.wpanther.document.intake`
 
-- ✅ **Receives** XML documents via REST API and Kafka
-- ✅ **Validates** XML against XSD schema and Schematron business rules (using teda library)
-- ✅ **Detects** document type from XML namespace
-- ✅ **Extracts** document metadata
-- ✅ **Routes** validated documents to document-type-specific Kafka topics
+## Features
 
-## Supported Document Types
-
-| Document Type | Description |
-|---------------|-------------|
-| TaxInvoice | Full tax invoice (ใบกำกับภาษี) |
-| Receipt | Receipt/tax invoice combined (ใบเสร็จรับเงิน/ใบกำกับภาษี) |
-| Invoice | Commercial invoice |
-| DebitCreditNote | Debit/credit note (ใบเพิ่มหนี้/ใบลดหนี้) |
-| CancellationNote | Cancellation document |
-| AbbreviatedTaxInvoice | Abbreviated tax invoice (ใบกำกับภาษีอย่างย่อ) |
+- Three-layer XML validation (well-formedness, XSD schema, Schematron rules)
+- Support for 6 Thai e-Tax document types
+- Outbox pattern with Debezium CDC for reliable event delivery
+- REST API and Kafka consumer for document intake
 
 ## Architecture
 
-### Technology Stack
+### Document Flow
 
-| Component | Technology |
-|-----------|------------|
-| Language | Java 21 |
-| Framework | Spring Boot 3.2.5 |
-| Integration | Apache Camel 4.3 |
-| Database | PostgreSQL |
-| Messaging | Apache Kafka |
-| Service Discovery | Netflix Eureka |
-| Database Migration | Flyway |
-
-### Domain Model
-
-**Aggregate Root:**
-- `IncomingDocument` - Manages document lifecycle (RECEIVED → VALIDATING → VALIDATED/INVALID → FORWARDED)
-
-**Value Objects:**
-- `ValidationResult` - Contains errors and warnings
-- `DocumentStatus` - Enum for tracking lifecycle
-
-## API Endpoints
-
-### Submit Document
-
-```http
-POST /api/v1/invoices
-Content-Type: application/xml
-X-Correlation-ID: optional-correlation-id
-
-<TaxInvoice_CrossIndustryInvoice>...</TaxInvoice_CrossIndustryInvoice>
-
-Response: 202 Accepted
-{
-  "message": "Invoice submitted for processing",
-  "correlationId": "uuid"
-}
+```
+External System (REST/Kafka)
+    ↓
+DocumentIntakeService.submitInvoice()
+    ↓
+┌─────────────────────────────────────────┐
+│  Transaction Boundary                   │
+│  1. Save IncomingDocument (RECEIVED)    │
+│  2. Write trace event to outbox         │
+│  3. Validate XML (XSD + Schematron)     │
+│  4. If valid: Write StartSagaCommand    │
+│  5. Update status to FORWARDED          │
+└─────────────────────────────────────────┘
+    ↓
+Debezium CDC (reads outbox_events)
+    ↓
+Kafka Topics:
+  - saga.commands.orchestrator
+  - trace.document.received
 ```
 
-### Get Document Status
+### DDD Package Structure
 
-```http
-GET /api/v1/invoices/{id}
-
-Response: 200 OK
-{
-  "id": "uuid",
-  "invoiceNumber": "INV-2025-001",
-  "documentType": "TAX_INVOICE",
-  "status": "FORWARDED",
-  "receivedAt": "2025-12-03T10:30:00",
-  "validationResult": {
-    "valid": true,
-    "errors": [],
-    "warnings": []
-  }
-}
+```
+com.wpanther.document.intake/
+├── domain/           # Core business logic
+│   ├── model/        # IncomingDocument, ValidationResult, DocumentStatus
+│   ├── repository/   # Repository interfaces
+│   ├── service/      # XmlValidationService interface
+│   └── event/        # StartSagaCommand, DocumentReceivedTraceEvent
+├── application/      # Use cases
+│   ├── controller/   # REST API
+│   └── service/      # DocumentIntakeService
+└── infrastructure/   # Framework implementations
+    ├── persistence/  # JPA entities and repositories
+    │   └── outbox/   # Outbox pattern implementation
+    ├── validation/   # XML validation with teda library
+    ├── messaging/    # EventPublisher
+    └── config/       # Camel routes, outbox config
 ```
 
-## Apache Camel Routes
+### Document State Machine
 
-### Route 1: REST Intake
 ```
-POST /api/v1/invoices → direct:invoice-intake → Validation → Content-Based Routing → Kafka
-```
-
-### Route 2: Kafka Intake
-```
-Kafka (document.intake) → Validation → Content-Based Routing → Kafka
+RECEIVED → VALIDATING → VALIDATED → FORWARDED
+                      ↘ INVALID
+                      ↘ FAILED
 ```
 
-### Content-Based Routing
+## Supported Document Types
 
-Documents are routed to type-specific topics based on XML namespace:
+| Type | Namespace |
+|------|-----------|
+| TAX_INVOICE | `urn:etda:uncefact:data:standard:TaxInvoice_CrossIndustryInvoice:2` |
+| RECEIPT | `urn:etda:uncefact:data:standard:Receipt_CrossIndustryInvoice:2` |
+| INVOICE | `urn:etda:uncefact:data:standard:Invoice_CrossIndustryInvoice:2` |
+| DEBIT_CREDIT_NOTE | `urn:etda:uncefact:data:standard:DebitCreditNote_CrossIndustryInvoice:2` |
+| CANCELLATION_NOTE | `urn:etda:uncefact:data:standard:CancellationNote_CrossIndustryInvoice:2` |
+| ABBREVIATED_TAX_INVOICE | `urn:etda:uncefact:data:standard:AbbreviatedTaxInvoice_CrossIndustryInvoice:2` |
 
-| Document Type | Output Topic |
-|---------------|--------------|
-| TaxInvoice | `document.received.tax-invoice` |
-| Receipt | `document.received.receipt` |
-| Invoice | `document.received.invoice` |
-| DebitCreditNote | `document.received.debit-credit-note` |
-| CancellationNote | `document.received.cancellation` |
-| AbbreviatedTaxInvoice | `document.received.abbreviated` |
+Document type is auto-detected from XML namespace URI.
 
-### Error Handling
-- 3 retry attempts with exponential backoff
-- Failed messages → Dead Letter Queue (`document.intake.dlq`)
+## Kafka Topics
 
-## Kafka Integration
+| Topic | Direction | Purpose |
+|-------|-----------|---------|
+| `document.intake` | Consumer | Receive documents from external systems |
+| `saga.commands.orchestrator` | Producer (via CDC) | Start saga for validated documents |
+| `trace.document.received` | Producer (via CDC) | Trace document lifecycle |
+| `document.intake.dlq` | Producer | Dead letter queue |
 
-### Consumed Topics
-- `document.intake` - Documents from external systems
+## Quick Start
 
-### Published Topics (Content-Based Routing)
+### Prerequisites
 
-| Topic | Document Type |
-|-------|---------------|
-| `document.received.tax-invoice` | TaxInvoice |
-| `document.received.receipt` | Receipt |
-| `document.received.invoice` | Invoice |
-| `document.received.debit-credit-note` | DebitCreditNote |
-| `document.received.cancellation` | CancellationNote |
-| `document.received.abbreviated` | AbbreviatedTaxInvoice |
-| `document.intake.dlq` | Failed messages |
+1. Install dependencies:
+   ```bash
+   # From repository root
+   cd teda && mvn clean install
+   cd ../saga-commons && mvn clean install
+   ```
 
-### Event Schema
-```json
-{
-  "eventId": "uuid",
-  "eventType": "document.received",
-  "occurredAt": "2025-12-03T10:30:00Z",
-  "version": 1,
-  "documentId": "uuid",
-  "invoiceNumber": "INV-2025-001",
-  "documentType": "TAX_INVOICE",
-  "xmlContent": "<TaxInvoice_CrossIndustryInvoice>...</TaxInvoice_CrossIndustryInvoice>",
-  "correlationId": "uuid"
-}
+2. Start infrastructure:
+   - PostgreSQL on `localhost:5432` (database: `intake_db`)
+   - Kafka on `localhost:9092`
+   - Debezium Kafka Connect on `localhost:8083`
+
+### Build and Run
+
+```bash
+# Build
+mvn clean package
+
+# Run
+mvn spring-boot:run
+
+# Run tests (unit + integration with H2)
+mvn test
+
+# Database migrations
+mvn flyway:migrate
 ```
-
-## Database Schema
-
-### incoming_documents Table
-- `id` (UUID) - Primary key
-- `invoice_number` (VARCHAR) - Unique document identifier
-- `document_type` (VARCHAR) - Document type enum
-- `xml_content` (TEXT) - Full XML document
-- `source` (VARCHAR) - Origin (REST/KAFKA)
-- `correlation_id` (VARCHAR) - Request correlation
-- `status` (VARCHAR) - Lifecycle status
-- `validation_result` (JSONB) - Validation errors/warnings
-- Timestamps: `received_at`, `processed_at`, `created_at`, `updated_at`
-
-## Configuration
 
 ### Environment Variables
 
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `DB_HOST` | PostgreSQL host | `localhost` |
-| `DB_PORT` | PostgreSQL port | `5432` |
-| `DB_NAME` | Database name | `intake_db` |
-| `DB_USERNAME` | Database username | `postgres` |
-| `DB_PASSWORD` | Database password | `postgres` |
-| `KAFKA_BROKERS` | Kafka bootstrap servers | `localhost:9092` |
-| `EUREKA_URL` | Eureka server URL | `http://localhost:8761/eureka/` |
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `DB_HOST` | `localhost` | PostgreSQL host |
+| `DB_PORT` | `5432` | PostgreSQL port |
+| `DB_NAME` | `intake_db` | Database name |
+| `DB_USERNAME` | `postgres` | Database user |
+| `DB_PASSWORD` | `postgres` | Database password |
+| `KAFKA_BROKERS` | `localhost:9092` | Kafka bootstrap servers |
+| `EUREKA_URL` | `http://localhost:8761/eureka/` | Eureka server URL |
 
-## Running the Service
+## REST API
 
-### Prerequisites
-1. PostgreSQL database running
-2. Kafka broker running
-3. teda library installed (`cd ../../../../teda && mvn clean install`)
-4. Eureka server (optional)
+### Submit Document
 
-### Build
 ```bash
-mvn clean package
+curl -X POST http://localhost:8081/api/v1/invoices \
+  -H "Content-Type: application/xml" \
+  -H "X-Correlation-ID: $(uuidgen)" \
+  -d @document.xml
 ```
 
-### Run Locally
+**Response**: `202 Accepted` with correlation ID
+
+### Get Document Status
+
 ```bash
-export DB_HOST=localhost
-export DB_PASSWORD=yourpassword
-export KAFKA_BROKERS=localhost:9092
-
-mvn spring-boot:run
+curl http://localhost:8081/api/v1/invoices/{id}
 ```
 
-### Run with Docker
+## Testing
+
+### Test Profiles
+
+| Profile | Database | Use Case |
+|---------|----------|----------|
+| `test` | H2 (in-memory) | Unit and integration tests |
+| `cdc-test` | PostgreSQL (external) | CDC integration tests with Debezium |
+
+### Unit and Integration Tests
+
 ```bash
-docker build -t document-intake-service:latest .
+# Run all tests
+mvn test
 
-docker run -p 8081:8081 \
-  -e DB_HOST=postgres \
-  -e DB_PASSWORD=postgres \
-  -e KAFKA_BROKERS=kafka:29092 \
-  document-intake-service:latest
+# Run specific test class
+mvn test -Dtest=XmlValidationServiceImplTest
+
+# Run specific test method
+mvn test -Dtest=DocumentIntakeServiceTest#testSubmitInvoiceWithValidXml
 ```
 
-## Integration with teda Library
+### CDC Integration Tests
 
-The service uses the **teda library** (`com.wpanther:thai-etax-invoice`) for complete XML validation:
+Tests the full CDC flow: Document → PostgreSQL → Outbox → Debezium CDC → Kafka
 
-### Three-Layer Validation
-1. **XML Well-Formedness** - Validated during JAXB unmarshaling
-2. **XSD Schema Validation** - Validates against Thai e-Tax XSD schemas (TaxInvoice_2p1.xsd, etc.)
-3. **Schematron Business Rules** - Validates against ETDA business rules (TaxInvoice_Schematron_2p1.sch)
+**Prerequisites**: Start external containers first:
 
-### JAXB-Based Processing
-- **Type-safe unmarshaling** - XML converted to strongly-typed JAXB objects
-- **Document type auto-detection** - Detected from namespace URI or unmarshaled class
-- **Invoice number extraction** - Extracted from ExchangedDocument/ID element
-- **Error collection** - ValidationEventHandler collects all errors (not fail-fast)
-
-### Implementation Notes
-**Critical**: The teda library uses an interface/implementation pattern. JAXB contexts MUST be initialized with `.impl` packages:
-
-```java
-// Correct - Uses implementation packages
-"com.wpanther.etax.generated.taxinvoice.rsm.impl:" +
-"com.wpanther.etax.generated.taxinvoice.ram.impl:" +
-"com.wpanther.etax.generated.common.qdt.impl:" +
-"com.wpanther.etax.generated.common.udt.impl"
+```bash
+# From invoice-microservices root
+./scripts/test-containers-start.sh --with-debezium --auto-deploy-connectors
 ```
 
-### Test Coverage
-- **237 tests** covering all validation scenarios
-- Integration tests use real XML samples from `src/test/resources/samples/`
-- Tests verify JAXB unmarshaling, XSD validation, and Schematron rules
+**Container Ports**:
+- PostgreSQL: `localhost:5433`
+- Kafka: `localhost:9093`
+- Debezium: `localhost:8083`
 
-## Monitoring
+**Run CDC Tests**:
 
-### Actuator Endpoints
-- `/actuator/health` - Health check
-- `/actuator/metrics` - Metrics
-- `/actuator/prometheus` - Prometheus metrics
-
-### Key Metrics
-- `document_received_total` - Total documents received
-- `document_validation_duration_seconds` - Validation time
-- `document_validation_failures_total` - Validation failures
-
-## Project Structure
-
-```
-src/main/java/com/wpanther/document/intake/
-├── DocumentIntakeServiceApplication.java
-├── domain/
-│   ├── model/              # IncomingDocument aggregate, value objects
-│   ├── repository/         # Repository interfaces
-│   └── service/            # XmlValidationService
-├── application/
-│   ├── controller/         # REST controllers
-│   └── service/            # DocumentIntakeService
-└── infrastructure/
-    ├── persistence/        # JPA entities, repositories
-    ├── config/             # Camel routes, Kafka config
-    └── validation/         # XML validation implementation
+```bash
+mvn test -Dtest="*CdcIntegrationTest,*TableIntegrationTest" -Dspring.profiles.active=cdc-test
 ```
 
-## Recommended Enhancements
+**Stop Containers**:
 
-1. **Outbox Pattern** - Reliable event publishing (table exists, needs implementation)
-2. **Rate Limiting** - Prevent overload
-3. **API Authentication** - Secure endpoints
-4. **Performance Testing** - Load test for high-volume scenarios
+```bash
+# From invoice-microservices root
+./scripts/test-containers-stop.sh
+```
 
-## License
+### Test Files
 
-MIT License
+| Directory | Contents |
+|-----------|----------|
+| `src/test/resources/samples/valid/` | Valid Thai e-Tax XML documents |
+| `src/test/resources/samples/invalid/` | Invalid documents for testing validation |
 
-## Contact
+## Outbox Pattern
 
-Maintained by wpanther (rabbit_roger@yahoo.com)
+This service uses the outbox pattern with Debezium CDC for reliable event delivery:
+
+1. **Transaction**: Domain state + outbox event saved atomically
+2. **CDC**: Debezium reads `outbox_events` table via PostgreSQL logical replication
+3. **Routing**: EventRouter transforms routes events to Kafka topics based on `topic` field
+
+### Outbox Table Schema
+
+```sql
+CREATE TABLE outbox_events (
+    id UUID PRIMARY KEY,
+    aggregate_type VARCHAR(100) NOT NULL,
+    aggregate_id VARCHAR(100) NOT NULL,
+    event_type VARCHAR(100) NOT NULL,
+    topic VARCHAR(255),
+    partition_key VARCHAR(255),
+    payload TEXT NOT NULL,
+    headers TEXT,
+    status VARCHAR(20) DEFAULT 'PENDING',
+    created_at TIMESTAMP NOT NULL
+);
+```
+
+### Debezium Connector
+
+Connector name: `outbox-connector-intake`
+
+Key configuration:
+- `table.include.list`: `public.outbox_events`
+- `transforms.outbox.type`: `io.debezium.transforms.outbox.EventRouter`
+- `transforms.outbox.route.by.field`: `topic`
+
+## Troubleshooting
+
+### JAXB Unmarshaling Fails
+
+- Ensure teda library is installed: `cd teda && mvn clean install`
+- JAXB contexts use `.impl` packages (not interface packages)
+
+### Events Not Published to Kafka
+
+1. Check Debezium connector status:
+   ```bash
+   curl http://localhost:8083/connectors/outbox-connector-intake/status
+   ```
+
+2. Verify outbox entries exist:
+   ```bash
+   psql -d intake_db -c "SELECT * FROM outbox_events ORDER BY created_at DESC LIMIT 5"
+   ```
+
+3. Check PostgreSQL `wal_level=logical`
+
+### Database Connection Errors
+
+- Verify PostgreSQL is running: `psql -h localhost -U postgres -d intake_db`
+- Check Flyway migrations: `mvn flyway:info`
+
+## Dependencies
+
+| Dependency | Version | Purpose |
+|------------|---------|---------|
+| teda (thai-etax-invoice) | 1.0.0 | JAXB classes, XSD schemas, Schematron rules |
+| saga-commons | 1.0.0-SNAPSHOT | Outbox pattern support |
+| Apache Camel | 4.14.4 | Message routing |
+| Spring Boot | 3.2.5 | Application framework |
+
+## Related Services
+
+| Service | Port | Relationship |
+|---------|------|--------------|
+| orchestrator-service | 8093 | Consumes `saga.commands.orchestrator` |
+| notification-service | 8085 | Consumes `trace.document.received` |
+| invoice-processing-service | 8082 | Processes INVOICE documents |
+| taxinvoice-processing-service | 8088 | Processes TAX_INVOICE documents |

@@ -1,47 +1,66 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <rsm:Invoice_CrossIndustryInvoice
-    xmlns:ram="urn:uncefact:data:standard:Invoice_ReusableAggregateBusinessInformationEntity:100"
-    xmlns:rsm="urn:uncefact:data:standard:CrossIndustryInvoice:100"
-    xmlns:udt="urn:uncefact:data:standard:UnqualifiedDataType:100"
+    xmlns:ram="urn:etda:uncefact:data:standard:Invoice_ReusableAggregateBusinessInformationEntity:2"
+    xmlns:rsm="urn:etda:uncefact:data:standard:Invoice_CrossIndustryInvoice:2"
+    xmlns:qdt="urn:un:unece:uncefact:data:standard:QualifiedDataType:100"
+    xmlns:udt="urn:un:unece:uncefact:data:standard:UnqualifiedDataType:100"
     xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
     <rsm:ExchangedDocumentContext>
         <ram:GuidelineSpecifiedDocumentContextParameter>
-            <ram:ID schemeVersionID="v2.1">urn:cen.eu:en16931:2017</ram:ID>
+            <ram:ID schemeAgencyID="ETDA" schemeVersionID="v2.1">ER3-2560</ram:ID>
         </ram:GuidelineSpecifiedDocumentContextParameter>
     </rsm:ExchangedDocumentContext>
     <rsm:ExchangedDocument>
         <ram:ID>INV2024010001</ram:ID>
+        <ram:Name>Invoice</ram:Name>
         <ram:TypeCode>380</ram:TypeCode>
         <ram:IssueDateTime>2024-01-15T10:30:00</ram:IssueDateTime>
+        <ram:PurposeCode>ORIGINAL</ram:PurposeCode>
     </rsm:ExchangedDocument>
     <rsm:SupplyChainTradeTransaction>
         <ram:ApplicableHeaderTradeAgreement>
             <ram:SellerTradeParty>
                 <ram:Name>Test Seller Company Limited</ram:Name>
+                <ram:SpecifiedTaxRegistration>
+                    <ram:ID schemeID="TXID" schemeAgencyID="RD">12345678901230001</ram:ID>
+                </ram:SpecifiedTaxRegistration>
                 <ram:PostalTradeAddress>
-                    <ram:CountryID>US</ram:CountryID>
+                    <ram:PostcodeCode>10310</ram:PostcodeCode>
+                    <ram:CityName>1017</ram:CityName>
+                    <ram:CitySubDivisionName>101701</ram:CitySubDivisionName>
+                    <ram:CountryID schemeID="3166-1 alpha-2">TH</ram:CountryID>
+                    <ram:CountrySubDivisionID>10</ram:CountrySubDivisionID>
+                    <ram:BuildingNumber>123</ram:BuildingNumber>
                 </ram:PostalTradeAddress>
             </ram:SellerTradeParty>
             <ram:BuyerTradeParty>
                 <ram:Name>Test Buyer Company Limited</ram:Name>
+                <ram:SpecifiedTaxRegistration>
+                    <ram:ID schemeID="TXID">98765432101230001</ram:ID>
+                </ram:SpecifiedTaxRegistration>
                 <ram:PostalTradeAddress>
-                    <ram:CountryID>US</ram:CountryID>
+                    <ram:PostcodeCode>10330</ram:PostcodeCode>
+                    <ram:CityName>1005</ram:CityName>
+                    <ram:CitySubDivisionName>100501</ram:CitySubDivisionName>
+                    <ram:CountryID schemeID="3166-1 alpha-2">TH</ram:CountryID>
+                    <ram:CountrySubDivisionID>10</ram:CountrySubDivisionID>
+                    <ram:BuildingNumber>456</ram:BuildingNumber>
                 </ram:PostalTradeAddress>
             </ram:BuyerTradeParty>
         </ram:ApplicableHeaderTradeAgreement>
         <ram:ApplicableHeaderTradeSettlement>
-            <ram:InvoiceCurrencyCode>USD</ram:InvoiceCurrencyCode>
+            <ram:InvoiceCurrencyCode>THB</ram:InvoiceCurrencyCode>
             <ram:ApplicableTradeTax>
                 <ram:TypeCode>VAT</ram:TypeCode>
-                <ram:CalculatedRate>10</ram:CalculatedRate>
-                <ram:BasisAmount>1000</ram:BasisAmount>
-                <ram:CalculatedAmount>100</ram:CalculatedAmount>
+                <ram:CalculatedRate>7</ram:CalculatedRate>
+                <ram:BasisAmount>1000.00</ram:BasisAmount>
+                <ram:CalculatedAmount>70.00</ram:CalculatedAmount>
             </ram:ApplicableTradeTax>
             <ram:SpecifiedTradeSettlementHeaderMonetarySummation>
-                <ram:LineTotalAmount>1000</ram:LineTotalAmount>
-                <ram:TaxBasisTotalAmount>1000</ram:TaxBasisTotalAmount>
-                <ram:TaxTotalAmount>100</ram:TaxTotalAmount>
-                <ram:GrandTotalAmount>1100</ram:GrandTotalAmount>
+                <ram:LineTotalAmount>1000.00</ram:LineTotalAmount>
+                <ram:TaxBasisTotalAmount>1000.00</ram:TaxBasisTotalAmount>
+                <ram:TaxTotalAmount>70.00</ram:TaxTotalAmount>
+                <ram:GrandTotalAmount>1070.00</ram:GrandTotalAmount>
             </ram:SpecifiedTradeSettlementHeaderMonetarySummation>
         </ram:ApplicableHeaderTradeSettlement>
         <rsm:IncludedSupplyChainTradeLineItem>
@@ -53,7 +72,7 @@
             </ram:SpecifiedTradeProduct>
             <ram:SpecifiedLineTradeAgreement>
                 <ram:NetPriceProductTradePrice>
-                    <ram:ChargeAmount>100</ram:ChargeAmount>
+                    <ram:ChargeAmount>100.00</ram:ChargeAmount>
                 </ram:NetPriceProductTradePrice>
             </ram:SpecifiedLineTradeAgreement>
             <ram:SpecifiedLineTradeDelivery>
@@ -62,13 +81,13 @@
             <ram:SpecifiedLineTradeSettlement>
                 <ram:ApplicableTradeTax>
                     <ram:TypeCode>VAT</ram:TypeCode>
-                    <ram:CalculatedRate>10</ram:CalculatedRate>
-                    <ram:BasisAmount>1000</ram:BasisAmount>
-                    <ram:CalculatedAmount>100</ram:CalculatedAmount>
+                    <ram:CalculatedRate>7</ram:CalculatedRate>
+                    <ram:BasisAmount>1000.00</ram:BasisAmount>
+                    <ram:CalculatedAmount>70.00</ram:CalculatedAmount>
                 </ram:ApplicableTradeTax>
                 <ram:SpecifiedTradeSettlementLineMonetarySummation>
-                    <ram:TaxTotalAmount>100</ram:TaxTotalAmount>
-                    <ram:NetLineTotalAmount currencyID="USD">1000</ram:NetLineTotalAmount>
+                    <ram:TaxTotalAmount>70.00</ram:TaxTotalAmount>
+                    <ram:NetLineTotalAmount currencyID="THB">1000.00</ram:NetLineTotalAmount>
                 </ram:SpecifiedTradeSettlementLineMonetarySummation>
             </ram:SpecifiedLineTradeSettlement>
         </rsm:IncludedSupplyChainTradeLineItem>
