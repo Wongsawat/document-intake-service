@@ -2,43 +2,55 @@
 
 ## Overview
 
-This document describes the complete program flow for the Document Intake Service, detailing how XML documents are received, validated, and forwarded to downstream services.
+This document describes the complete program flow for the Document Intake Service, detailing how XML documents are received, validated, and forwarded to downstream services via the **outbox pattern with Debezium CDC**.
 
 ## High-Level Architecture
 
 ```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                         Document Intake Service                              │
-├─────────────────────────────────────────────────────────────────────────────┤
-│                                                                              │
-│  ┌──────────────┐         ┌─────────────────┐         ┌──────────────────┐  │
-│  │  REST API    │────────▶│  Apache Camel   │────────▶│  Kafka Producer  │  │
-│  │  Controller  │         │  Routes         │         │  (document.received)│ │
-│  └──────────────┘         └─────────────────┘         └──────────────────┘  │
-│                                   │                                          │
-│  ┌──────────────┐                 │                                          │
-│  │Kafka Consumer│─────────────────┘                                          │
-│  │(document.intake)                                                         │
-│  └──────────────┘                 │                                          │
-│                                   ▼                                          │
-│                    ┌─────────────────────────┐                               │
-│                    │  DocumentIntakeService  │                               │
-│                    │  (Application Layer)    │                               │
-│                    └─────────────────────────┘                               │
-│                                   │                                          │
-│                    ┌──────────────┴──────────────┐                           │
-│                    ▼                             ▼                           │
-│         ┌──────────────────┐          ┌──────────────────┐                   │
-│         │XmlValidationService│        │IncomingDocument   │                   │
-│         │(Domain Service)    │        │(Aggregate Root)  │                   │
-│         └──────────────────┘          └──────────────────┘                   │
-│                                              │                               │
-│                                              ▼                               │
-│                               ┌──────────────────────────┐                   │
-│                               │  PostgreSQL Database     │                   │
-│                               │  (incoming_documents)     │                   │
-│                               └──────────────────────────┘                   │
-└─────────────────────────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────────────────────────────────────────────┐
+│                                    Document Intake Service                                               │
+├──────────────────────────────────────────────────────────────────────────────────────────────────────────┤
+│                                                                                                          │
+│  ┌──────────────┐         ┌─────────────────┐         ┌──────────────────────────────────────────────┐  │
+│  │  REST API    │────────▶│  Apache Camel   │────────▶│        DocumentIntakeService              │  │
+│  │  Controller  │         │  Routes         │         │        (Application Layer)                 │  │
+│  └──────────────┘         └─────────────────┘         └──────────────────────────────────────────────┘  │
+│  ┌──────────────┘                                                           │                          │
+│  │Kafka Consumer│                                                            │                          │
+│  │(document.intake)                                                         │                          │
+│  └────────────────────────────────────────────────────────────────────────┘                          │
+│                                                                               │                          │
+│  ┌──────────────────────────────────────────────────────────────────────────────────────────────────┐  │
+│  │                         Transaction Boundary (@Transactional)                                     │  │
+│  │                                                                                                  │  │
+│  │  1. Save IncomingDocument (status=RECEIVED)         ┌─────────────────────────────────────────┐ │  │
+│  │  2. Write DocumentReceivedTraceEvent (RECEIVED)    │         PostgreSQL Database              │ │  │
+│  │     → outbox_events table                          │                                         │ │  │
+│  │  3. Update status=VALIDATING                       │  ┌─────────────────┐  ┌──────────────┐  │ │  │
+│  │  4. Perform validation (XSD + Schematron)         │  │incoming_invoices│  │outbox_events │  │ │  │
+│  │  5. Update status=VALIDATED/INVALID               │  │                 │  │              │  │ │  │
+│  │  6. Write DocumentReceivedTraceEvent (VALIDATED)   │  └─────────────────┘  └──────────────┘  │ │  │
+│  │     → outbox_events table                          │                                         │ │  │
+│  │  7. If valid:                                      │                                         │ │  │
+│  │     a. Write StartSagaCommand                      │                                         │ │  │
+│  │        → outbox_events table                       │                                         │ │  │
+│  │     b. Update status=FORWARDED                     │                                         │ │  │
+│  │     c. Write DocumentReceivedTraceEvent (FORWARDED) │                                         │ │  │
+│  └───────────────────────────────────────────────────┴─────────────────────────────────────────┘ │  │
+└──────────────────────────────────────────────────────────────────────────────────────────────────┘
+                                          │
+                                          ▼
+┌──────────────────────────────────────────────────────────────────────────────────────────────────────────┐
+│                                      Debezium CDC Layer                                                  │
+├──────────────────────────────────────────────────────────────────────────────────────────────────────────┤
+│                                                                                                          │
+│  ┌─────────────────────────┐         ┌─────────────────┐         ┌────────────────────────────────────┐  │
+│  │  PostgreSQL Logical     │────────▶│  Debezium       │────────▶│     Kafka Topics                   │  │
+│  │  Replication (WAL)      │         │  Connect        │         │                                    │  │
+│  │  (outbox_events table)  │         │  EventRouter    │         │  • saga.commands.orchestrator     │  │
+│  └─────────────────────────┘         └─────────────────┘         │  • trace.document.received        │  │
+│                                                               └────────────────────────────────────┘  │
+└──────────────────────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
 ## Entry Points
@@ -65,57 +77,90 @@ Value: <Document XML content>
 
 ---
 
-## Flow 1: REST API Document Submission
+## Flow 1: REST API Document Submission with Outbox Pattern
 
 ### Sequence Diagram
 
 ```
-┌────────┐     ┌────────────────────┐     ┌─────────────┐     ┌─────────────────┐     ┌────────────────┐     ┌──────────┐     ┌───────┐
-│ Client │     │DocumentIntakeController│  │ProducerTemplate│  │   CamelConfig   │     │DocumentIntakeService│ │  Database  │   │ Kafka │
-└───┬────┘     └──────────┬───────────┘  └──────┬────────┘   └────────┬────────┘     └────────┬───────┘     └─────┬────┘     └───┬───┘
-    │                     │                     │                     │                       │                   │              │
-    │ POST /api/v1/invoices                     │                     │                       │                   │              │
-    │ (XML + correlationId)                     │                     │                       │                   │              │
-    │────────────────────▶│                     │                     │                       │                   │              │
-    │                     │                     │                     │                       │                   │              │
-    │                     │ sendBodyAndHeader() │                     │                       │                   │              │
-    │                     │ "direct:invoice-intake"                   │                       │                   │              │
-    │                     │────────────────────▶│                     │                       │                   │              │
-    │                     │                     │                     │                       │                   │              │
-    │                     │                     │ route: direct:invoice-intake                │                   │              │
-    │                     │                     │────────────────────▶│                       │                   │              │
-    │                     │                     │                     │                       │                   │              │
-    │                     │                     │                     │ submitDocument()       │                   │              │
-    │                     │                     │                     │──────────────────────▶│                   │              │
-    │                     │                     │                     │                       │                   │              │
-    │                     │                     │                     │                       │ save(RECEIVED)    │              │
-    │                     │                     │                     │                       │──────────────────▶│              │
-    │                     │                     │                     │                       │                   │              │
-    │                     │                     │                     │                       │ save(VALIDATING)  │              │
-    │                     │                     │                     │                       │──────────────────▶│              │
-    │                     │                     │                     │                       │                   │              │
-    │                     │                     │                     │                       │ validate XML      │              │
-    │                     │                     │                     │                       │ (XmlValidationService)           │
-    │                     │                     │                     │                       │                   │              │
-    │                     │                     │                     │                       │ save(VALIDATED)   │              │
-    │                     │                     │                     │                       │──────────────────▶│              │
-    │                     │                     │                     │                       │                   │              │
-    │                     │                     │                     │◀──────────────────────│                   │              │
-    │                     │                     │                     │ IncomingDocument       │                   │              │
-    │                     │                     │                     │                       │                   │              │
-    │                     │                     │                     │ if valid: publish to Kafka               │              │
-    │                     │                     │                     │───────────────────────────────────────────────────────▶│
-    │                     │                     │                     │                       │                   │              │
-    │                     │                     │                     │ markForwarded()       │                   │              │
-    │                     │                     │                     │──────────────────────▶│                   │              │
-    │                     │                     │                     │                       │ save(FORWARDED)   │              │
-    │                     │                     │                     │                       │──────────────────▶│              │
-    │                     │                     │                     │                       │                   │              │
-    │                     │◀────────────────────│                     │                       │                   │              │
-    │                     │                     │                     │                       │                   │              │
-    │◀────────────────────│                     │                     │                       │                   │              │
-    │ 202 Accepted        │                     │                     │                       │                   │              │
-    │ {correlationId}     │                     │                     │                       │                   │              │
+┌────────┐  ┌────────────┐  ┌───────┐  ┌─────────────┐  ┌──────────────┐  ┌────────────┐  ┌──────────┐  ┌──────────────┐  ┌───────┐  ┌──────────┐
+│ Client │  │ Controller │  │ Camel │  │  Service    │  │ OutboxService │  │ Repository │  │Database  │  │   Debezium   │  │ Kafka │  │Orchestrator│
+└───┬────┘  └─────┬──────┘  └───┬───┘  └──────┬──────┘  └──────┬───────┘  └─────┬──────┘  └────┬─────┘  └──────┬───────┘  └───┬───┘  └─────┬────┘
+    │             │              │              │                │               │              │              │             │              │
+    │POST         │              │              │                │               │              │              │             │              │
+    │/api/v1/invoices            │              │                │               │              │              │             │              │
+    │(XML+cID)    │              │              │                │               │              │              │             │              │
+    │────────────▶│              │              │                │               │              │              │             │              │
+    │             │              │              │                │               │              │              │             │              │
+    │             │send to Camel │              │                │               │              │              │             │              │
+    │             │─────────────▶│              │                │               │              │              │             │              │
+    │             │              │              │                │               │              │              │             │              │
+    │             │              │submitInvoice()│                │               │              │              │             │              │
+    │             │              │─────────────▶│                │               │              │              │             │              │
+    │             │              │              │                │               │              │              │             │              │
+    │             │              │              │┌───────────────┴───────────────────────────────┐│              │             │              │
+    │             │              │              ││          TRANSACTION START                  ││              │             │              │
+    │             │              │              │└───────────────────────────────────────────────┘│              │             │              │
+    │             │              │              │                │               │              │              │             │              │
+    │             │              │              │save(RECEIVED)   │               │              │              │             │              │
+    │             │              │              │──────────────────────────────▶│              │              │             │              │
+    │             │              │              │                │               │              │              │             │              │
+    │             │              │              │                │               │ incoming_    │              │             │              │
+    │             │              │              │                │               │ invoices     │              │             │              │
+    │             │              │              │                │               │◀─────────────│              │             │              │
+    │             │              │              │                │               │              │              │             │              │
+    │             │              │              │publish TraceEvent(RECEIVED) → outbox          │              │             │              │
+    │             │              │              │────────────────▶│ saveWithRouting()              │              │             │              │
+    │             │              │              │                │               │─────────────▶│              │             │              │
+    │             │              │              │                │               │              │ outbox_events│             │              │
+    │             │              │              │                │               │◀─────────────│              │             │              │
+    │             │              │              │                │               │              │              │             │              │
+    │             │              │              │status=VALIDATING│               │              │              │             │              │
+    │             │              │              │──────────────────────────────▶│              │              │             │              │
+    │             │              │              │                │               │─────────────▶│              │             │              │
+    │             │              │              │                │               │              │              │             │              │
+    │             │              │              │validate XML(XSD+Schematron)                   │              │             │              │
+    │             │              │              │                │               │              │              │             │              │
+    │             │              │              │status=VALIDATED │               │              │              │             │              │
+    │             │              │              │──────────────────────────────▶│              │              │             │              │
+    │             │              │              │                │               │─────────────▶│              │             │              │
+    │             │              │              │                │               │              │              │             │              │
+    │             │              │              │publish TraceEvent(VALIDATED) → outbox         │              │             │              │
+    │             │              │              │────────────────▶│ saveWithRouting()              │              │             │              │
+    │             │              │              │                │               │─────────────▶│              │             │              │
+    │             │              │              │                │               │              │              │             │              │
+    │             │              │              │if valid:       │               │              │              │             │              │
+    │             │              │              │publish StartSagaCommand → outbox              │              │             │              │
+    │             │              │              │────────────────▶│ saveWithRouting()              │              │             │              │
+    │             │              │              │                │               │─────────────▶│              │             │              │
+    │             │              │              │                │               │              │              │             │              │
+    │             │              │              │status=FORWARDED │               │              │              │             │              │
+    │             │              │              │──────────────────────────────▶│              │              │             │              │
+    │             │              │              │                │               │─────────────▶│              │             │              │
+    │             │              │              │                │               │              │              │             │              │
+    │             │              │              │publish TraceEvent(FORWARDED) → outbox          │              │             │              │
+    │             │              │              │────────────────▶│ saveWithRouting()              │              │             │              │
+    │             │              │              │                │               │─────────────▶│              │             │              │
+    │             │              │              │                │               │              │              │             │              │
+    │             │              │              │┌───────────────┴───────────────────────────────┐│              │             │              │
+    │             │              │              ││          TRANSACTION COMMIT                  ││              │             │              │
+    │             │              │              │└───────────────────────────────────────────────┘│              │             │              │
+    │             │              │              │                │               │              │              │             │              │
+    │             │              │◀─────────────│                │               │              │              │             │              │
+    │             │              │              │                │               │              │              │             │              │
+    │             │◀─────────────│              │                │               │              │              │             │              │
+    │202 Accepted │              │                │               │              │              │             │              │
+    │{correlationId}             │                │               │              │              │             │              │
+    │             │              │                │               │              │              │             │              │
+    │             │              │                │               │              │              │CDC reads WAL│             │              │
+    │             │              │                │               │              │              │◀────────────│             │              │
+    │             │              │                │               │              │              │             │             │              │
+    │             │              │                │               │              │              │EventRouter   │             │              │
+    │             │              │                │               │              │              │─────────────▶│             │              │
+    │             │              │                │               │              │              │             │ saga.commands│              │
+    │             │              │                │               │              │              │             │ .orchestrator│              │
+    │             │              │                │               │              │              │             │             │              │
+    │             │              │                │               │              │              │             │             │Consumes     │
+    │             │              │                │               │              │              │             │─────────────▶│              │
 ```
 
 ### Step-by-Step Flow
@@ -133,81 +178,164 @@ Value: <Document XML content>
 3. **Camel Route processes message**
    - File: `infrastructure/config/CamelConfig.java`
    - Route ID: `document-intake-direct`
-   - Calls `DocumentIntakeService.submitDocument()`
+   - Calls `DocumentIntakeService.submitInvoice()`
 
-4. **DocumentIntakeService orchestrates business logic**
+4. **DocumentIntakeService orchestrates within @Transactional**
    - File: `application/service/DocumentIntakeService.java`
-   - Extracts invoice number from XML
-   - Checks for duplicate invoice numbers
-   - Creates `IncomingDocument` aggregate
-   - Saves to database (status: RECEIVED)
-   - Transitions to VALIDATING status
-   - Performs XSD validation
-   - Marks as VALIDATED or INVALID
+   - **All database operations and outbox writes occur in a single transaction**
 
-5. **Camel Route handles result**
-   - If valid: Creates `DocumentReceivedEvent` and publishes to Kafka
-   - Marks document as FORWARDED
-   - If invalid: Logs failure, does not forward
+5. **Transaction Operations** (all or nothing):
+   a. Save `IncomingDocument` (status: RECEIVED) → `incoming_invoices` table
+   b. Publish `DocumentReceivedTraceEvent` (status: RECEIVED) → `outbox_events` table
+   c. Update status to VALIDATING → `incoming_invoices` table
+   d. Perform validation (XSD + Schematron)
+   e. Update status to VALIDATED/INVALID → `incoming_invoices` table
+   f. Publish `DocumentReceivedTraceEvent` (status: VALIDATED) → `outbox_events` table
+   g. If valid:
+      - Publish `StartSagaCommand` → `outbox_events` table
+      - Update status to FORWARDED → `incoming_invoices` table
+      - Publish `DocumentReceivedTraceEvent` (status: FORWARDED) → `outbox_events` table
 
-6. **Response returned to client**
+6. **Transaction commits** - Both domain state and outbox events are atomically persisted
+
+7. **Debezium CDC processes outbox table**:
+   - Debezium connector reads `outbox_events` via PostgreSQL logical replication (WAL)
+   - EventRouter transform routes events based on `topic` field
+   - Events published to Kafka topics:
+     - `saga.commands.orchestrator` (StartSagaCommand)
+     - `trace.document.received` (DocumentReceivedTraceEvent)
+
+8. **Response returned to client**
    - 202 Accepted with correlation ID
 
 ---
 
-## Flow 2: Kafka Document Consumption
+## Flow 2: Debezium CDC Event Publishing
 
-### Sequence Diagram
+### Debezium CDC Architecture
 
 ```
-┌───────┐     ┌─────────────────┐     ┌─────────────────┐     ┌──────────┐     ┌───────┐
-│ Kafka │     │   CamelConfig   │     │DocumentIntakeService│ │  Database  │   │ Kafka │
-│(intake)│    │  Kafka Route    │     │                   │   │            │   │(received)│
-└───┬───┘     └────────┬────────┘     └────────┬──────────┘   └─────┬────┘   └────┬────┘
-    │                  │                       │                    │              │
-    │ Message          │                       │                    │              │
-    │ (XML content)    │                       │                    │              │
-    │─────────────────▶│                       │                    │              │
-    │                  │                       │                    │              │
-    │                  │ submitDocument()       │                    │              │
-    │                  │──────────────────────▶│                    │              │
-    │                  │                       │                    │              │
-    │                  │                       │ save(RECEIVED)     │              │
-    │                  │                       │───────────────────▶│              │
-    │                  │                       │                    │              │
-    │                  │                       │ save(VALIDATING)   │              │
-    │                  │                       │───────────────────▶│              │
-    │                  │                       │                    │              │
-    │                  │                       │ validate XML       │              │
-    │                  │                       │                    │              │
-    │                  │                       │ save(VALIDATED)    │              │
-    │                  │                       │───────────────────▶│              │
-    │                  │                       │                    │              │
-    │                  │◀──────────────────────│                    │              │
-    │                  │ IncomingDocument       │                    │              │
-    │                  │                       │                    │              │
-    │                  │ if valid: publish     │                    │              │
-    │                  │───────────────────────────────────────────────────────▶│
-    │                  │                       │                    │              │
-    │                  │ markForwarded()       │                    │              │
-    │                  │──────────────────────▶│                    │              │
-    │                  │                       │ save(FORWARDED)    │              │
-    │                  │                       │───────────────────▶│              │
+┌──────────────────────────────────────────────────────────────────────────────────────────────────────────┐
+│                                    Debezium CDC Flow                                                      │
+├──────────────────────────────────────────────────────────────────────────────────────────────────────────┤
+│                                                                                                          │
+│  1. Transaction Commit in Document Intake Service                                                        │
+│     ┌─────────────────┐     ┌─────────────────┐                                                           │
+│     │incoming_invoices│     │ outbox_events   │                                                           │
+│     │     table       │     │     table       │                                                           │
+│     └────────┬────────┘     └────────┬────────┘                                                           │
+│              │                      │                                                                   │
+│              └──────────┬───────────┘                                                                   │
+│                         │                                                                               │
+│                         ▼                                                                               │
+│  2. PostgreSQL Write-Ahead Log (WAL)                                                                    │
+│     ┌─────────────────────────────────────────────────────────┐                                        │
+│     │  Logical Replication Slot: debezium_slot                │                                        │
+│     │  • Changes captured as they commit                       │                                        │
+│     │  • Guaranteed ordering                                  │                                        │
+│     └────────────────────────┬────────────────────────────────┘                                        │
+│                              │                                                                         │
+│                              ▼                                                                         │
+│  3. Debezium PostgreSQL Connector                                                                     │
+│     ┌─────────────────────────────────────────────────────────┐                                        │
+│     │  Reads WAL changes for:                                 │                                        │
+│     │  • table.include.list: public.outbox_events             │                                        │
+│     │  • poll.interval.ms: 1000 (default)                     │                                        │
+│     └────────────────────────┬────────────────────────────────┘                                        │
+│                              │                                                                         │
+│                              ▼                                                                         │
+│  4. EventRouter Transform                                                                            │
+│     ┌─────────────────────────────────────────────────────────┐                                        │
+│     │  Extracts from outbox_events row:                       │                                        │
+│     │  • topic field → Kafka topic name                       │                                        │
+│     │  • partition_key field → Kafka message key               │                                        │
+│     │  • payload field → Kafka message body                    │                                        │
+│     │  • headers field → Kafka message headers                 │                                        │
+│     └────────────────────────┬────────────────────────────────┘                                        │
+│                              │                                                                         │
+│                              ▼                                                                         │
+│  5. Kafka Topics                                                                                    │
+│     ┌──────────────────────────┐  ┌───────────────────────────────────────┐                            │
+│     │ saga.commands.orchestrator│  │ trace.document.received              │                            │
+│     │ (StartSagaCommand)        │  │ (DocumentReceivedTraceEvent)         │                            │
+│     └──────────────────────────┘  └───────────────────────────────────────┘                            │
+│                 │                                    │                                            │
+│                 ▼                                    ▼                                            │
+│     ┌──────────────────────┐          ┌──────────────────────────┐                                   │
+│     │ orchestrator-service │          │ notification-service     │                                   │
+│     └──────────────────────┘          └──────────────────────────┘                                   │
+└──────────────────────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
-### Step-by-Step Flow
+### Outbox Event Flow Detail
 
-1. **Kafka message consumed**
-   - Topic: `document.intake`
-   - Consumer Group: `intake-service`
-   - Correlation ID from Kafka message key
+```
+┌──────────────────────────────────────────────────────────────────────────────────────────────────────────┐
+│                              Outbox Event Lifecycle                                                      │
+├──────────────────────────────────────────────────────────────────────────────────────────────────────────┤
+│                                                                                                          │
+│  Service writes event to outbox:                    │                                                   │
+│  ┌──────────────────────────────────────────────────────────────────────────────────────────────────┐ │
+│  │ outbox_events table                                                                               │ │
+│  │ ┌───────────────┬──────────────┬──────────────────┬─────────────┬─────────────┬──────────────┐   │ │
+│  │ │ id           │ aggregate_id │ event_type       │ topic       │ partition_key│ payload      │   │ │
+│  │ ├───────────────┼──────────────┼──────────────────┼─────────────┼─────────────┼──────────────┤   │ │
+│  │ │ uuid-1       │ doc-123      │ StartSagaCommand │ saga.commands│ doc-123     │ {...}        │   │ │
+│  │ │              │              │                  │ .orchestrator│             │              │   │ │
+│  │ ├───────────────┼──────────────┼──────────────────┼─────────────┼─────────────┼──────────────┤   │ │
+│  │ │ uuid-2       │ doc-123      │ TraceEvent       │ trace.document│ doc-123     │ {...}        │   │ │
+│  │ │              │              │                  │ .received    │             │              │   │ │
+│  │ └───────────────┴──────────────┴──────────────────┴─────────────┴─────────────┴──────────────┘   │ │
+│  └──────────────────────────────────────────────────────────────────────────────────────────────────┘ │
+│                              │                                                                         │
+│                              │ Debezium CDC reads row                                                  │
+│                              ▼                                                                         │
+│  ┌──────────────────────────────────────────────────────────────────────────────────────────────────┐ │
+│  │ Debezium EventRouter Transform                                                                    │ │
+│  │                                                                                                    │ │
+│  │ Input (outbox row):                         Output (Kafka record):                                 │ │
+│  │ • topic: "saga.commands.orchestrator"       topic: saga.commands.orchestrator                     │ │
+│  │ • partition_key: "doc-123"              key: "doc-123"                                             │ │
+│  │ • payload: '{"commandId":"..."}'         value: {"commandId":"..."}                                │ │
+│  │ • headers: '{"contentType":"application/json"}'  headers: {"contentType":"application/json"}       │ │
+│  └──────────────────────────────────────────────────────────────────────────────────────────────────┘ │
+│                              │                                                                         │
+│                              ▼                                                                         │
+│  ┌──────────────────────────────────────────────────────────────────────────────────────────────────┐ │
+│  │ Kafka Topic: saga.commands.orchestrator                                                          │ │
+│  │                                                                                                    │ │
+│  │ Partition 0 (key: doc-123)                                                                         │ │
+│  │ ┌──────────────────────────────────────────────────────────────────────────────────────────────┐ │ │
+│  │ │ Offset 100: {"commandId":"...","documentId":"doc-123",...}                                  │ │ │
+│  │ └──────────────────────────────────────────────────────────────────────────────────────────────┘ │ │
+│  └──────────────────────────────────────────────────────────────────────────────────────────────────┘ │
+└──────────────────────────────────────────────────────────────────────────────────────────────────────────┘
+```
 
-2. **Camel Kafka Route processes message**
-   - Route ID: `document-intake-kafka`
-   - Same processing logic as REST route
+### Debezium Connector Configuration
 
-3. **Validation and forwarding**
-   - Same as REST flow steps 4-5
+**Connector Name**: `outbox-connector-intake`
+
+**Key Settings**:
+```json
+{
+  "name": "outbox-connector-intake",
+  "config": {
+    "connector.class": "io.debezium.connector.postgresql.PostgresConnector",
+    "database.hostname": "postgres",
+    "database.port": "5432",
+    "database.dbname": "intake_db",
+    "table.include.list": "public.outbox_events",
+    "transforms": "outbox",
+    "transforms.outbox.type": "io.debezium.transforms.outbox.EventRouter",
+    "transforms.outbox.route.by.field": "topic",
+    "transforms.outbox.route.topic.replacement": "${routedByValue}",
+    "transforms.outbox.table.field.event.key": "partition_key",
+    "transforms.outbox.table.field.event.payload": "payload",
+    "transforms.outbox.table.fields.additional.placement": "headers:header"
+  }
+}
+```
 
 ---
 
@@ -236,15 +364,15 @@ Value: <Document XML content>
          └── Initial state when document is created
 ```
 
-### State Transitions
+**State Transitions with Outbox Events**:
 
-| Current State | Method | Condition | Next State |
-|---------------|--------|-----------|------------|
-| RECEIVED | `startValidation()` | - | VALIDATING |
-| VALIDATING | `markValidated(result)` | result.valid() == true | VALIDATED |
-| VALIDATING | `markValidated(result)` | result.valid() == false | INVALID |
-| VALIDATED | `markForwarded()` | - | FORWARDED |
-| Any | `markFailed(error)` | - | FAILED |
+| Current State | Method | Outbox Events Written | Next State |
+|---------------|--------|----------------------|------------|
+| Initial | `submitInvoice()` | `DocumentReceivedTraceEvent` (RECEIVED) | RECEIVED |
+| RECEIVED | `startValidation()` | None | VALIDATING |
+| VALIDATING | `markValidated(true)` | `DocumentReceivedTraceEvent` (VALIDATED), `StartSagaCommand`, `DocumentReceivedTraceEvent` (FORWARDED) | FORWARDED |
+| VALIDATING | `markValidated(false)` | `DocumentReceivedTraceEvent` (INVALID) | INVALID |
+| Any | `markFailed()` | `DocumentReceivedTraceEvent` (FAILED) | FAILED |
 
 ---
 
@@ -252,7 +380,7 @@ Value: <Document XML content>
 
 ### Dead Letter Queue (DLQ)
 
-Failed messages are sent to `document.intake.dlq` after retry exhaustion.
+Failed messages from the `document.intake` consumer are sent to `document.intake.dlq` after retry exhaustion.
 
 ```
 Error occurs
@@ -274,38 +402,87 @@ Send to DLQ (document.intake.dlq)
 
 | Error Type | Handling |
 |------------|----------|
-| Invalid XML structure | Validation fails, status = INVALID |
-| Duplicate invoice number | IllegalStateException, no record created |
-| Missing invoice number | IllegalArgumentException, no record created |
-| Database error | Retry with exponential backoff, then DLQ |
-| Kafka publish error | Retry with exponential backoff, then DLQ |
+| Invalid XML structure | Validation fails, status = INVALID, trace event published, NO saga command |
+| Database connection error | Transaction rolls back, no outbox events written, retry via DLQ |
+| Debezium connector failure | Outbox events remain in table with status=PENDING (future: cleanup service) |
+| Kafka unavailable | Debezium retries internally, events preserved in outbox table |
+
+### Outbox Event Status
+
+| Status | Meaning |
+|--------|---------|
+| PENDING | Event written to outbox, awaiting CDC processing |
+| PUBLISHED | Event successfully published to Kafka (future: polling-based cleanup) |
+| FAILED | Event publish failed (future: retry mechanism) |
+
+---
+
+## Outbox Table Schema
+
+```sql
+CREATE TABLE outbox_events (
+    id UUID PRIMARY KEY,
+    aggregate_type VARCHAR(100) NOT NULL,      -- "IncomingDocument"
+    aggregate_id VARCHAR(100) NOT NULL,         -- document ID
+    event_type VARCHAR(100) NOT NULL,           -- "StartSagaCommand", "DocumentReceivedTraceEvent"
+    topic VARCHAR(255),                        -- Kafka topic (Debezium routing)
+    partition_key VARCHAR(255),                 -- Kafka message key (ordering)
+    payload TEXT NOT NULL,                      -- Event JSON payload
+    headers TEXT,                               -- Kafka headers (JSON)
+    status VARCHAR(20),                         -- "PENDING", "PUBLISHED", "FAILED"
+    retry_count INTEGER DEFAULT 0,              -- For future retry mechanism
+    error_message VARCHAR(1000),                -- Last error if failed
+    created_at TIMESTAMP NOT NULL,
+    published_at TIMESTAMP
+);
+
+-- Critical for CDC performance
+CREATE INDEX idx_outbox_status ON outbox_events(status);
+CREATE INDEX idx_outbox_created ON outbox_events(created_at);
+CREATE INDEX idx_outbox_aggregate ON outbox_events(aggregate_id, aggregate_type);
+```
 
 ---
 
 ## Kafka Events
 
-### DocumentReceivedEvent (Published)
+### StartSagaCommand (sent to `saga.commands.orchestrator`)
 
 ```json
 {
-  "eventId": "uuid",
-  "eventType": "document.received",
+  "commandId": "uuid",
   "occurredAt": "2025-12-07T10:30:00Z",
-  "version": 1,
   "documentId": "uuid",
+  "documentType": "TAX_INVOICE",
   "invoiceNumber": "INV-2025-001",
-  "xmlContent": "<Document>...</Document>",
-  "correlationId": "uuid"
+  "xmlContent": "<TaxInvoice_CrossIndustryInvoice>...</>",
+  "correlationId": "uuid",
+  "source": "API"
+}
+```
+
+### DocumentReceivedTraceEvent (sent to `trace.document.received`)
+
+```json
+{
+  "documentId": "uuid",
+  "documentType": "TAX_INVOICE",
+  "invoiceNumber": "INV-2025-001",
+  "correlationId": "uuid",
+  "status": "RECEIVED",
+  "source": "API",
+  "occurredAt": "2025-12-07T10:30:00Z"
 }
 ```
 
 ### Topics
 
-| Topic | Direction | Purpose |
-|-------|-----------|---------|
-| `document.intake` | Consumer | Receive documents from external systems |
-| `document.received` | Producer | Forward validated documents to processing |
-| `document.intake.dlq` | Producer | Dead letter queue for failed messages |
+| Topic | Producer | Consumer | Purpose |
+|-------|----------|----------|---------|
+| `document.intake` | External systems | Document Intake | Receive documents from external systems |
+| `saga.commands.orchestrator` | Document Intake (via CDC) | orchestrator-service | Start saga for validated documents |
+| `trace.document.received` | Document Intake (via CDC) | notification-service | Trace document lifecycle |
+| `document.intake.dlq` | Document Intake | - | Dead letter queue |
 
 ---
 
@@ -320,38 +497,44 @@ Send to DLQ (document.intake.dlq)
 - Message routing orchestration
 - Error handling with DLQ
 - Kafka integration
-- Event creation and publishing
+- No longer produces events directly (uses outbox pattern)
 
 ### DocumentIntakeService
-- Business logic orchestration
-- Transaction management
-- Idempotency checks
+- Business logic orchestration with @Transactional
 - Coordinates domain objects and repositories
+- Publishes events via EventPublisher (outbox pattern)
+
+### EventPublisher
+- Wrapper around OutboxService from saga-commons
+- Methods:
+  - `publishStartSagaCommand(StartSagaCommand)` → `saga.commands.orchestrator`
+  - `publishTraceEvent(DocumentReceivedTraceEvent)` → `trace.document.received`
+
+### OutboxService (from saga-commons)
+- Writes events to `outbox_events` table
+- Methods:
+  - `saveWithRouting()` - includes Debezium CDC fields (topic, partition_key, headers)
 
 ### IncomingDocument (Aggregate Root)
 - Enforces state machine transitions
 - Validates business invariants
 - Encapsulates document lifecycle
 
-### XmlValidationService
-- XSD schema validation
-- Invoice number extraction
-- Integration with teda library
-
-### IncomingDocumentRepository
-- Data persistence abstraction
-- Domain-oriented query methods
+### JpaOutboxEventRepository (service-specific)
+- JPA implementation of saga-commons OutboxEventRepository
+- Registered as bean via OutboxConfig
 
 ---
 
 ## Database Schema
 
-### incoming_documents Table
+### incoming_invoices Table
 
 ```sql
-CREATE TABLE incoming_documents (
+CREATE TABLE incoming_invoices (
     id UUID PRIMARY KEY,
-    invoice_number VARCHAR(100) UNIQUE NOT NULL,
+    invoice_number VARCHAR(100),
+    document_type VARCHAR(50) NOT NULL,
     xml_content TEXT NOT NULL,
     source VARCHAR(50) NOT NULL,
     correlation_id VARCHAR(100),
@@ -374,9 +557,20 @@ CREATE TABLE incoming_documents (
 app:
   kafka:
     topics:
-      document-intake: document.intake
-      document-received: document.received
+      invoice-intake: document.intake
       intake-dlq: document.intake.dlq
+      saga-commands-orchestrator: saga.commands.orchestrator
+      trace-document-received: trace.document.received
+```
+
+### CDC Test Profile (application-cdc-test.yml)
+
+```yaml
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5433/intake_db
+  kafka:
+    bootstrap-servers: localhost:9093
 ```
 
 ### Camel Error Handler
@@ -388,3 +582,17 @@ errorHandler(deadLetterChannel("kafka:" + intakeDlqTopic)
     .useExponentialBackOff()
     .logExhausted(true));
 ```
+
+---
+
+## Summary of Key Changes from Legacy Architecture
+
+| Aspect | Legacy (Direct Kafka) | Current (Outbox + CDC) |
+|--------|----------------------|------------------------|
+| Event Publishing | Direct Kafka producer in Camel routes | Outbox table within transaction |
+| Event Delivery | Best-effort (no guarantee) | Guaranteed by transaction + CDC |
+| Downstream Consumer | Direct to processing services | orchestrator-service via saga pattern |
+| Topics | `document.received.{type}` | `saga.commands.orchestrator` |
+| Trace Events | None | `trace.document.received` |
+| Failure Handling | DLQ on Kafka error | Events preserved in outbox table |
+| Ordering | Per Kafka partition | Per correlation ID (partition_key) |
