@@ -7,6 +7,8 @@ import com.wpanther.etax.generated.invoice.rsm.Invoice_CrossIndustryInvoiceType;
 import com.wpanther.etax.generated.receipt.rsm.Receipt_CrossIndustryInvoiceType;
 import com.wpanther.etax.generated.taxinvoice.rsm.TaxInvoice_CrossIndustryInvoiceType;
 import com.wpanther.etax.validation.DocumentSchematron;
+import java.util.Arrays;
+import java.util.stream.Collectors;
 
 /**
  * Enum representing the 6 Thai e-Tax document types supported by the system.
@@ -27,10 +29,6 @@ public enum DocumentType {
         "com.wpanther.etax.generated.taxinvoice.ram:" +
         "com.wpanther.etax.generated.common.qdt:" +
         "com.wpanther.etax.generated.common.udt",
-        "com.wpanther.etax.generated.taxinvoice.rsm.impl:" +
-        "com.wpanther.etax.generated.taxinvoice.ram.impl:" +
-        "com.wpanther.etax.generated.common.qdt.impl:" +
-        "com.wpanther.etax.generated.common.udt.impl",
         "urn:etda:uncefact:data:standard:TaxInvoice_CrossIndustryInvoice:2",
         TaxInvoice_CrossIndustryInvoiceType.class,
         "e-tax-invoice-receipt-v2.1/ETDA/data/standard/TaxInvoice_CrossIndustryInvoice_2p1.xsd",
@@ -42,10 +40,6 @@ public enum DocumentType {
         "com.wpanther.etax.generated.receipt.ram:" +
         "com.wpanther.etax.generated.common.qdt:" +
         "com.wpanther.etax.generated.common.udt",
-        "com.wpanther.etax.generated.receipt.rsm.impl:" +
-        "com.wpanther.etax.generated.receipt.ram.impl:" +
-        "com.wpanther.etax.generated.common.qdt.impl:" +
-        "com.wpanther.etax.generated.common.udt.impl",
         "urn:etda:uncefact:data:standard:Receipt_CrossIndustryInvoice:2",
         Receipt_CrossIndustryInvoiceType.class,
         "e-tax-invoice-receipt-v2.1/ETDA/data/standard/Receipt_CrossIndustryInvoice_2p1.xsd",
@@ -57,10 +51,6 @@ public enum DocumentType {
         "com.wpanther.etax.generated.invoice.ram:" +
         "com.wpanther.etax.generated.invoice.qdt:" +
         "com.wpanther.etax.generated.common.udt",
-        "com.wpanther.etax.generated.invoice.rsm.impl:" +
-        "com.wpanther.etax.generated.invoice.ram.impl:" +
-        "com.wpanther.etax.generated.invoice.qdt.impl:" +
-        "com.wpanther.etax.generated.common.udt.impl",
         "urn:etda:uncefact:data:standard:Invoice_CrossIndustryInvoice:2",
         Invoice_CrossIndustryInvoiceType.class,
         "e-tax-invoice-receipt-v2.1/ETDA/data/standard/Invoice_CrossIndustryInvoice_2p1.xsd",
@@ -72,10 +62,6 @@ public enum DocumentType {
         "com.wpanther.etax.generated.debitcreditnote.ram:" +
         "com.wpanther.etax.generated.common.qdt:" +
         "com.wpanther.etax.generated.common.udt",
-        "com.wpanther.etax.generated.debitcreditnote.rsm.impl:" +
-        "com.wpanther.etax.generated.debitcreditnote.ram.impl:" +
-        "com.wpanther.etax.generated.common.qdt.impl:" +
-        "com.wpanther.etax.generated.common.udt.impl",
         "urn:etda:uncefact:data:standard:DebitCreditNote_CrossIndustryInvoice:2",
         DebitCreditNote_CrossIndustryInvoiceType.class,
         "e-tax-invoice-receipt-v2.1/ETDA/data/standard/DebitCreditNote_CrossIndustryInvoice_2p1.xsd",
@@ -87,10 +73,6 @@ public enum DocumentType {
         "com.wpanther.etax.generated.cancellationnote.ram:" +
         "com.wpanther.etax.generated.common.qdt:" +
         "com.wpanther.etax.generated.common.udt",
-        "com.wpanther.etax.generated.cancellationnote.rsm.impl:" +
-        "com.wpanther.etax.generated.cancellationnote.ram.impl:" +
-        "com.wpanther.etax.generated.common.qdt.impl:" +
-        "com.wpanther.etax.generated.common.udt.impl",
         "urn:etda:uncefact:data:standard:CancellationNote_CrossIndustryInvoice:2",
         CancellationNote_CrossIndustryInvoiceType.class,
         "e-tax-invoice-receipt-v2.1/ETDA/data/standard/CancellationNote_CrossIndustryInvoice_2p1.xsd",
@@ -102,10 +84,6 @@ public enum DocumentType {
         "com.wpanther.etax.generated.abbreviatedtaxinvoice.ram:" +
         "com.wpanther.etax.generated.common.qdt:" +
         "com.wpanther.etax.generated.common.udt",
-        "com.wpanther.etax.generated.abbreviatedtaxinvoice.rsm.impl:" +
-        "com.wpanther.etax.generated.abbreviatedtaxinvoice.ram.impl:" +
-        "com.wpanther.etax.generated.common.qdt.impl:" +
-        "com.wpanther.etax.generated.common.udt.impl",
         "urn:etda:uncefact:data:standard:AbbreviatedTaxInvoice_CrossIndustryInvoice:2",
         AbbreviatedTaxInvoice_CrossIndustryInvoiceType.class,
         "e-tax-invoice-receipt-v2.1/ETDA/data/standard/AbbreviatedTaxInvoice_CrossIndustryInvoice_2p1.xsd",
@@ -113,16 +91,14 @@ public enum DocumentType {
     );
 
     private final String contextPath;
-    private final String implementationContextPath;
     private final String namespaceUri;
     private final Class<?> jaxbClass;
     private final String schemaPath;
     private final String rootElementName;
 
-    DocumentType(String contextPath, String implementationContextPath, String namespaceUri,
+    DocumentType(String contextPath, String namespaceUri,
                  Class<?> jaxbClass, String schemaPath, String rootElementName) {
         this.contextPath = contextPath;
-        this.implementationContextPath = implementationContextPath;
         this.namespaceUri = namespaceUri;
         this.jaxbClass = jaxbClass;
         this.schemaPath = schemaPath;
@@ -140,7 +116,9 @@ public enum DocumentType {
      * @return the implementation package context path for JAXB
      */
     public String getImplementationContextPath() {
-        return implementationContextPath;
+        return Arrays.stream(contextPath.split(":"))
+            .map(pkg -> pkg + ".impl")
+            .collect(Collectors.joining(":"));
     }
 
     public String getNamespaceUri() {
