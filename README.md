@@ -116,8 +116,11 @@ mvn clean package
 # Run
 mvn spring-boot:run
 
-# Run tests (unit + integration with H2)
+# Run unit tests (fast, no external dependencies)
 mvn test
+
+# Run integration tests (requires external containers)
+mvn verify
 
 # Database migrations
 mvn flyway:migrate
@@ -154,19 +157,19 @@ curl -X POST http://localhost:8081/api/v1/invoices \
 curl http://localhost:8081/api/v1/invoices/{id}
 ```
 
-## Testing
+### Test Organization
 
-### Test Profiles
+| Directory | Test Type | Command | External Dependencies |
+|-----------|-----------|---------|----------------------|
+| `src/test/java` | Unit Tests | `mvn test` | None |
+| `src/it/java` | Integration Tests | `mvn verify` | PostgreSQL, Kafka, Debezium |
 
-| Profile | Database | Use Case |
-|---------|----------|----------|
-| `test` | H2 (in-memory) | Unit and integration tests |
-| `cdc-test` | PostgreSQL (external) | CDC integration tests with Debezium |
+### Unit Tests
 
-### Unit and Integration Tests
+Fast, isolated tests that don't require external containers.
 
 ```bash
-# Run all tests
+# Run all unit tests
 mvn test
 
 # Run specific test class
@@ -176,9 +179,11 @@ mvn test -Dtest=XmlValidationServiceImplTest
 mvn test -Dtest=DocumentIntakeServiceTest#testSubmitInvoiceWithValidXml
 ```
 
-### CDC Integration Tests
+**Result**: Runs 215 unit tests in ~35 seconds.
 
-Tests the full CDC flow: Document → PostgreSQL → Outbox → Debezium CDC → Kafka
+### Integration Tests
+
+Full end-to-end tests requiring external infrastructure.
 
 **Prerequisites**: Start external containers first:
 
@@ -192,10 +197,10 @@ Tests the full CDC flow: Document → PostgreSQL → Outbox → Debezium CDC →
 - Kafka: `localhost:9093`
 - Debezium: `localhost:8083`
 
-**Run CDC Tests**:
+**Run Integration Tests**:
 
 ```bash
-mvn test -Dtest="*CdcIntegrationTest,*TableIntegrationTest" -Dspring.profiles.active=cdc-test
+mvn verify
 ```
 
 **Stop Containers**:
@@ -205,11 +210,21 @@ mvn test -Dtest="*CdcIntegrationTest,*TableIntegrationTest" -Dspring.profiles.ac
 ./scripts/test-containers-stop.sh
 ```
 
+### Test Profiles
+
+| Profile | Database | Maven Phase | Tests |
+|---------|----------|-------------|--------|
+| `test` | H2 (in-memory) | `test` (unit tests) |
+| `cdc-test` | PostgreSQL (external) | `integration-test` (CDC tests) |
+
 ### Test Files
 
-| Directory | Contents |
-|-----------|----------|
-| `src/test/resources/samples/valid/` | Valid Thai e-Tax XML documents |
+| Directory | Contents | Used By |
+|-----------|----------|---------|
+| `src/test/resources/samples/valid/` | Valid Thai e-Tax XML documents | Unit tests |
+| `src/test/resources/samples/invalid/` | Invalid documents for testing validation | Unit tests |
+| `src/it/resources/` | Integration test configuration | Integration tests |
+
 | `src/test/resources/samples/invalid/` | Invalid documents for testing validation |
 
 ## Outbox Pattern
