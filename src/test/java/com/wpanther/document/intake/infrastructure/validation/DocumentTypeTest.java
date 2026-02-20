@@ -37,7 +37,6 @@ class DocumentTypeTest {
         assertThat(type.getNamespaceUri()).isNotNull();
         assertThat(type.getJaxbClass()).isNotNull();
         assertThat(type.getSchemaPath()).isNotNull();
-        assertThat(type.getKafkaTopic()).isNotNull();
         assertThat(type.getRootElementName()).isNotNull();
         assertThat(type.toDocumentSchematron()).isNotNull();
     }
@@ -150,33 +149,6 @@ class DocumentTypeTest {
     void testFromRootElementNameNullReturnsNull() {
         DocumentType result = DocumentType.fromRootElementName(null);
         assertThat(result).isNull();
-    }
-
-    @Test
-    void testKafkaTopicMappings() {
-        assertThat(DocumentType.TAX_INVOICE.getKafkaTopic()).isEqualTo("document.received.tax-invoice");
-        assertThat(DocumentType.RECEIPT.getKafkaTopic()).isEqualTo("document.received.receipt");
-        assertThat(DocumentType.INVOICE.getKafkaTopic()).isEqualTo("document.received.invoice");
-        assertThat(DocumentType.DEBIT_CREDIT_NOTE.getKafkaTopic()).isEqualTo("document.received.debit-credit-note");
-        assertThat(DocumentType.CANCELLATION_NOTE.getKafkaTopic()).isEqualTo("document.received.cancellation");
-        assertThat(DocumentType.ABBREVIATED_TAX_INVOICE.getKafkaTopic()).isEqualTo("document.received.abbreviated");
-    }
-
-    @ParameterizedTest
-    @MethodSource("provideKafkaTopicMappings")
-    void testKafkaTopicsAreUnique(DocumentType type, String topic) {
-        assertThat(topic).startsWith("document.received.");
-    }
-
-    private static Stream<Arguments> provideKafkaTopicMappings() {
-        return Stream.of(
-            Arguments.of(DocumentType.TAX_INVOICE, DocumentType.TAX_INVOICE.getKafkaTopic()),
-            Arguments.of(DocumentType.RECEIPT, DocumentType.RECEIPT.getKafkaTopic()),
-            Arguments.of(DocumentType.INVOICE, DocumentType.INVOICE.getKafkaTopic()),
-            Arguments.of(DocumentType.DEBIT_CREDIT_NOTE, DocumentType.DEBIT_CREDIT_NOTE.getKafkaTopic()),
-            Arguments.of(DocumentType.CANCELLATION_NOTE, DocumentType.CANCELLATION_NOTE.getKafkaTopic()),
-            Arguments.of(DocumentType.ABBREVIATED_TAX_INVOICE, DocumentType.ABBREVIATED_TAX_INVOICE.getKafkaTopic())
-        );
     }
 
     @Test

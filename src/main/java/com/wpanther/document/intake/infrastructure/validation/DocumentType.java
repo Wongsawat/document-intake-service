@@ -34,7 +34,6 @@ public enum DocumentType {
         "urn:etda:uncefact:data:standard:TaxInvoice_CrossIndustryInvoice:2",
         TaxInvoice_CrossIndustryInvoiceType.class,
         "e-tax-invoice-receipt-v2.1/ETDA/data/standard/TaxInvoice_CrossIndustryInvoice_2p1.xsd",
-        "document.received.tax-invoice",
         "TaxInvoice_CrossIndustryInvoice"
     ),
 
@@ -50,7 +49,6 @@ public enum DocumentType {
         "urn:etda:uncefact:data:standard:Receipt_CrossIndustryInvoice:2",
         Receipt_CrossIndustryInvoiceType.class,
         "e-tax-invoice-receipt-v2.1/ETDA/data/standard/Receipt_CrossIndustryInvoice_2p1.xsd",
-        "document.received.receipt",
         "Receipt_CrossIndustryInvoice"
     ),
 
@@ -66,7 +64,6 @@ public enum DocumentType {
         "urn:etda:uncefact:data:standard:Invoice_CrossIndustryInvoice:2",
         Invoice_CrossIndustryInvoiceType.class,
         "e-tax-invoice-receipt-v2.1/ETDA/data/standard/Invoice_CrossIndustryInvoice_2p1.xsd",
-        "document.received.invoice",
         "Invoice_CrossIndustryInvoice"
     ),
 
@@ -82,7 +79,6 @@ public enum DocumentType {
         "urn:etda:uncefact:data:standard:DebitCreditNote_CrossIndustryInvoice:2",
         DebitCreditNote_CrossIndustryInvoiceType.class,
         "e-tax-invoice-receipt-v2.1/ETDA/data/standard/DebitCreditNote_CrossIndustryInvoice_2p1.xsd",
-        "document.received.debit-credit-note",
         "DebitCreditNote_CrossIndustryInvoice"
     ),
 
@@ -98,7 +94,6 @@ public enum DocumentType {
         "urn:etda:uncefact:data:standard:CancellationNote_CrossIndustryInvoice:2",
         CancellationNote_CrossIndustryInvoiceType.class,
         "e-tax-invoice-receipt-v2.1/ETDA/data/standard/CancellationNote_CrossIndustryInvoice_2p1.xsd",
-        "document.received.cancellation",
         "CancellationNote_CrossIndustryInvoice"
     ),
 
@@ -114,7 +109,6 @@ public enum DocumentType {
         "urn:etda:uncefact:data:standard:AbbreviatedTaxInvoice_CrossIndustryInvoice:2",
         AbbreviatedTaxInvoice_CrossIndustryInvoiceType.class,
         "e-tax-invoice-receipt-v2.1/ETDA/data/standard/AbbreviatedTaxInvoice_CrossIndustryInvoice_2p1.xsd",
-        "document.received.abbreviated",
         "AbbreviatedTaxInvoice_CrossIndustryInvoice"
     );
 
@@ -123,17 +117,15 @@ public enum DocumentType {
     private final String namespaceUri;
     private final Class<?> jaxbClass;
     private final String schemaPath;
-    private final String kafkaTopic;
     private final String rootElementName;
 
     DocumentType(String contextPath, String implementationContextPath, String namespaceUri,
-                 Class<?> jaxbClass, String schemaPath, String kafkaTopic, String rootElementName) {
+                 Class<?> jaxbClass, String schemaPath, String rootElementName) {
         this.contextPath = contextPath;
         this.implementationContextPath = implementationContextPath;
         this.namespaceUri = namespaceUri;
         this.jaxbClass = jaxbClass;
         this.schemaPath = schemaPath;
-        this.kafkaTopic = kafkaTopic;
         this.rootElementName = rootElementName;
     }
 
@@ -174,10 +166,6 @@ public enum DocumentType {
 
     public String getSchemaPath() {
         return schemaPath;
-    }
-
-    public String getKafkaTopic() {
-        return kafkaTopic;
     }
 
     public String getRootElementName() {
@@ -259,5 +247,21 @@ public enum DocumentType {
         }
 
         return null;
+    }
+
+    /**
+     * Get the invoice number extractor strategy for this document type.
+     *
+     * @return the InvoiceNumberExtractor strategy for this document type
+     */
+    public InvoiceNumberExtractor getInvoiceNumberExtractor() {
+        return switch (this) {
+            case TAX_INVOICE -> InvoiceNumberExtractorStrategies.TAX_INVOICE;
+            case RECEIPT -> InvoiceNumberExtractorStrategies.RECEIPT;
+            case INVOICE -> InvoiceNumberExtractorStrategies.INVOICE;
+            case DEBIT_CREDIT_NOTE -> InvoiceNumberExtractorStrategies.DEBIT_CREDIT_NOTE;
+            case CANCELLATION_NOTE -> InvoiceNumberExtractorStrategies.CANCELLATION_NOTE;
+            case ABBREVIATED_TAX_INVOICE -> InvoiceNumberExtractorStrategies.ABBREVIATED_TAX_INVOICE;
+        };
     }
 }

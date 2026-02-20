@@ -256,51 +256,24 @@ public class XmlValidationServiceImpl implements XmlValidationService {
     }
 
     /**
-     * Extract invoice number from JAXB object using strongly-typed getters.
+     * Extract invoice number from JAXB object using strategy pattern.
+     * Uses DocumentType-specific extractor for type-safe invoice number extraction.
      */
     private String extractInvoiceNumberFromJaxb(Object jaxbObject) {
         try {
-            // Extract ExchangedDocument based on document type
-            if (jaxbObject instanceof TaxInvoice_CrossIndustryInvoiceType) {
-                com.wpanther.etax.generated.taxinvoice.ram.ExchangedDocumentType document =
-                    ((TaxInvoice_CrossIndustryInvoiceType) jaxbObject).getExchangedDocument();
-                if (document != null && document.getID() != null) {
-                    return document.getID().getValue();
-                }
-            } else if (jaxbObject instanceof Receipt_CrossIndustryInvoiceType) {
-                com.wpanther.etax.generated.receipt.ram.ExchangedDocumentType document =
-                    ((Receipt_CrossIndustryInvoiceType) jaxbObject).getExchangedDocument();
-                if (document != null && document.getID() != null) {
-                    return document.getID().getValue();
-                }
-            } else if (jaxbObject instanceof Invoice_CrossIndustryInvoiceType) {
-                com.wpanther.etax.generated.invoice.ram.ExchangedDocumentType document =
-                    ((Invoice_CrossIndustryInvoiceType) jaxbObject).getExchangedDocument();
-                if (document != null && document.getID() != null) {
-                    return document.getID().getValue();
-                }
-            } else if (jaxbObject instanceof DebitCreditNote_CrossIndustryInvoiceType) {
-                com.wpanther.etax.generated.debitcreditnote.ram.ExchangedDocumentType document =
-                    ((DebitCreditNote_CrossIndustryInvoiceType) jaxbObject).getExchangedDocument();
-                if (document != null && document.getID() != null) {
-                    return document.getID().getValue();
-                }
-            } else if (jaxbObject instanceof CancellationNote_CrossIndustryInvoiceType) {
-                com.wpanther.etax.generated.cancellationnote.ram.ExchangedDocumentType document =
-                    ((CancellationNote_CrossIndustryInvoiceType) jaxbObject).getExchangedDocument();
-                if (document != null && document.getID() != null) {
-                    return document.getID().getValue();
-                }
-            } else if (jaxbObject instanceof AbbreviatedTaxInvoice_CrossIndustryInvoiceType) {
-                com.wpanther.etax.generated.abbreviatedtaxinvoice.ram.ExchangedDocumentType document =
-                    ((AbbreviatedTaxInvoice_CrossIndustryInvoiceType) jaxbObject).getExchangedDocument();
-                if (document != null && document.getID() != null) {
-                    return document.getID().getValue();
-                }
+            if (jaxbObject == null) {
+                return null;
             }
 
-            log.debug("No ExchangedDocument/ID element found");
-            return null;
+            // Get document type from JAXB object class
+            DocumentType docType = DocumentType.fromJaxbClass(jaxbObject.getClass());
+            if (docType == null) {
+                log.debug("Could not determine document type for invoice number extraction");
+                return null;
+            }
+
+            // Use strategy to extract invoice number
+            return docType.getInvoiceNumberExtractor().extractInvoiceNumber(jaxbObject);
 
         } catch (Exception e) {
             log.error("Failed to extract invoice number from JAXB object", e);

@@ -23,7 +23,7 @@ class IncomingDocumentEntityTest {
     @BeforeEach
     void setUp() {
         entity = IncomingDocumentEntity.builder()
-            .invoiceNumber("INV-2024-001")
+            .documentNumber("INV-2024-001")
             .xmlContent("<test>xml</test>")
             .source("REST")
             .correlationId("corr-123")
@@ -86,7 +86,7 @@ class IncomingDocumentEntityTest {
 
         IncomingDocumentEntity fullEntity = IncomingDocumentEntity.builder()
             .id(id)
-            .invoiceNumber("INV-2024-002")
+            .documentNumber("INV-2024-002")
             .xmlContent("<xml>content</xml>")
             .source("KAFKA")
             .correlationId("corr-456")
@@ -100,7 +100,7 @@ class IncomingDocumentEntityTest {
             .build();
 
         assertThat(fullEntity.getId()).isEqualTo(id);
-        assertThat(fullEntity.getInvoiceNumber()).isEqualTo("INV-2024-002");
+        assertThat(fullEntity.getDocumentNumber()).isEqualTo("INV-2024-002");
         assertThat(fullEntity.getXmlContent()).isEqualTo("<xml>content</xml>");
         assertThat(fullEntity.getSource()).isEqualTo("KAFKA");
         assertThat(fullEntity.getCorrelationId()).isEqualTo("corr-456");
@@ -120,7 +120,7 @@ class IncomingDocumentEntityTest {
     void testDocumentTypeEnum() {
         for (DocumentType type : DocumentType.values()) {
             IncomingDocumentEntity testEntity = IncomingDocumentEntity.builder()
-                .invoiceNumber("INV-" + type.name())
+                .documentNumber("INV-" + type.name())
                 .xmlContent("<test/>")
                 .source("TEST")
                 .documentType(type)
@@ -135,7 +135,7 @@ class IncomingDocumentEntityTest {
     void testDocumentStatusEnum() {
         for (DocumentStatus status : DocumentStatus.values()) {
             IncomingDocumentEntity testEntity = IncomingDocumentEntity.builder()
-                .invoiceNumber("INV-" + status.name())
+                .documentNumber("INV-" + status.name())
                 .xmlContent("<test/>")
                 .source("TEST")
                 .status(status)
@@ -186,7 +186,7 @@ class IncomingDocumentEntityTest {
         String validationResult = "{\"valid\":false,\"errors\":[\"Error 1\"],\"warnings\":[]}";
 
         entity.setId(id);
-        entity.setInvoiceNumber("INV-2024-999");
+        entity.setDocumentNumber("INV-2024-999");
         entity.setXmlContent("<updated>xml</updated>");
         entity.setSource("UPDATED");
         entity.setCorrelationId("corr-updated");
@@ -195,7 +195,7 @@ class IncomingDocumentEntityTest {
         entity.setValidationResult(validationResult);
 
         assertThat(entity.getId()).isEqualTo(id);
-        assertThat(entity.getInvoiceNumber()).isEqualTo("INV-2024-999");
+        assertThat(entity.getDocumentNumber()).isEqualTo("INV-2024-999");
         assertThat(entity.getXmlContent()).isEqualTo("<updated>xml</updated>");
         assertThat(entity.getSource()).isEqualTo("UPDATED");
         assertThat(entity.getCorrelationId()).isEqualTo("corr-updated");
@@ -212,7 +212,7 @@ class IncomingDocumentEntityTest {
         IncomingDocumentEntity emptyEntity = new IncomingDocumentEntity();
 
         assertThat(emptyEntity.getId()).isNull();
-        assertThat(emptyEntity.getInvoiceNumber()).isNull();
+        assertThat(emptyEntity.getDocumentNumber()).isNull();
         assertThat(emptyEntity.getXmlContent()).isNull();
         assertThat(emptyEntity.getSource()).isNull();
         assertThat(emptyEntity.getCorrelationId()).isNull();
@@ -244,7 +244,7 @@ class IncomingDocumentEntityTest {
         );
 
         assertThat(fullEntity.getId()).isEqualTo(id);
-        assertThat(fullEntity.getInvoiceNumber()).isEqualTo("INV-2024-003");
+        assertThat(fullEntity.getDocumentNumber()).isEqualTo("INV-2024-003");
         assertThat(fullEntity.getXmlContent()).isEqualTo("<xml>full</xml>");
         assertThat(fullEntity.getSource()).isEqualTo("KAFKA");
         assertThat(fullEntity.getCorrelationId()).isEqualTo("corr-full");

@@ -17,7 +17,7 @@ import java.util.UUID;
  * REST controller for document intake
  */
 @RestController
-@RequestMapping("/api/v1/invoices")
+@RequestMapping("/api/v1/documents")
 public class DocumentIntakeController {
 
     private static final Logger log = LoggerFactory.getLogger(DocumentIntakeController.class);
@@ -34,7 +34,7 @@ public class DocumentIntakeController {
      * Submit XML document
      */
     @PostMapping(consumes = {MediaType.APPLICATION_XML_VALUE, MediaType.TEXT_XML_VALUE})
-    public ResponseEntity<Map<String, Object>> submitInvoice(
+    public ResponseEntity<Map<String, Object>> submitDocument(
         @RequestBody String xmlContent,
         @RequestHeader(value = "X-Correlation-ID", required = false) String correlationId
     ) {
@@ -43,7 +43,7 @@ public class DocumentIntakeController {
         try {
             // Send to Camel route for processing
             camelProducer.sendBodyAndHeader(
-                "direct:invoice-intake",
+                "direct:document-intake",
                 xmlContent,
                 "correlationId",
                 correlationId != null ? correlationId : UUID.randomUUID().toString()
@@ -67,13 +67,13 @@ public class DocumentIntakeController {
      * Get document status by ID
      */
     @GetMapping("/{id}")
-    public ResponseEntity<Map<String, Object>> getInvoiceStatus(@PathVariable UUID id) {
+    public ResponseEntity<Map<String, Object>> getDocumentStatus(@PathVariable UUID id) {
         try {
             IncomingDocument document = intakeService.getDocument(id);
 
             Map<String, Object> response = new java.util.HashMap<>();
             response.put("id", document.getId().toString());
-            response.put("invoiceNumber", document.getInvoiceNumber());
+            response.put("documentNumber", document.getDocumentNumber());
             response.put("status", document.getStatus().name());
 
             if (document.getDocumentType() != null) {

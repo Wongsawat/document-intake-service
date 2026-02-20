@@ -37,7 +37,7 @@ class JpaIncomingDocumentRepositoryTest {
 
         testEntity = IncomingDocumentEntity.builder()
             .id(UUID.randomUUID())
-            .invoiceNumber("INV-2024-TEST-001")
+            .documentNumber("INV-2024-TEST-001")
             .xmlContent("<test>xml content</test>")
             .source("TEST")
             .correlationId("corr-test-001")
@@ -49,30 +49,30 @@ class JpaIncomingDocumentRepositoryTest {
         testEntity = repository.save(testEntity);
     }
 
-    // ==================== findByInvoiceNumber Tests ====================
+    // ==================== findByDocumentNumber Tests ====================
 
     @Test
-    @DisplayName("findByInvoiceNumber returns entity when found")
+    @DisplayName("findByDocumentNumber returns entity when found")
     void testFindByInvoiceNumberReturnsEntity() {
-        Optional<IncomingDocumentEntity> result = repository.findByInvoiceNumber("INV-2024-TEST-001");
+        Optional<IncomingDocumentEntity> result = repository.findByDocumentNumber("INV-2024-TEST-001");
 
         assertThat(result).isPresent();
-        assertThat(result.get().getInvoiceNumber()).isEqualTo("INV-2024-TEST-001");
+        assertThat(result.get().getDocumentNumber()).isEqualTo("INV-2024-TEST-001");
         assertThat(result.get().getSource()).isEqualTo("TEST");
     }
 
     @Test
-    @DisplayName("findByInvoiceNumber returns empty when not found")
+    @DisplayName("findByDocumentNumber returns empty when not found")
     void testFindByInvoiceNumberReturnsEmpty() {
-        Optional<IncomingDocumentEntity> result = repository.findByInvoiceNumber("NON-EXISTENT");
+        Optional<IncomingDocumentEntity> result = repository.findByDocumentNumber("NON-EXISTENT");
 
         assertThat(result).isEmpty();
     }
 
     @Test
-    @DisplayName("findByInvoiceNumber returns null for null input")
+    @DisplayName("findByDocumentNumber returns null for null input")
     void testFindByInvoiceNumberWithNull() {
-        Optional<IncomingDocumentEntity> result = repository.findByInvoiceNumber(null);
+        Optional<IncomingDocumentEntity> result = repository.findByDocumentNumber(null);
 
         assertThat(result).isEmpty();
     }
@@ -85,7 +85,7 @@ class JpaIncomingDocumentRepositoryTest {
         // Create additional entities with different document types
         IncomingDocumentEntity receiptEntity = IncomingDocumentEntity.builder()
             .id(UUID.randomUUID())
-            .invoiceNumber("INV-2024-TEST-002")
+            .documentNumber("INV-2024-TEST-002")
             .xmlContent("<receipt/>")
             .source("TEST")
             .documentType(DocumentType.RECEIPT)
@@ -95,8 +95,8 @@ class JpaIncomingDocumentRepositoryTest {
 
         IncomingDocumentEntity anotherTaxInvoice = IncomingDocumentEntity.builder()
             .id(UUID.randomUUID())
-            .invoiceNumber("INV-2024-TEST-003")
-            .xmlContent("<tax-invoice-2/>")
+            .documentNumber("INV-2024-TEST-003")
+            .xmlContent("<tax-document-2/>")
             .source("TEST")
             .documentType(DocumentType.TAX_INVOICE)
             .status(DocumentStatus.VALIDATED)
@@ -125,7 +125,7 @@ class JpaIncomingDocumentRepositoryTest {
         for (DocumentType type : DocumentType.values()) {
             IncomingDocumentEntity entity = IncomingDocumentEntity.builder()
                 .id(UUID.randomUUID())
-                .invoiceNumber("INV-" + type.name() + "-001")
+                .documentNumber("INV-" + type.name() + "-001")
                 .xmlContent("<" + type.name() + "/>")
                 .source("TEST")
                 .documentType(type)
@@ -149,7 +149,7 @@ class JpaIncomingDocumentRepositoryTest {
         // Create entities with different statuses
         IncomingDocumentEntity validatedEntity = IncomingDocumentEntity.builder()
             .id(UUID.randomUUID())
-            .invoiceNumber("INV-2024-TEST-002")
+            .documentNumber("INV-2024-TEST-002")
             .xmlContent("<validated/>")
             .source("TEST")
             .documentType(DocumentType.TAX_INVOICE)
@@ -159,7 +159,7 @@ class JpaIncomingDocumentRepositoryTest {
 
         IncomingDocumentEntity forwardedEntity = IncomingDocumentEntity.builder()
             .id(UUID.randomUUID())
-            .invoiceNumber("INV-2024-TEST-003")
+            .documentNumber("INV-2024-TEST-003")
             .xmlContent("<forwarded/>")
             .source("TEST")
             .documentType(DocumentType.TAX_INVOICE)
@@ -191,7 +191,7 @@ class JpaIncomingDocumentRepositoryTest {
         for (DocumentStatus status : DocumentStatus.values()) {
             IncomingDocumentEntity entity = IncomingDocumentEntity.builder()
                 .id(UUID.randomUUID())
-                .invoiceNumber("INV-" + status.name() + "-001")
+                .documentNumber("INV-" + status.name() + "-001")
                 .xmlContent("<" + status.name() + "/>")
                 .source("TEST")
                 .documentType(DocumentType.TAX_INVOICE)
@@ -215,7 +215,7 @@ class JpaIncomingDocumentRepositoryTest {
         // Create more entities with RECEIVED status
         IncomingDocumentEntity entity2 = IncomingDocumentEntity.builder()
             .id(UUID.randomUUID())
-            .invoiceNumber("INV-2024-TEST-002")
+            .documentNumber("INV-2024-TEST-002")
             .xmlContent("<test2/>")
             .source("TEST")
             .status(DocumentStatus.RECEIVED)
@@ -224,7 +224,7 @@ class JpaIncomingDocumentRepositoryTest {
 
         IncomingDocumentEntity entity3 = IncomingDocumentEntity.builder()
             .id(UUID.randomUUID())
-            .invoiceNumber("INV-2024-TEST-003")
+            .documentNumber("INV-2024-TEST-003")
             .xmlContent("<test3/>")
             .source("TEST")
             .status(DocumentStatus.RECEIVED)
@@ -251,7 +251,7 @@ class JpaIncomingDocumentRepositoryTest {
         for (DocumentStatus status : DocumentStatus.values()) {
             IncomingDocumentEntity entity = IncomingDocumentEntity.builder()
                 .id(UUID.randomUUID())
-                .invoiceNumber("INV-" + status.name() + "-001")
+                .documentNumber("INV-" + status.name() + "-001")
                 .xmlContent("<" + status.name() + "/>")
                 .source("TEST")
                 .documentType(DocumentType.TAX_INVOICE)
@@ -266,36 +266,36 @@ class JpaIncomingDocumentRepositoryTest {
         }
     }
 
-    // ==================== existsByInvoiceNumber Tests ====================
+    // ==================== existsByDocumentNumber Tests ====================
 
     @Test
-    @DisplayName("existsByInvoiceNumber returns true when invoice exists")
+    @DisplayName("existsByDocumentNumber returns true when document exists")
     void testExistsByInvoiceNumberReturnsTrue() {
-        boolean exists = repository.existsByInvoiceNumber("INV-2024-TEST-001");
+        boolean exists = repository.existsByDocumentNumber("INV-2024-TEST-001");
 
         assertThat(exists).isTrue();
     }
 
     @Test
-    @DisplayName("existsByInvoiceNumber returns false when invoice not found")
+    @DisplayName("existsByDocumentNumber returns false when document not found")
     void testExistsByInvoiceNumberReturnsFalse() {
-        boolean exists = repository.existsByInvoiceNumber("NON-EXISTENT");
+        boolean exists = repository.existsByDocumentNumber("NON-EXISTENT");
 
         assertThat(exists).isFalse();
     }
 
     @Test
-    @DisplayName("existsByInvoiceNumber returns false for null input")
+    @DisplayName("existsByDocumentNumber returns false for null input")
     void testExistsByInvoiceNumberWithNull() {
-        boolean exists = repository.existsByInvoiceNumber(null);
+        boolean exists = repository.existsByDocumentNumber(null);
 
         assertThat(exists).isFalse();
     }
 
     @Test
-    @DisplayName("existsByInvoiceNumber is case-sensitive")
+    @DisplayName("existsByDocumentNumber is case-sensitive")
     void testExistsByInvoiceNumberIsCaseSensitive() {
-        boolean exists = repository.existsByInvoiceNumber("inv-2024-test-001");
+        boolean exists = repository.existsByDocumentNumber("inv-2024-test-001");
 
         assertThat(exists).isFalse();
     }
@@ -307,7 +307,7 @@ class JpaIncomingDocumentRepositoryTest {
     void testSaveCreatesEntity() {
         IncomingDocumentEntity newEntity = IncomingDocumentEntity.builder()
             .id(UUID.randomUUID())
-            .invoiceNumber("INV-2024-NEW-001")
+            .documentNumber("INV-2024-NEW-001")
             .xmlContent("<new/>")
             .source("TEST")
             .documentType(DocumentType.INVOICE)
@@ -338,7 +338,7 @@ class JpaIncomingDocumentRepositoryTest {
         Optional<IncomingDocumentEntity> result = repository.findById(testEntity.getId());
 
         assertThat(result).isPresent();
-        assertThat(result.get().getInvoiceNumber()).isEqualTo("INV-2024-TEST-001");
+        assertThat(result.get().getDocumentNumber()).isEqualTo("INV-2024-TEST-001");
     }
 
     @Test
@@ -356,7 +356,7 @@ class JpaIncomingDocumentRepositoryTest {
         for (int i = 2; i <= 5; i++) {
             IncomingDocumentEntity entity = IncomingDocumentEntity.builder()
                 .id(UUID.randomUUID())
-                .invoiceNumber("INV-2024-TEST-00" + i)
+                .documentNumber("INV-2024-TEST-00" + i)
                 .xmlContent("<test" + i + "/>")
                 .source("TEST")
                 .documentType(DocumentType.TAX_INVOICE)
@@ -391,7 +391,7 @@ class JpaIncomingDocumentRepositoryTest {
         for (int i = 0; i < 3; i++) {
             IncomingDocumentEntity entity = IncomingDocumentEntity.builder()
                 .id(UUID.randomUUID())
-                .invoiceNumber("INV-2024-COUNT-00" + i)
+                .documentNumber("INV-2024-COUNT-00" + i)
                 .xmlContent("<count" + i + "/>")
                 .source("TEST")
                 .documentType(DocumentType.TAX_INVOICE)
@@ -413,7 +413,7 @@ class JpaIncomingDocumentRepositoryTest {
         // Create test data: RECEIVED TaxInvoices and RECEIVED Receipts
         IncomingDocumentEntity taxInvoice1 = IncomingDocumentEntity.builder()
             .id(UUID.randomUUID())
-            .invoiceNumber("INV-TAX-001")
+            .documentNumber("INV-TAX-001")
             .xmlContent("<tax1/>")
             .source("TEST")
             .documentType(DocumentType.TAX_INVOICE)
@@ -423,7 +423,7 @@ class JpaIncomingDocumentRepositoryTest {
 
         IncomingDocumentEntity receipt1 = IncomingDocumentEntity.builder()
             .id(UUID.randomUUID())
-            .invoiceNumber("INV-RCPT-001")
+            .documentNumber("INV-RCPT-001")
             .xmlContent("<receipt1/>")
             .source("TEST")
             .documentType(DocumentType.RECEIPT)

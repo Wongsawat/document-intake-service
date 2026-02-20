@@ -1,6 +1,7 @@
 package com.wpanther.document.intake.infrastructure.persistence;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.wpanther.document.intake.domain.exception.ValidationResultSerializationException;
 import com.wpanther.document.intake.domain.model.DocumentStatus;
 import com.wpanther.document.intake.domain.model.IncomingDocument;
 import com.wpanther.document.intake.domain.model.ValidationResult;
@@ -12,7 +13,6 @@ import org.springframework.stereotype.Component;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
-import java.util.stream.StreamSupport;
 
 /**
  * Repository adapter that bridges between domain IncomingDocument aggregate
@@ -48,8 +48,8 @@ public class IncomingDocumentRepositoryImpl implements IncomingDocumentRepositor
     }
 
     @Override
-    public Optional<IncomingDocument> findByInvoiceNumber(String invoiceNumber) {
-        return jpaRepository.findByInvoiceNumber(invoiceNumber)
+    public Optional<IncomingDocument> findByDocumentNumber(String documentNumber) {
+        return jpaRepository.findByDocumentNumber(documentNumber)
             .map(this::toDomain);
     }
 
@@ -61,8 +61,8 @@ public class IncomingDocumentRepositoryImpl implements IncomingDocumentRepositor
     }
 
     @Override
-    public boolean existsByInvoiceNumber(String invoiceNumber) {
-        return jpaRepository.existsByInvoiceNumber(invoiceNumber);
+    public boolean existsByDocumentNumber(String documentNumber) {
+        return jpaRepository.existsByDocumentNumber(documentNumber);
     }
 
     /**
@@ -73,7 +73,7 @@ public class IncomingDocumentRepositoryImpl implements IncomingDocumentRepositor
 
         return IncomingDocumentEntity.builder()
             .id(document.getId())
-            .invoiceNumber(document.getInvoiceNumber())
+            .documentNumber(document.getDocumentNumber())
             .xmlContent(document.getXmlContent())
             .source(document.getSource())
             .correlationId(document.getCorrelationId())
@@ -91,7 +91,7 @@ public class IncomingDocumentRepositoryImpl implements IncomingDocumentRepositor
     private IncomingDocument toDomain(IncomingDocumentEntity entity) {
         IncomingDocument.Builder builder = IncomingDocument.builder()
             .id(entity.getId())
-            .invoiceNumber(entity.getInvoiceNumber())
+            .documentNumber(entity.getDocumentNumber())
             .xmlContent(entity.getXmlContent())
             .source(entity.getSource())
             .correlationId(entity.getCorrelationId())
@@ -116,7 +116,7 @@ public class IncomingDocumentRepositoryImpl implements IncomingDocumentRepositor
             return objectMapper.writeValueAsString(result);
         } catch (Exception e) {
             log.error("Failed to serialize ValidationResult to JSON", e);
-            throw new RuntimeException("Failed to serialize ValidationResult", e);
+            throw new ValidationResultSerializationException("Failed to serialize ValidationResult to JSON", e);
         }
     }
 
@@ -128,7 +128,7 @@ public class IncomingDocumentRepositoryImpl implements IncomingDocumentRepositor
             return objectMapper.readValue(json, ValidationResult.class);
         } catch (Exception e) {
             log.error("Failed to deserialize ValidationResult from JSON: {}", json, e);
-            throw new RuntimeException("Failed to deserialize ValidationResult", e);
+            throw new ValidationResultSerializationException("Failed to deserialize ValidationResult from JSON", e);
         }
     }
 }

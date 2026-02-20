@@ -38,7 +38,7 @@ class DocumentIntakeCdcIntegrationTest extends AbstractCdcIntegrationTest {
             String correlationId = UUID.randomUUID().toString();
 
             // When
-            IncomingDocument document = documentIntakeService.submitInvoice(xml, "API", correlationId);
+            IncomingDocument document = documentIntakeService.submitDocument(xml, "API", correlationId);
 
             // Then
             assertThat(document.getId()).isNotNull();
@@ -61,7 +61,7 @@ class DocumentIntakeCdcIntegrationTest extends AbstractCdcIntegrationTest {
             String correlationId = UUID.randomUUID().toString();
 
             // When
-            IncomingDocument document = documentIntakeService.submitInvoice(xml, "API", correlationId);
+            IncomingDocument document = documentIntakeService.submitDocument(xml, "API", correlationId);
 
             // Then - verify outbox entries exist
             List<Map<String, Object>> outboxEvents = jdbcTemplate.queryForList(
@@ -85,7 +85,7 @@ class DocumentIntakeCdcIntegrationTest extends AbstractCdcIntegrationTest {
             String correlationId = UUID.randomUUID().toString();
 
             // When
-            IncomingDocument document = documentIntakeService.submitInvoice(xml, "API", correlationId);
+            IncomingDocument document = documentIntakeService.submitDocument(xml, "API", correlationId);
 
             // Then
             Map<String, Object> outbox = jdbcTemplate.queryForMap(
@@ -106,7 +106,7 @@ class DocumentIntakeCdcIntegrationTest extends AbstractCdcIntegrationTest {
             String correlationId = UUID.randomUUID().toString();
 
             // When
-            IncomingDocument document = documentIntakeService.submitInvoice(xml, "API", correlationId);
+            IncomingDocument document = documentIntakeService.submitDocument(xml, "API", correlationId);
 
             // Then
             List<Map<String, Object>> traceEvents = jdbcTemplate.queryForList(
@@ -128,7 +128,7 @@ class DocumentIntakeCdcIntegrationTest extends AbstractCdcIntegrationTest {
             String correlationId = UUID.randomUUID().toString();
 
             // When
-            documentIntakeService.submitInvoice(xml, "API", correlationId);
+            documentIntakeService.submitDocument(xml, "API", correlationId);
 
             // Then - all events for same document should have same partition key
             List<Map<String, Object>> events = jdbcTemplate.queryForList(
@@ -151,7 +151,7 @@ class DocumentIntakeCdcIntegrationTest extends AbstractCdcIntegrationTest {
             String correlationId = UUID.randomUUID().toString();
 
             // When - submit document
-            IncomingDocument document = documentIntakeService.submitInvoice(xml, "API", correlationId);
+            IncomingDocument document = documentIntakeService.submitDocument(xml, "API", correlationId);
             String documentId = document.getId().toString();
 
             // Then - wait for Kafka message (CDC takes time)
@@ -175,7 +175,7 @@ class DocumentIntakeCdcIntegrationTest extends AbstractCdcIntegrationTest {
             String correlationId = UUID.randomUUID().toString();
 
             // When
-            documentIntakeService.submitInvoice(xml, "API", correlationId);
+            documentIntakeService.submitDocument(xml, "API", correlationId);
 
             // Then - wait for trace events on Kafka
             await().until(() -> hasMessageOnTopic("trace.document.received", correlationId));
@@ -195,7 +195,7 @@ class DocumentIntakeCdcIntegrationTest extends AbstractCdcIntegrationTest {
             String correlationId = UUID.randomUUID().toString();
 
             // When
-            documentIntakeService.submitInvoice(xml, "API", correlationId);
+            documentIntakeService.submitDocument(xml, "API", correlationId);
 
             // Then - wait and verify correlation ID in Kafka message
             await().until(() -> hasMessageOnTopic("saga.commands.orchestrator", correlationId));
@@ -225,7 +225,7 @@ class DocumentIntakeCdcIntegrationTest extends AbstractCdcIntegrationTest {
 
             // When/Then - should throw exception
             try {
-                documentIntakeService.submitInvoice(invalidXml, "API", correlationId);
+                documentIntakeService.submitDocument(invalidXml, "API", correlationId);
             } catch (Exception e) {
                 // Expected - invalid document
             }
@@ -251,7 +251,7 @@ class DocumentIntakeCdcIntegrationTest extends AbstractCdcIntegrationTest {
             String correlationId = UUID.randomUUID().toString();
 
             // When
-            IncomingDocument document = documentIntakeService.submitInvoice(xml, "API", correlationId);
+            IncomingDocument document = documentIntakeService.submitDocument(xml, "API", correlationId);
 
             // Then
             assertThat(document.getDocumentType().name()).isEqualTo("INVOICE");

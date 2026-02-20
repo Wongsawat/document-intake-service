@@ -16,9 +16,9 @@ import java.util.UUID;
 public interface JpaIncomingDocumentRepository extends JpaRepository<IncomingDocumentEntity, UUID> {
 
     /**
-     * Find by invoice number
+     * Find by document number
      */
-    Optional<IncomingDocumentEntity> findByInvoiceNumber(String invoiceNumber);
+    Optional<IncomingDocumentEntity> findByDocumentNumber(String documentNumber);
 
     /**
      * Find by document type
@@ -36,7 +36,7 @@ public interface JpaIncomingDocumentRepository extends JpaRepository<IncomingDoc
     long countByStatus(DocumentStatus status);
 
     /**
-     * Check if invoice number exists
+     * Check if document number exists
      */
-    boolean existsByInvoiceNumber(String invoiceNumber);
+    boolean existsByDocumentNumber(String documentNumber);
 }

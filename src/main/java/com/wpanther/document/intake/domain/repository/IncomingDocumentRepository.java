@@ -23,9 +23,9 @@ public interface IncomingDocumentRepository {
     Optional<IncomingDocument> findById(UUID id);
 
     /**
-     * Find document by invoice number
+     * Find document by document number
      */
-    Optional<IncomingDocument> findByInvoiceNumber(String invoiceNumber);
+    Optional<IncomingDocument> findByDocumentNumber(String documentNumber);
 
     /**
      * Find documents by status
@@ -33,7 +33,7 @@ public interface IncomingDocumentRepository {
     List<IncomingDocument> findByStatus(DocumentStatus status);
 
     /**
-     * Check if invoice number exists
+     * Check if document number exists
      */
-    boolean existsByInvoiceNumber(String invoiceNumber);
+    boolean existsByDocumentNumber(String documentNumber);
 }

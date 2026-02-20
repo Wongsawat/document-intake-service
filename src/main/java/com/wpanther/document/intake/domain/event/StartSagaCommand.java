@@ -16,7 +16,7 @@ import java.util.UUID;
  * Published to topic: saga.commands.orchestrator
  * <p>
  * This command contains all the information the orchestrator needs to begin
- * orchestrating the multi-step invoice processing pipeline.
+ * orchestrating the multi-step document processing pipeline.
  */
 @Getter
 @Builder
@@ -27,7 +27,7 @@ public class StartSagaCommand extends IntegrationEvent {
     private static final long serialVersionUID = 1L;
 
     /**
-     * ID of the IncomingDocument that triggered this saga.
+     * ID of IncomingDocument that triggered this saga.
      */
     @JsonProperty("documentId")
     private final String documentId;
@@ -39,10 +39,10 @@ public class StartSagaCommand extends IntegrationEvent {
     private final String documentType;
 
     /**
-     * The invoice/tax invoice number from the document.
+     * The document number from the document.
      */
-    @JsonProperty("invoiceNumber")
-    private final String invoiceNumber;
+    @JsonProperty("documentNumber")
+    private final String documentNumber;
 
     /**
      * The full XML content of the document.
@@ -68,12 +68,12 @@ public class StartSagaCommand extends IntegrationEvent {
      * Calls super() to auto-generate eventId, occurredAt, eventType, version.
      */
     @Builder
-    private StartSagaCommand(String documentId, String documentType, String invoiceNumber,
+    private StartSagaCommand(String documentId, String documentType, String documentNumber,
                              String xmlContent, String correlationId, String source) {
         super();
         this.documentId = documentId;
         this.documentType = documentType;
-        this.invoiceNumber = invoiceNumber;
+        this.documentNumber = documentNumber;
         this.xmlContent = xmlContent;
         this.correlationId = correlationId;
         this.source = source;
@@ -91,14 +91,14 @@ public class StartSagaCommand extends IntegrationEvent {
             @JsonProperty("version") int version,
             @JsonProperty("documentId") String documentId,
             @JsonProperty("documentType") String documentType,
-            @JsonProperty("invoiceNumber") String invoiceNumber,
+            @JsonProperty("documentNumber") String documentNumber,
             @JsonProperty("xmlContent") String xmlContent,
             @JsonProperty("correlationId") String correlationId,
             @JsonProperty("source") String source) {
         super(eventId, occurredAt, eventType, version);
         this.documentId = documentId;
         this.documentType = documentType;
-        this.invoiceNumber = invoiceNumber;
+        this.documentNumber = documentNumber;
         this.xmlContent = xmlContent;
         this.correlationId = correlationId;
         this.source = source;

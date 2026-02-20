@@ -56,17 +56,17 @@ public class DocumentIntakeService {
      * @param source the source of the document (API, KAFKA, etc.)
      * @param correlationId the correlation ID for tracing
      * @return the created IncomingDocument
-     * @throws IllegalArgumentException if invoice number or document type cannot be extracted
-     * @throws IllegalStateException if invoice number already exists
+     * @throws IllegalArgumentException if document number or document type cannot be extracted
+     * @throws IllegalStateException if document number already exists
      */
     @Transactional
-    public IncomingDocument submitInvoice(String xmlContent, String source, String correlationId) {
+    public IncomingDocument submitDocument(String xmlContent, String source, String correlationId) {
         log.info("Submitting document from source: {} with correlationId: {}", source, correlationId);
 
-        // Extract invoice number
-        String invoiceNumber = validationService.extractInvoiceNumber(xmlContent);
-        if (invoiceNumber == null || invoiceNumber.isBlank()) {
-            throw new IllegalArgumentException("Could not extract invoice number from XML");
+        // Extract document number
+        String documentNumber = validationService.extractInvoiceNumber(xmlContent);
+        if (documentNumber == null || documentNumber.isBlank()) {
+            throw new IllegalArgumentException("Could not extract document number from XML");
         }
 
         // Extract document type
@@ -77,14 +77,14 @@ public class DocumentIntakeService {
         log.debug("Detected document type: {}", documentType);
 
         // Check if already exists
-        if (documentRepository.existsByInvoiceNumber(invoiceNumber)) {
-            log.warn("Invoice number {} already exists", invoiceNumber);
-            throw new IllegalStateException("Invoice number already exists: " + invoiceNumber);
+        if (documentRepository.existsByDocumentNumber(documentNumber)) {
+            log.warn("Document number {} already exists", documentNumber);
+            throw new IllegalStateException("Document number already exists: " + documentNumber);
         }
 
         // Create incoming document
         IncomingDocument document = IncomingDocument.builder()
-            .invoiceNumber(invoiceNumber)
+            .documentNumber(documentNumber)
             .xmlContent(xmlContent)
             .source(source)
             .correlationId(correlationId)
@@ -93,14 +93,14 @@ public class DocumentIntakeService {
 
         // Save initial state
         document = documentRepository.save(document);
-        log.info("Created incoming document: {} with ID: {}", invoiceNumber, document.getId());
+        log.info("Created incoming document: {} with ID: {}", documentNumber, document.getId());
 
         // Publish trace event IMMEDIATELY (before validation)
         // This provides visibility into the document intake process
         DocumentReceivedTraceEvent traceEvent = DocumentReceivedTraceEvent.builder()
             .documentId(document.getId().toString())
             .documentType(document.getDocumentType().name())
-            .invoiceNumber(document.getInvoiceNumber())
+            .documentNumber(document.getDocumentNumber())
             .correlationId(correlationId)
             .status("RECEIVED")
             .source(source)
@@ -119,7 +119,7 @@ public class DocumentIntakeService {
         document = documentRepository.save(document);
 
         log.info("Document {} validation result: valid={}, errors={}, warnings={}",
-            invoiceNumber, validationResult.valid(), validationResult.errorCount(), validationResult.warningCount());
+            documentNumber, validationResult.valid(), validationResult.errorCount(), validationResult.warningCount());
 
         // Publish StartSagaCommand AFTER validation (only for valid documents)
         // This triggers the saga orchestrator to begin the multi-step processing pipeline
@@ -127,7 +127,7 @@ public class DocumentIntakeService {
             StartSagaCommand sagaCommand = StartSagaCommand.builder()
                 .documentId(document.getId().toString())
                 .documentType(document.getDocumentType().name())
-                .invoiceNumber(document.getInvoiceNumber())
+                .documentNumber(document.getDocumentNumber())
                 .xmlContent(xmlContent)
                 .correlationId(correlationId)
                 .source(source)
@@ -138,7 +138,7 @@ public class DocumentIntakeService {
             DocumentReceivedTraceEvent validatedEvent = DocumentReceivedTraceEvent.builder()
                 .documentId(document.getId().toString())
                 .documentType(document.getDocumentType().name())
-                .invoiceNumber(document.getInvoiceNumber())
+                .documentNumber(document.getDocumentNumber())
                 .correlationId(correlationId)
                 .status("VALIDATED")
                 .source(source)
@@ -153,7 +153,7 @@ public class DocumentIntakeService {
             DocumentReceivedTraceEvent forwardedEvent = DocumentReceivedTraceEvent.builder()
                 .documentId(document.getId().toString())
                 .documentType(document.getDocumentType().name())
-                .invoiceNumber(document.getInvoiceNumber())
+                .documentNumber(document.getDocumentNumber())
                 .correlationId(correlationId)
                 .status("FORWARDED")
                 .source(source)
@@ -178,7 +178,7 @@ public class DocumentIntakeService {
         document.markForwarded();
         documentRepository.save(document);
 
-        log.info("Marked document {} as forwarded", document.getInvoiceNumber());
+        log.info("Marked document {} as forwarded", document.getDocumentNumber());
     }
 
     /**

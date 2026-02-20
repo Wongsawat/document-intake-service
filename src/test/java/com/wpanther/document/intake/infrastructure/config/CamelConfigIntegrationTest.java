@@ -39,11 +39,11 @@ import static org.mockito.Mockito.*;
 })
 @ActiveProfiles("test")
 @TestPropertySource(properties = {
-    "app.kafka.topics.invoice-intake=document.intake",
+    "app.kafka.topics.document-intake=document.intake",
     "app.kafka.topics.intake-dlq=document.intake.dlq",
-    "app.kafka.topics.tax-invoice=document.received.tax-invoice",
+    "app.kafka.topics.tax-document=document.received.tax-document",
     "app.kafka.topics.receipt=document.received.receipt",
-    "app.kafka.topics.invoice=document.received.invoice",
+    "app.kafka.topics.document=document.received.document",
     "app.kafka.topics.debit-credit-note=document.received.debit-credit-note",
     "app.kafka.topics.cancellation=document.received.cancellation",
     "app.kafka.topics.abbreviated=document.received.abbreviated",
@@ -81,8 +81,8 @@ class CamelConfigIntegrationTest {
     @Test
     @DisplayName("REST intake route exists and has correct configuration")
     void testRestIntakeRouteConfiguration() {
-        // Verify the direct:invoice-intake route is configured
-        assertThat(camelContext.hasEndpoint("direct:invoice-intake")).isNotNull();
+        // Verify the direct:document-intake route is configured
+        assertThat(camelContext.hasEndpoint("direct:document-intake")).isNotNull();
     }
 
     @Test
@@ -96,13 +96,13 @@ class CamelConfigIntegrationTest {
         IncomingDocument validDocument = createValidDocument(documentId, "TIV2024010001",
             DocumentType.TAX_INVOICE, xmlContent);
 
-        when(documentIntakeService.submitInvoice(eq(xmlContent), eq("REST"), eq(correlationId)))
+        when(documentIntakeService.submitDocument(eq(xmlContent), eq("REST"), eq(correlationId)))
             .thenReturn(validDocument);
         doNothing().when(documentIntakeService).markForwarded(documentId);
 
         // When - send to the route (will fail at Kafka but service should be called)
         try {
-            producerTemplate.sendBodyAndHeader("direct:invoice-intake", xmlContent,
+            producerTemplate.sendBodyAndHeader("direct:document-intake", xmlContent,
                 "correlationId", correlationId);
         } catch (Exception e) {
             // Expected - Kafka is not available in tests
@@ -110,7 +110,7 @@ class CamelConfigIntegrationTest {
         }
 
         // Then - verify service was called
-        verify(documentIntakeService).submitInvoice(eq(xmlContent), eq("REST"), eq(correlationId));
+        verify(documentIntakeService).submitDocument(eq(xmlContent), eq("REST"), eq(correlationId));
     }
 
     @Test
@@ -122,18 +122,18 @@ class CamelConfigIntegrationTest {
 
         IncomingDocument invalidDocument = createInvalidDocument(documentId, xmlContent);
 
-        when(documentIntakeService.submitInvoice(anyString(), anyString(), anyString()))
+        when(documentIntakeService.submitDocument(anyString(), anyString(), anyString()))
             .thenReturn(invalidDocument);
 
         // When
         try {
-            producerTemplate.sendBody("direct:invoice-intake", xmlContent);
+            producerTemplate.sendBody("direct:document-intake", xmlContent);
         } catch (Exception e) {
             // May throw exception or not depending on route behavior
         }
 
         // Then - service was called but markForwarded was not
-        verify(documentIntakeService).submitInvoice(anyString(), anyString(), anyString());
+        verify(documentIntakeService).submitDocument(anyString(), anyString(), anyString());
         verify(documentIntakeService, never()).markForwarded(any());
     }
 
@@ -167,18 +167,18 @@ class CamelConfigIntegrationTest {
         IncomingDocument validDocument = createValidDocument(documentId, "RCT-001",
             DocumentType.RECEIPT, xmlContent);
 
-        when(documentIntakeService.submitInvoice(anyString(), anyString(), anyString()))
+        when(documentIntakeService.submitDocument(anyString(), anyString(), anyString()))
             .thenReturn(validDocument);
 
         // When
         try {
-            producerTemplate.sendBody("direct:invoice-intake", xmlContent);
+            producerTemplate.sendBody("direct:document-intake", xmlContent);
         } catch (Exception e) {
             // Expected
         }
 
         // Then - service was called with correct parameters
-        verify(documentIntakeService).submitInvoice(anyString(), eq("REST"), anyString());
+        verify(documentIntakeService).submitDocument(anyString(), eq("REST"), anyString());
     }
 
     @Test
@@ -196,11 +196,11 @@ class CamelConfigIntegrationTest {
 
     // Helper methods
 
-    private IncomingDocument createValidDocument(UUID id, String invoiceNumber,
+    private IncomingDocument createValidDocument(UUID id, String documentNumber,
                                                 DocumentType documentType, String xmlContent) {
         return IncomingDocument.builder()
             .id(id)
-            .invoiceNumber(invoiceNumber)
+            .documentNumber(documentNumber)
             .documentType(documentType)
             .xmlContent(xmlContent)
             .source("REST")
@@ -214,7 +214,7 @@ class CamelConfigIntegrationTest {
     private IncomingDocument createInvalidDocument(UUID id, String xmlContent) {
         return IncomingDocument.builder()
             .id(id)
-            .invoiceNumber("INVALID-001")
+            .documentNumber("INVALID-001")
             .documentType(null)
             .xmlContent(xmlContent)
             .source("REST")

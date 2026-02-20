@@ -19,7 +19,7 @@ public class IncomingDocument {
     private final UUID id;
 
     // Document Data
-    private final String invoiceNumber;
+    private final String documentNumber;
     private final String xmlContent;
     private final String source;
     private final String correlationId;
@@ -35,7 +35,7 @@ public class IncomingDocument {
 
     private IncomingDocument(Builder builder) {
         this.id = builder.id != null ? builder.id : UUID.randomUUID();
-        this.invoiceNumber = Objects.requireNonNull(builder.invoiceNumber, "Invoice number is required");
+        this.documentNumber = Objects.requireNonNull(builder.documentNumber, "Document number is required");
         this.xmlContent = Objects.requireNonNull(builder.xmlContent, "XML content is required");
         this.source = Objects.requireNonNull(builder.source, "Source is required");
         this.correlationId = builder.correlationId;
@@ -52,8 +52,8 @@ public class IncomingDocument {
      * Validate business invariants
      */
     private void validateInvariant() {
-        if (invoiceNumber.isBlank()) {
-            throw new IllegalStateException("Invoice number cannot be blank");
+        if (documentNumber.isBlank()) {
+            throw new IllegalStateException("Document number cannot be blank");
         }
 
         if (xmlContent.isBlank()) {
@@ -126,8 +126,8 @@ public class IncomingDocument {
         return id;
     }
 
-    public String getInvoiceNumber() {
-        return invoiceNumber;
+    public String getDocumentNumber() {
+        return documentNumber;
     }
 
     public String getXmlContent() {
@@ -167,7 +167,7 @@ public class IncomingDocument {
      */
     public static class Builder {
         private UUID id;
-        private String invoiceNumber;
+        private String documentNumber;
         private String xmlContent;
         private String source;
         private String correlationId;
@@ -182,8 +182,8 @@ public class IncomingDocument {
             return this;
         }
 
-        public Builder invoiceNumber(String invoiceNumber) {
-            this.invoiceNumber = invoiceNumber;
+        public Builder documentNumber(String documentNumber) {
+            this.documentNumber = documentNumber;
             return this;
         }
 

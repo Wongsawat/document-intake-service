@@ -4,9 +4,9 @@
 -- ============================================================
 
 -- Main table for storing incoming XML documents
-CREATE TABLE incoming_invoices (
+CREATE TABLE incoming_documents (
     id UUID PRIMARY KEY,
-    invoice_number VARCHAR(50) NOT NULL,
+    document_number VARCHAR(50) NOT NULL,
     xml_content TEXT NOT NULL,
     source VARCHAR(50) NOT NULL,
     correlation_id VARCHAR(100),
@@ -19,16 +19,16 @@ CREATE TABLE incoming_invoices (
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
--- Indexes for incoming_invoices
-CREATE INDEX idx_incoming_invoice_number ON incoming_invoices(invoice_number);
-CREATE INDEX idx_incoming_status ON incoming_invoices(status);
-CREATE INDEX idx_incoming_received ON incoming_invoices(received_at);
-CREATE INDEX idx_incoming_document_type ON incoming_invoices(document_type);
-CREATE UNIQUE INDEX idx_incoming_invoice_number_unique ON incoming_invoices(invoice_number);
+-- Indexes for incoming_documents
+CREATE INDEX idx_incoming_document_number ON incoming_documents(document_number);
+CREATE INDEX idx_incoming_status ON incoming_documents(status);
+CREATE INDEX idx_incoming_received ON incoming_documents(received_at);
+CREATE INDEX idx_incoming_document_type ON incoming_documents(document_type);
+CREATE UNIQUE INDEX idx_incoming_document_number_unique ON incoming_documents(document_number);
 
--- Comments for incoming_invoices
-COMMENT ON COLUMN incoming_invoices.document_type IS 'Thai e-Tax document type (TAX_INVOICE, RECEIPT, INVOICE, DEBIT_CREDIT_NOTE, CANCELLATION_NOTE, ABBREVIATED_TAX_INVOICE)';
-COMMENT ON COLUMN incoming_invoices.validation_result IS 'Validation result as JSON text (portable across databases)';
+-- Comments for incoming_documents
+COMMENT ON COLUMN incoming_documents.document_type IS 'Thai e-Tax document type (TAX_INVOICE, RECEIPT, INVOICE, DEBIT_CREDIT_NOTE, CANCELLATION_NOTE, ABBREVIATED_TAX_INVOICE)';
+COMMENT ON COLUMN incoming_documents.validation_result IS 'Validation result as JSON text (portable across databases)';
 
 -- Outbox pattern table for reliable event publishing (Debezium CDC)
 CREATE TABLE outbox_events (

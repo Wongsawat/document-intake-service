@@ -19,7 +19,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 @DisplayName("IncomingDocument Aggregate Root Tests")
 class IncomingDocumentTest {
 
-    private static final String TEST_INVOICE_NUMBER = "INV-2024-001";
+    private static final String TEST_DOCUMENT_NUMBER = "INV-2024-001";
     private static final String TEST_XML_CONTENT = """
         <?xml version="1.0" encoding="UTF-8"?>
         <rsm:TaxInvoice_CrossIndustryInvoice xmlns:rsm="urn:etda:uncefact:data:standard:TaxInvoice_CrossIndustryInvoice:2">
@@ -41,7 +41,7 @@ class IncomingDocumentTest {
     @BeforeEach
     void setUp() {
         validBuilder = IncomingDocument.builder()
-            .invoiceNumber(TEST_INVOICE_NUMBER)
+            .documentNumber(TEST_DOCUMENT_NUMBER)
             .xmlContent(TEST_XML_CONTENT)
             .source(TEST_SOURCE)
             .correlationId(TEST_CORRELATION_ID)
@@ -64,7 +64,7 @@ class IncomingDocumentTest {
             .build();
 
         assertThat(document.getId()).isEqualTo(id);
-        assertThat(document.getInvoiceNumber()).isEqualTo(TEST_INVOICE_NUMBER);
+        assertThat(document.getDocumentNumber()).isEqualTo(TEST_DOCUMENT_NUMBER);
         assertThat(document.getXmlContent()).isEqualTo(TEST_XML_CONTENT);
         assertThat(document.getSource()).isEqualTo(TEST_SOURCE);
         assertThat(document.getCorrelationId()).isEqualTo(TEST_CORRELATION_ID);
@@ -100,9 +100,9 @@ class IncomingDocumentTest {
     @Test
     @DisplayName("Builder throws on null invoice number")
     void testBuilderThrowsOnNullInvoiceNumber() {
-        assertThatThrownBy(() -> validBuilder.invoiceNumber(null).build())
+        assertThatThrownBy(() -> validBuilder.documentNumber(null).build())
             .isInstanceOf(NullPointerException.class)
-            .hasMessageContaining("Invoice number is required");
+            .hasMessageContaining("Document number is required");
     }
 
     @Test
@@ -122,11 +122,11 @@ class IncomingDocumentTest {
     }
 
     @Test
-    @DisplayName("Builder throws on blank invoice number")
-    void testBuilderThrowsOnBlankInvoiceNumber() {
-        assertThatThrownBy(() -> validBuilder.invoiceNumber("   ").build())
+    @DisplayName("Builder throws on blank document number")
+    void testBuilderThrowsOnBlankDocumentNumber() {
+        assertThatThrownBy(() -> validBuilder.documentNumber("   ").build())
             .isInstanceOf(IllegalStateException.class)
-            .hasMessageContaining("Invoice number cannot be blank");
+            .hasMessageContaining("Document number cannot be blank");
     }
 
     @Test
@@ -411,7 +411,7 @@ class IncomingDocumentTest {
             .build();
 
         assertThat(document.getId()).isEqualTo(id);
-        assertThat(document.getInvoiceNumber()).isEqualTo(TEST_INVOICE_NUMBER);
+        assertThat(document.getDocumentNumber()).isEqualTo(TEST_DOCUMENT_NUMBER);
         assertThat(document.getXmlContent()).isEqualTo(TEST_XML_CONTENT);
         assertThat(document.getSource()).isEqualTo(TEST_SOURCE);
         assertThat(document.getCorrelationId()).isEqualTo(TEST_CORRELATION_ID);
@@ -492,7 +492,7 @@ class IncomingDocumentTest {
         UUID id = UUID.randomUUID();
 
         IncomingDocument document1 = validBuilder.id(id).build();
-        IncomingDocument document2 = validBuilder.id(id).invoiceNumber("DIFFERENT").build();
+        IncomingDocument document2 = validBuilder.id(id).documentNumber("DIFFERENT").build();
 
         // Same ID should be considered equal (business identity)
         assertThat(document1.getId()).isEqualTo(document2.getId());

@@ -257,35 +257,35 @@ class XmlValidationServiceImplTest {
     // ==================== Invoice Number Extraction Tests ====================
 
     @Test
-    @DisplayName("Extract invoice number from TaxInvoice")
+    @DisplayName("Extract document number from TaxInvoice")
     void testExtractInvoiceNumberFromTaxInvoice() {
-        String invoiceNumber = validationService.extractInvoiceNumber(VALID_TAX_INVOICE_XML);
+        String documentNumber = validationService.extractInvoiceNumber(VALID_TAX_INVOICE_XML);
 
-        assertThat(invoiceNumber).isEqualTo("TIV2024010001");
+        assertThat(documentNumber).isEqualTo("TIV2024010001");
     }
 
     @Test
-    @DisplayName("Extract invoice number from Receipt")
+    @DisplayName("Extract document number from Receipt")
     void testExtractInvoiceNumberFromReceipt() {
-        String invoiceNumber = validationService.extractInvoiceNumber(RECEIPT_XML);
+        String documentNumber = validationService.extractInvoiceNumber(RECEIPT_XML);
 
-        assertThat(invoiceNumber).isEqualTo("RCT2024010001");
+        assertThat(documentNumber).isEqualTo("RCT2024010001");
     }
 
     @Test
-    @DisplayName("Extract invoice number from null XML returns null")
+    @DisplayName("Extract document number from null XML returns null")
     void testExtractInvoiceNumberNullXmlReturnsNull() {
-        String invoiceNumber = validationService.extractInvoiceNumber(null);
+        String documentNumber = validationService.extractInvoiceNumber(null);
 
-        assertThat(invoiceNumber).isNull();
+        assertThat(documentNumber).isNull();
     }
 
     @Test
-    @DisplayName("Extract invoice number from empty XML returns null")
+    @DisplayName("Extract document number from empty XML returns null")
     void testExtractInvoiceNumberEmptyXmlReturnsNull() {
-        String invoiceNumber = validationService.extractInvoiceNumber("");
+        String documentNumber = validationService.extractInvoiceNumber("");
 
-        assertThat(invoiceNumber).isNull();
+        assertThat(documentNumber).isNull();
     }
 
     // ==================== Service Initialization Tests ====================
@@ -437,9 +437,9 @@ class XmlValidationServiceImplTest {
         ValidationResult result = validationService.validate(VALID_TAX_INVOICE_XML);
         assertThat(result.valid()).isTrue();
 
-        // Step 3: Extract invoice number
-        String invoiceNumber = validationService.extractInvoiceNumber(VALID_TAX_INVOICE_XML);
-        assertThat(invoiceNumber).isEqualTo("TIV2024010001");
+        // Step 3: Extract document number
+        String documentNumber = validationService.extractInvoiceNumber(VALID_TAX_INVOICE_XML);
+        assertThat(documentNumber).isEqualTo("TIV2024010001");
     }
 
     @Test

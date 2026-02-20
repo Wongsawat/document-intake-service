@@ -14,8 +14,8 @@ import java.util.UUID;
  * JPA Entity for IncomingDocument aggregate
  */
 @Entity
-@Table(name = "incoming_invoices", indexes = {
-    @Index(name = "idx_incoming_invoice_number", columnList = "invoice_number"),
+@Table(name = "incoming_documents", indexes = {
+    @Index(name = "idx_incoming_document_number", columnList = "document_number"),
     @Index(name = "idx_incoming_status", columnList = "status"),
     @Index(name = "idx_incoming_received", columnList = "received_at"),
     @Index(name = "idx_incoming_document_type", columnList = "document_type")
@@ -31,8 +31,8 @@ public class IncomingDocumentEntity {
     @Column(name = "id", nullable = false)
     private UUID id;
 
-    @Column(name = "invoice_number", nullable = false, length = 50)
-    private String invoiceNumber;
+    @Column(name = "document_number", nullable = false, length = 50)
+    private String documentNumber;
 
     @Column(name = "xml_content", nullable = false, columnDefinition = "TEXT")
     private String xmlContent;

@@ -53,7 +53,7 @@ class DocumentIntakeControllerTest {
     void setUp() {
         testDocument = IncomingDocument.builder()
             .id(UUID.randomUUID())
-            .invoiceNumber("INV-2024-001")
+            .documentNumber("INV-2024-001")
             .xmlContent("<test>xml</test>")
             .source("REST")
             .correlationId("corr-123")
@@ -65,12 +65,12 @@ class DocumentIntakeControllerTest {
     }
 
     @Test
-    @DisplayName("POST /api/v1/invoices returns 202 Accepted for valid document")
+    @DisplayName("POST /api/v1/documents returns 202 Accepted for valid document")
     void testSubmitInvoiceReturns202Accepted() throws Exception {
-        when(documentIntakeService.submitInvoice(any(), eq("REST"), eq("corr-123")))
+        when(documentIntakeService.submitDocument(any(), eq("REST"), eq("corr-123")))
             .thenReturn(testDocument);
 
-        mockMvc.perform(post("/api/v1/invoices")
+        mockMvc.perform(post("/api/v1/documents")
                 .contentType(MediaType.APPLICATION_XML)
                 .content("<test>xml</test>")
                 .header("X-Correlation-ID", "corr-123"))
@@ -79,35 +79,35 @@ class DocumentIntakeControllerTest {
     }
 
     @Test
-    @DisplayName("GET /api/v1/invoices/{id} returns 200 OK when document exists")
+    @DisplayName("GET /api/v1/documents/{id} returns 200 OK when document exists")
     void testGetInvoiceByIdReturns200() throws Exception {
         when(documentIntakeService.getDocument(testDocument.getId()))
             .thenReturn(testDocument);
 
-        mockMvc.perform(get("/api/v1/invoices/{id}", testDocument.getId()))
+        mockMvc.perform(get("/api/v1/documents/{id}", testDocument.getId()))
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$.invoiceNumber").value("INV-2024-001"))
+            .andExpect(jsonPath("$.documentNumber").value("INV-2024-001"))
             .andExpect(jsonPath("$.status").value("VALIDATED"))
             .andExpect(jsonPath("$.documentType").value("TAX_INVOICE"));
     }
 
     @Test
-    @DisplayName("GET /api/v1/invoices/{id} returns 404 when document not found")
+    @DisplayName("GET /api/v1/documents/{id} returns 404 when document not found")
     void testGetInvoiceByIdReturns404() throws Exception {
         UUID unknownId = UUID.randomUUID();
         when(documentIntakeService.getDocument(unknownId))
             .thenThrow(new IllegalArgumentException("Document not found: " + unknownId));
 
-        mockMvc.perform(get("/api/v1/invoices/{id}", unknownId))
+        mockMvc.perform(get("/api/v1/documents/{id}", unknownId))
             .andExpect(status().isNotFound());
     }
 
     @Test
-    @DisplayName("POST /api/v1/invoices generates correlation ID when not provided")
+    @DisplayName("POST /api/v1/documents generates correlation ID when not provided")
     void testSubmitInvoiceGeneratesCorrelationId() throws Exception {
         IncomingDocument document = IncomingDocument.builder()
             .id(testDocument.getId())
-            .invoiceNumber("INV-2024-002")
+            .documentNumber("INV-2024-002")
             .xmlContent("<test>xml</test>")
             .source("REST")
             .correlationId(null) // No correlation ID provided
@@ -116,10 +116,10 @@ class DocumentIntakeControllerTest {
             .validationResult(ValidationResult.success())
             .build();
 
-        when(documentIntakeService.submitInvoice(any(), eq("REST"), eq(null)))
+        when(documentIntakeService.submitDocument(any(), eq("REST"), eq(null)))
             .thenReturn(document);
 
-        mockMvc.perform(post("/api/v1/invoices")
+        mockMvc.perform(post("/api/v1/documents")
                 .contentType(MediaType.APPLICATION_XML)
                 .content("<test>xml</test>"))
             .andExpect(status().isAccepted())
@@ -127,36 +127,36 @@ class DocumentIntakeControllerTest {
     }
 
     @Test
-    @DisplayName("POST /api/v1/invoices returns error for invalid XML")
+    @DisplayName("POST /api/v1/documents returns error for invalid XML")
     void testSubmitInvoiceReturns400ForInvalidXml() throws Exception {
         // The Camel route would throw an exception for invalid XML
-        doThrow(new IllegalArgumentException("Could not extract invoice number"))
+        doThrow(new IllegalArgumentException("Could not extract document number"))
             .when(producerTemplate).sendBodyAndHeader(any(String.class), any(), any(String.class), any());
 
-        mockMvc.perform(post("/api/v1/invoices")
+        mockMvc.perform(post("/api/v1/documents")
                 .contentType(MediaType.APPLICATION_XML)
                 .content("invalid xml"))
             .andExpect(status().isInternalServerError());
     }
 
     @Test
-    @DisplayName("GET /api/v1/invoices/{id} returns validation result")
+    @DisplayName("GET /api/v1/documents/{id} returns validation result")
     void testGetInvoiceIncludesValidationResult() throws Exception {
         when(documentIntakeService.getDocument(testDocument.getId()))
             .thenReturn(testDocument);
 
-        mockMvc.perform(get("/api/v1/invoices/{id}", testDocument.getId()))
+        mockMvc.perform(get("/api/v1/documents/{id}", testDocument.getId()))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.validationResult.valid").value(true));
     }
 
     @Test
-    @DisplayName("POST /api/v1/invoices handles different sources")
+    @DisplayName("POST /api/v1/documents handles different sources")
     void testSubmitInvoiceHandlesDifferentSources() throws Exception {
-        when(documentIntakeService.submitInvoice(any(), eq("KAFKA"), eq("corr-456")))
+        when(documentIntakeService.submitDocument(any(), eq("KAFKA"), eq("corr-456")))
             .thenReturn(testDocument);
 
-        mockMvc.perform(post("/api/v1/invoices")
+        mockMvc.perform(post("/api/v1/documents")
                 .contentType(MediaType.APPLICATION_XML)
                 .content("<test>xml</test>")
                 .header("X-Correlation-ID", "corr-456")
@@ -165,12 +165,12 @@ class DocumentIntakeControllerTest {
     }
 
     @Test
-    @DisplayName("POST /api/v1/invoices accepts text/xml content type")
+    @DisplayName("POST /api/v1/documents accepts text/xml content type")
     void testSubmitInvoiceAcceptsTextXmlContentType() throws Exception {
-        when(documentIntakeService.submitInvoice(any(), eq("REST"), any()))
+        when(documentIntakeService.submitDocument(any(), eq("REST"), any()))
             .thenReturn(testDocument);
 
-        mockMvc.perform(post("/api/v1/invoices")
+        mockMvc.perform(post("/api/v1/documents")
                 .contentType(MediaType.TEXT_XML)
                 .content("<test>xml</test>")
                 .header("X-Correlation-ID", "corr-text-xml"))
@@ -179,11 +179,11 @@ class DocumentIntakeControllerTest {
     }
 
     @Test
-    @DisplayName("GET /api/v1/invoices/{id} handles document with null documentType")
+    @DisplayName("GET /api/v1/documents/{id} handles document with null documentType")
     void testGetInvoiceHandlesNullDocumentType() throws Exception {
         IncomingDocument documentWithNullType = IncomingDocument.builder()
             .id(testDocument.getId())
-            .invoiceNumber("INV-2024-003")
+            .documentNumber("INV-2024-003")
             .xmlContent("<test>xml</test>")
             .source("REST")
             .documentType(null) // Null document type
@@ -195,19 +195,19 @@ class DocumentIntakeControllerTest {
         when(documentIntakeService.getDocument(testDocument.getId()))
             .thenReturn(documentWithNullType);
 
-        mockMvc.perform(get("/api/v1/invoices/{id}", testDocument.getId()))
+        mockMvc.perform(get("/api/v1/documents/{id}", testDocument.getId()))
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$.invoiceNumber").value("INV-2024-003"))
+            .andExpect(jsonPath("$.documentNumber").value("INV-2024-003"))
             .andExpect(jsonPath("$.status").value("VALIDATING"))
             .andExpect(jsonPath("$.documentType").doesNotExist());
     }
 
     @Test
-    @DisplayName("GET /api/v1/invoices/{id} handles document without processedAt")
+    @DisplayName("GET /api/v1/documents/{id} handles document without processedAt")
     void testGetInvoiceHandlesNullProcessedAt() throws Exception {
         IncomingDocument documentWithoutProcessedAt = IncomingDocument.builder()
             .id(testDocument.getId())
-            .invoiceNumber("INV-2024-004")
+            .documentNumber("INV-2024-004")
             .xmlContent("<test>xml</test>")
             .source("REST")
             .documentType(DocumentType.TAX_INVOICE)
@@ -220,18 +220,18 @@ class DocumentIntakeControllerTest {
         when(documentIntakeService.getDocument(testDocument.getId()))
             .thenReturn(documentWithoutProcessedAt);
 
-        mockMvc.perform(get("/api/v1/invoices/{id}", testDocument.getId()))
+        mockMvc.perform(get("/api/v1/documents/{id}", testDocument.getId()))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.receivedAt").exists())
             .andExpect(jsonPath("$.processedAt").doesNotExist());
     }
 
     @Test
-    @DisplayName("GET /api/v1/invoices/{id} handles document without validation result")
+    @DisplayName("GET /api/v1/documents/{id} handles document without validation result")
     void testGetInvoiceHandlesNullValidationResult() throws Exception {
         IncomingDocument documentWithoutValidation = IncomingDocument.builder()
             .id(testDocument.getId())
-            .invoiceNumber("INV-2024-005")
+            .documentNumber("INV-2024-005")
             .xmlContent("<test>xml</test>")
             .source("REST")
             .documentType(DocumentType.TAX_INVOICE)
@@ -243,30 +243,30 @@ class DocumentIntakeControllerTest {
         when(documentIntakeService.getDocument(testDocument.getId()))
             .thenReturn(documentWithoutValidation);
 
-        mockMvc.perform(get("/api/v1/invoices/{id}", testDocument.getId()))
+        mockMvc.perform(get("/api/v1/documents/{id}", testDocument.getId()))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.validationResult").doesNotExist());
     }
 
     @Test
-    @DisplayName("GET /api/v1/invoices/{id} returns 500 for unexpected errors")
+    @DisplayName("GET /api/v1/documents/{id} returns 500 for unexpected errors")
     void testGetInvoiceReturns500ForUnexpectedErrors() throws Exception {
         UUID testId = UUID.randomUUID();
         when(documentIntakeService.getDocument(testId))
             .thenThrow(new RuntimeException("Database connection failed"));
 
-        mockMvc.perform(get("/api/v1/invoices/{id}", testId))
+        mockMvc.perform(get("/api/v1/documents/{id}", testId))
             .andExpect(status().isInternalServerError())
             .andExpect(jsonPath("$.error").value("Failed to retrieve document status"));
     }
 
     @Test
-    @DisplayName("POST /api/v1/invoices with null correlation ID generates UUID")
+    @DisplayName("POST /api/v1/documents with null correlation ID generates UUID")
     void testSubmitInvoiceWithNullCorrelationIdGeneratesUuid() throws Exception {
-        when(documentIntakeService.submitInvoice(any(), eq("REST"), any()))
+        when(documentIntakeService.submitDocument(any(), eq("REST"), any()))
             .thenReturn(testDocument);
 
-        mockMvc.perform(post("/api/v1/invoices")
+        mockMvc.perform(post("/api/v1/documents")
                 .contentType(MediaType.APPLICATION_XML)
                 .content("<test>xml</test>"))
             .andExpect(status().isAccepted())
@@ -274,12 +274,12 @@ class DocumentIntakeControllerTest {
     }
 
     @Test
-    @DisplayName("POST /api/v1/invoices handles empty correlation ID header")
+    @DisplayName("POST /api/v1/documents handles empty correlation ID header")
     void testSubmitInvoiceHandlesEmptyCorrelationId() throws Exception {
-        when(documentIntakeService.submitInvoice(any(), eq("REST"), any()))
+        when(documentIntakeService.submitDocument(any(), eq("REST"), any()))
             .thenReturn(testDocument);
 
-        mockMvc.perform(post("/api/v1/invoices")
+        mockMvc.perform(post("/api/v1/documents")
                 .contentType(MediaType.APPLICATION_XML)
                 .content("<test>xml</test>")
                 .header("X-Correlation-ID", ""))

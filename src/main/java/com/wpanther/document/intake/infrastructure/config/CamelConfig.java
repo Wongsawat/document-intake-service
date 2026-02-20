@@ -43,7 +43,7 @@ public class CamelConfig extends RouteBuilder {
 
         // REST intake route
         // Documents submitted via REST API are processed and events are published via outbox
-        from("direct:invoice-intake")
+        from("direct:document-intake")
             .routeId("document-intake-direct")
             .log("Received document via REST")
             .process(exchange -> {
@@ -51,7 +51,7 @@ public class CamelConfig extends RouteBuilder {
                 String correlationId = exchange.getIn().getHeader("correlationId", String.class);
 
                 // Submit and validate - this now publishes events via outbox
-                IncomingDocument document = intakeService.submitInvoice(xmlContent, "REST", correlationId);
+                IncomingDocument document = intakeService.submitDocument(xmlContent, "REST", correlationId);
 
                 // Set response headers
                 exchange.getIn().setHeader("documentId", document.getId().toString());
@@ -70,7 +70,7 @@ public class CamelConfig extends RouteBuilder {
                 String correlationId = exchange.getIn().getHeader("kafka.KEY", String.class);
 
                 // Submit and validate - this now publishes events via outbox
-                IncomingDocument document = intakeService.submitInvoice(xmlContent, "KAFKA", correlationId);
+                IncomingDocument document = intakeService.submitDocument(xmlContent, "KAFKA", correlationId);
 
                 exchange.getIn().setHeader("documentId", document.getId().toString());
                 exchange.getIn().setHeader("documentType", document.getDocumentType().name());

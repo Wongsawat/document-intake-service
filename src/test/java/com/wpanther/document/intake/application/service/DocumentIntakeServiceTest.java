@@ -103,7 +103,7 @@ class DocumentIntakeServiceTest {
         when(validationService.extractInvoiceNumber(any())).thenReturn("INV-2024-001");
         when(validationService.extractDocumentType(any())).thenReturn(DocumentType.TAX_INVOICE);
         when(validationService.validate(any())).thenReturn(ValidationResult.success());
-        when(documentRepository.existsByInvoiceNumber(any())).thenReturn(false);
+        when(documentRepository.existsByDocumentNumber(any())).thenReturn(false);
         when(documentRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
     }
 
@@ -112,10 +112,10 @@ class DocumentIntakeServiceTest {
     @Test
     @DisplayName("Submit document with valid XML succeeds and forwards")
     void testSubmitInvoiceWithValidXml() {
-        IncomingDocument result = documentIntakeService.submitInvoice(VALID_XML, "REST", "corr-123");
+        IncomingDocument result = documentIntakeService.submitDocument(VALID_XML, "REST", "corr-123");
 
         assertThat(result).isNotNull();
-        assertThat(result.getInvoiceNumber()).isEqualTo("INV-2024-001");
+        assertThat(result.getDocumentNumber()).isEqualTo("INV-2024-001");
         assertThat(result.getSource()).isEqualTo("REST");
         assertThat(result.getCorrelationId()).isEqualTo("corr-123");
         assertThat(result.getDocumentType()).isEqualTo(DocumentType.TAX_INVOICE);
@@ -127,7 +127,7 @@ class DocumentIntakeServiceTest {
     @Test
     @DisplayName("Submit document stores document type")
     void testSubmitInvoiceStoresDocumentType() {
-        IncomingDocument result = documentIntakeService.submitInvoice(VALID_XML, "REST", "corr-123");
+        IncomingDocument result = documentIntakeService.submitDocument(VALID_XML, "REST", "corr-123");
 
         assertThat(result.getDocumentType()).isEqualTo(DocumentType.TAX_INVOICE);
     }
@@ -139,7 +139,7 @@ class DocumentIntakeServiceTest {
         ArgumentCaptor<IncomingDocument> captor = ArgumentCaptor.forClass(IncomingDocument.class);
         when(documentRepository.save(captor.capture())).thenAnswer(invocation -> invocation.getArgument(0));
 
-        documentIntakeService.submitInvoice(VALID_XML, "KAFKA", "corr-456");
+        documentIntakeService.submitDocument(VALID_XML, "KAFKA", "corr-456");
 
         // Should have saved 4 times: initial, VALIDATING, VALIDATED, FORWARDED
         assertThat(captor.getAllValues()).hasSize(4);
@@ -152,7 +152,7 @@ class DocumentIntakeServiceTest {
     void testSubmitInvoiceWithInvalidXml() {
         when(validationService.validate(any())).thenReturn(ValidationResult.invalid(List.of("Validation error")));
 
-        IncomingDocument result = documentIntakeService.submitInvoice(INVALID_XML, "REST", "corr-789");
+        IncomingDocument result = documentIntakeService.submitDocument(INVALID_XML, "REST", "corr-789");
 
         assertThat(result).isNotNull();
         assertThat(result.getStatus()).isEqualTo(DocumentStatus.INVALID);
@@ -161,11 +161,11 @@ class DocumentIntakeServiceTest {
     }
 
     @Test
-    @DisplayName("Submit document with duplicate invoice number throws exception")
+    @DisplayName("Submit document with duplicate document number throws exception")
     void testSubmitInvoiceWithDuplicateInvoiceNumber() {
-        when(documentRepository.existsByInvoiceNumber("INV-2024-001")).thenReturn(true);
+        when(documentRepository.existsByDocumentNumber("INV-2024-001")).thenReturn(true);
 
-        assertThatThrownBy(() -> documentIntakeService.submitInvoice(VALID_XML, "REST", "corr-123"))
+        assertThatThrownBy(() -> documentIntakeService.submitDocument(VALID_XML, "REST", "corr-123"))
             .isInstanceOf(IllegalStateException.class)
             .hasMessageContaining("already exists")
             .hasMessageContaining("INV-2024-001");
@@ -177,34 +177,34 @@ class DocumentIntakeServiceTest {
     // ==================== Invoice Number Extraction Tests ====================
 
     @Test
-    @DisplayName("Submit document extracts invoice number")
+    @DisplayName("Submit document extracts document number")
     void testSubmitInvoiceExtractsInvoiceNumber() {
-        documentIntakeService.submitInvoice(VALID_XML, "REST", "corr-123");
+        documentIntakeService.submitDocument(VALID_XML, "REST", "corr-123");
 
         verify(validationService).extractInvoiceNumber(VALID_XML);
     }
 
     @Test
-    @DisplayName("Submit document with null invoice number throws exception")
+    @DisplayName("Submit document with null document number throws exception")
     void testSubmitInvoiceHandlesNullInvoiceNumber() {
         when(validationService.extractInvoiceNumber(any())).thenReturn(null);
 
-        assertThatThrownBy(() -> documentIntakeService.submitInvoice(VALID_XML, "REST", "corr-123"))
+        assertThatThrownBy(() -> documentIntakeService.submitDocument(VALID_XML, "REST", "corr-123"))
             .isInstanceOf(IllegalArgumentException.class)
-            .hasMessageContaining("Could not extract invoice number");
+            .hasMessageContaining("Could not extract document number");
 
         // Verify no save was attempted
         verify(documentRepository, never()).save(any());
     }
 
     @Test
-    @DisplayName("Submit document with blank invoice number throws exception")
+    @DisplayName("Submit document with blank document number throws exception")
     void testSubmitInvoiceHandlesBlankInvoiceNumber() {
         when(validationService.extractInvoiceNumber(any())).thenReturn("   ");
 
-        assertThatThrownBy(() -> documentIntakeService.submitInvoice(VALID_XML, "REST", "corr-123"))
+        assertThatThrownBy(() -> documentIntakeService.submitDocument(VALID_XML, "REST", "corr-123"))
             .isInstanceOf(IllegalArgumentException.class)
-            .hasMessageContaining("Could not extract invoice number");
+            .hasMessageContaining("Could not extract document number");
 
         // Verify no save was attempted
         verify(documentRepository, never()).save(any());
@@ -215,7 +215,7 @@ class DocumentIntakeServiceTest {
     @Test
     @DisplayName("Submit document extracts document type")
     void testSubmitInvoiceExtractsDocumentType() {
-        documentIntakeService.submitInvoice(VALID_XML, "REST", "corr-123");
+        documentIntakeService.submitDocument(VALID_XML, "REST", "corr-123");
 
         verify(validationService).extractDocumentType(VALID_XML);
     }
@@ -225,7 +225,7 @@ class DocumentIntakeServiceTest {
     void testSubmitInvoiceHandlesNullDocumentType() {
         when(validationService.extractDocumentType(any())).thenReturn(null);
 
-        assertThatThrownBy(() -> documentIntakeService.submitInvoice(VALID_XML, "REST", "corr-123"))
+        assertThatThrownBy(() -> documentIntakeService.submitDocument(VALID_XML, "REST", "corr-123"))
             .isInstanceOf(IllegalArgumentException.class)
             .hasMessageContaining("Could not detect document type");
 
@@ -238,7 +238,7 @@ class DocumentIntakeServiceTest {
     @Test
     @DisplayName("Submit document with null XML throws exception")
     void testSubmitInvoiceWithNullXml() {
-        assertThatThrownBy(() -> documentIntakeService.submitInvoice(null, "REST", "corr-123"))
+        assertThatThrownBy(() -> documentIntakeService.submitDocument(null, "REST", "corr-123"))
             .isInstanceOf(NullPointerException.class);
 
         verify(validationService).extractInvoiceNumber(null);
@@ -251,22 +251,22 @@ class DocumentIntakeServiceTest {
         // Override the default mock to return null for empty input
         when(validationService.extractInvoiceNumber("")).thenReturn(null);
 
-        assertThatThrownBy(() -> documentIntakeService.submitInvoice("", "REST", "corr-123"))
+        assertThatThrownBy(() -> documentIntakeService.submitDocument("", "REST", "corr-123"))
             .isInstanceOf(IllegalArgumentException.class)
-            .hasMessageContaining("Could not extract invoice number");
+            .hasMessageContaining("Could not extract document number");
     }
 
     @Test
     @DisplayName("Submit document with null source throws exception")
     void testSubmitInvoiceWithNullSource() {
-        assertThatThrownBy(() -> documentIntakeService.submitInvoice(VALID_XML, null, "corr-123"))
+        assertThatThrownBy(() -> documentIntakeService.submitDocument(VALID_XML, null, "corr-123"))
             .isInstanceOf(NullPointerException.class);
     }
 
     @Test
     @DisplayName("Submit document with null correlation ID")
     void testSubmitInvoiceWithNullCorrelationId() {
-        IncomingDocument result = documentIntakeService.submitInvoice(VALID_XML, "REST", null);
+        IncomingDocument result = documentIntakeService.submitDocument(VALID_XML, "REST", null);
 
         assertThat(result.getCorrelationId()).isNull();
     }
@@ -279,7 +279,7 @@ class DocumentIntakeServiceTest {
         ArgumentCaptor<IncomingDocument> captor = ArgumentCaptor.forClass(IncomingDocument.class);
         when(documentRepository.save(captor.capture())).thenAnswer(invocation -> invocation.getArgument(0));
 
-        documentIntakeService.submitInvoice(VALID_XML, "REST", "corr-123");
+        documentIntakeService.submitDocument(VALID_XML, "REST", "corr-123");
 
         // Verify multiple saves for state transitions
         assertThat(captor.getAllValues()).hasSizeGreaterThanOrEqualTo(2);
@@ -288,9 +288,9 @@ class DocumentIntakeServiceTest {
     @Test
     @DisplayName("Submit document checks for duplicate")
     void testSubmitInvoiceChecksForDuplicate() {
-        documentIntakeService.submitInvoice(VALID_XML, "REST", "corr-123");
+        documentIntakeService.submitDocument(VALID_XML, "REST", "corr-123");
 
-        verify(documentRepository).existsByInvoiceNumber("INV-2024-001");
+        verify(documentRepository).existsByDocumentNumber("INV-2024-001");
     }
 
     // ==================== Mark Forwarded Tests ====================
@@ -301,7 +301,7 @@ class DocumentIntakeServiceTest {
         UUID documentId = UUID.randomUUID();
         IncomingDocument document = IncomingDocument.builder()
             .id(documentId)
-            .invoiceNumber("INV-001")
+            .documentNumber("INV-001")
             .xmlContent(VALID_XML)
             .source("REST")
             .status(DocumentStatus.VALIDATED)
@@ -340,7 +340,7 @@ class DocumentIntakeServiceTest {
         UUID documentId = UUID.randomUUID();
         IncomingDocument document = IncomingDocument.builder()
             .id(documentId)
-            .invoiceNumber("INV-001")
+            .documentNumber("INV-001")
             .xmlContent(VALID_XML)
             .source("REST")
             .documentType(DocumentType.TAX_INVOICE)
@@ -374,7 +374,7 @@ class DocumentIntakeServiceTest {
         UUID documentId = UUID.randomUUID();
         IncomingDocument document = IncomingDocument.builder()
             .id(documentId)
-            .invoiceNumber("INV-2024-001")
+            .documentNumber("INV-2024-001")
             .xmlContent(VALID_XML)
             .source("REST")
             .correlationId("corr-123")
@@ -386,14 +386,14 @@ class DocumentIntakeServiceTest {
         when(documentRepository.findById(documentId)).thenReturn(Optional.of(document));
 
         // Submit
-        IncomingDocument submitted = documentIntakeService.submitInvoice(VALID_XML, "REST", "corr-123");
+        IncomingDocument submitted = documentIntakeService.submitDocument(VALID_XML, "REST", "corr-123");
         assertThat(submitted.isValid()).isTrue();
 
         // Get
         IncomingDocument retrieved = documentIntakeService.getDocument(documentId);
         assertThat(retrieved).isNotNull();
 
-        // Note: submitInvoice already marks as forwarded, so the markForwarded method
+        // Note: submitDocument already marks as forwarded, so the markForwarded method
         // is tested separately in testMarkForwardedUpdatesStatus
     }
 
@@ -405,7 +405,7 @@ class DocumentIntakeServiceTest {
         for (DocumentType type : DocumentType.values()) {
             when(validationService.extractDocumentType(any())).thenReturn(type);
 
-            IncomingDocument result = documentIntakeService.submitInvoice(VALID_XML, "REST", "corr-" + type.name());
+            IncomingDocument result = documentIntakeService.submitDocument(VALID_XML, "REST", "corr-" + type.name());
 
             assertThat(result.getDocumentType()).isEqualTo(type);
         }
@@ -419,7 +419,7 @@ class DocumentIntakeServiceTest {
         ValidationResult warningResult = ValidationResult.validWithWarnings(List.of("Warning 1", "Warning 2"));
         when(validationService.validate(any())).thenReturn(warningResult);
 
-        IncomingDocument result = documentIntakeService.submitInvoice(VALID_XML, "REST", "corr-123");
+        IncomingDocument result = documentIntakeService.submitDocument(VALID_XML, "REST", "corr-123");
 
         assertThat(result.isValid()).isTrue(); // Warnings still valid
         assertThat(result.getValidationResult().hasWarnings()).isTrue();
@@ -433,7 +433,7 @@ class DocumentIntakeServiceTest {
         ValidationResult errorResult = ValidationResult.invalid(errors);
         when(validationService.validate(any())).thenReturn(errorResult);
 
-        IncomingDocument result = documentIntakeService.submitInvoice(INVALID_XML, "REST", "corr-123");
+        IncomingDocument result = documentIntakeService.submitDocument(INVALID_XML, "REST", "corr-123");
 
         assertThat(result.isValid()).isFalse();
         assertThat(result.getValidationResult().errorCount()).isEqualTo(3);
@@ -445,7 +445,7 @@ class DocumentIntakeServiceTest {
         ValidationResult result = ValidationResult.invalid(List.of("Schema error"));
         when(validationService.validate(any())).thenReturn(result);
 
-        IncomingDocument document = documentIntakeService.submitInvoice(INVALID_XML, "REST", "corr-123");
+        IncomingDocument document = documentIntakeService.submitDocument(INVALID_XML, "REST", "corr-123");
 
         assertThat(document.getValidationResult()).isEqualTo(result);
     }
