@@ -31,7 +31,6 @@ public enum DocumentType {
         "com.wpanther.etax.generated.common.udt",
         "urn:etda:uncefact:data:standard:TaxInvoice_CrossIndustryInvoice:2",
         TaxInvoice_CrossIndustryInvoiceType.class,
-        "e-tax-invoice-receipt-v2.1/ETDA/data/standard/TaxInvoice_CrossIndustryInvoice_2p1.xsd",
         "TaxInvoice_CrossIndustryInvoice"
     ),
 
@@ -42,7 +41,6 @@ public enum DocumentType {
         "com.wpanther.etax.generated.common.udt",
         "urn:etda:uncefact:data:standard:Receipt_CrossIndustryInvoice:2",
         Receipt_CrossIndustryInvoiceType.class,
-        "e-tax-invoice-receipt-v2.1/ETDA/data/standard/Receipt_CrossIndustryInvoice_2p1.xsd",
         "Receipt_CrossIndustryInvoice"
     ),
 
@@ -53,7 +51,6 @@ public enum DocumentType {
         "com.wpanther.etax.generated.common.udt",
         "urn:etda:uncefact:data:standard:Invoice_CrossIndustryInvoice:2",
         Invoice_CrossIndustryInvoiceType.class,
-        "e-tax-invoice-receipt-v2.1/ETDA/data/standard/Invoice_CrossIndustryInvoice_2p1.xsd",
         "Invoice_CrossIndustryInvoice"
     ),
 
@@ -64,7 +61,6 @@ public enum DocumentType {
         "com.wpanther.etax.generated.common.udt",
         "urn:etda:uncefact:data:standard:DebitCreditNote_CrossIndustryInvoice:2",
         DebitCreditNote_CrossIndustryInvoiceType.class,
-        "e-tax-invoice-receipt-v2.1/ETDA/data/standard/DebitCreditNote_CrossIndustryInvoice_2p1.xsd",
         "DebitCreditNote_CrossIndustryInvoice"
     ),
 
@@ -75,7 +71,6 @@ public enum DocumentType {
         "com.wpanther.etax.generated.common.udt",
         "urn:etda:uncefact:data:standard:CancellationNote_CrossIndustryInvoice:2",
         CancellationNote_CrossIndustryInvoiceType.class,
-        "e-tax-invoice-receipt-v2.1/ETDA/data/standard/CancellationNote_CrossIndustryInvoice_2p1.xsd",
         "CancellationNote_CrossIndustryInvoice"
     ),
 
@@ -86,22 +81,19 @@ public enum DocumentType {
         "com.wpanther.etax.generated.common.udt",
         "urn:etda:uncefact:data:standard:AbbreviatedTaxInvoice_CrossIndustryInvoice:2",
         AbbreviatedTaxInvoice_CrossIndustryInvoiceType.class,
-        "e-tax-invoice-receipt-v2.1/ETDA/data/standard/AbbreviatedTaxInvoice_CrossIndustryInvoice_2p1.xsd",
         "AbbreviatedTaxInvoice_CrossIndustryInvoice"
     );
 
     private final String contextPath;
     private final String namespaceUri;
     private final Class<?> jaxbClass;
-    private final String schemaPath;
     private final String rootElementName;
 
     DocumentType(String contextPath, String namespaceUri,
-                 Class<?> jaxbClass, String schemaPath, String rootElementName) {
+                 Class<?> jaxbClass, String rootElementName) {
         this.contextPath = contextPath;
         this.namespaceUri = namespaceUri;
         this.jaxbClass = jaxbClass;
-        this.schemaPath = schemaPath;
         this.rootElementName = rootElementName;
     }
 
@@ -140,10 +132,6 @@ public enum DocumentType {
     @Deprecated
     public Class<?> getRootClass() {
         return jaxbClass;
-    }
-
-    public String getSchemaPath() {
-        return schemaPath;
     }
 
     public String getRootElementName() {

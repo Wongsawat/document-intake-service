@@ -36,7 +36,6 @@ class DocumentTypeTest {
         assertThat(type.getContextPath()).isNotNull();
         assertThat(type.getNamespaceUri()).isNotNull();
         assertThat(type.getJaxbClass()).isNotNull();
-        assertThat(type.getSchemaPath()).isNotNull();
         assertThat(type.getRootElementName()).isNotNull();
         assertThat(type.toDocumentSchematron()).isNotNull();
     }
@@ -159,14 +158,6 @@ class DocumentTypeTest {
         assertThat(DocumentType.DEBIT_CREDIT_NOTE.getContextPath()).contains("debitcreditnote");
         assertThat(DocumentType.CANCELLATION_NOTE.getContextPath()).contains("cancellationnote");
         assertThat(DocumentType.ABBREVIATED_TAX_INVOICE.getContextPath()).contains("abbreviatedtaxinvoice");
-    }
-
-    @Test
-    void testSchemaPathsPointToTedaLibrary() {
-        for (DocumentType type : DocumentType.values()) {
-            assertThat(type.getSchemaPath()).startsWith("e-tax-invoice-receipt-v2.1/");
-            assertThat(type.getSchemaPath()).endsWith(".xsd");
-        }
     }
 
     @Test

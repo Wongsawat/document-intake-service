@@ -67,20 +67,32 @@ public class DocumentIntakeService {
         // Extract document number
         String documentNumber = validationService.extractInvoiceNumber(xmlContent);
         if (documentNumber == null || documentNumber.isBlank()) {
-            throw new IllegalArgumentException("Could not extract document number from XML");
+            throw new IllegalArgumentException(
+                "Could not extract document number from XML. " +
+                "Ensure XML has valid document number in the expected field location. " +
+                "Document type may not be recognized or document number field may be missing."
+            );
         }
 
         // Extract document type
         DocumentType documentType = validationService.extractDocumentType(xmlContent);
         if (documentType == null) {
-            throw new IllegalArgumentException("Could not detect document type from XML");
+            throw new IllegalArgumentException(
+                "Could not detect document type from XML. " +
+                "Ensure XML namespace URI matches one of the supported document types: " +
+                "TAX_INVOICE, RECEIPT, INVOICE, DEBIT_CREDIT_NOTE, CANCELLATION_NOTE, ABBREVIATED_TAX_INVOICE."
+            );
         }
         log.debug("Detected document type: {}", documentType);
 
         // Check if already exists
         if (documentRepository.existsByDocumentNumber(documentNumber)) {
             log.warn("Document number {} already exists", documentNumber);
-            throw new IllegalStateException("Document number already exists: " + documentNumber);
+            throw new IllegalStateException(
+                "Document number already exists: " + documentNumber + ". " +
+                "A document with this number has already been submitted. " +
+                "Please check existing documents or use a different document number."
+            );
         }
 
         // Create incoming document

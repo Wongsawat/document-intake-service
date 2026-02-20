@@ -53,11 +53,17 @@ public class IncomingDocument {
      */
     private void validateInvariant() {
         if (documentNumber.isBlank()) {
-            throw new IllegalStateException("Document number cannot be blank");
+            throw new IllegalStateException(
+                "Document number cannot be blank. This is a validation invariant violation. " +
+                "Ensure document number is provided during document creation."
+            );
         }
 
         if (xmlContent.isBlank()) {
-            throw new IllegalStateException("XML content cannot be blank");
+            throw new IllegalStateException(
+                "XML content cannot be blank. This is a validation invariant violation. " +
+                "Ensure XML content is provided during document creation."
+            );
         }
     }
 
@@ -66,7 +72,10 @@ public class IncomingDocument {
      */
     public void startValidation() {
         if (this.status != DocumentStatus.RECEIVED) {
-            throw new IllegalStateException("Can only start validation from RECEIVED status");
+            throw new IllegalStateException(
+                "Can only start validation from RECEIVED status. Current status: " + this.status + ". " +
+                "Document must be in RECEIVED state to start validation process."
+            );
         }
         this.status = DocumentStatus.VALIDATING;
     }
@@ -76,7 +85,10 @@ public class IncomingDocument {
      */
     public void markValidated(ValidationResult result) {
         if (this.status != DocumentStatus.VALIDATING) {
-            throw new IllegalStateException("Can only mark validated from VALIDATING status");
+            throw new IllegalStateException(
+                "Can only mark validated from VALIDATING status. Current status: " + this.status + ". " +
+                "Document must be in VALIDATING state to be marked as validated."
+            );
         }
 
         Objects.requireNonNull(result, "Validation result is required");
@@ -89,7 +101,10 @@ public class IncomingDocument {
      */
     public void markForwarded() {
         if (this.status != DocumentStatus.VALIDATED) {
-            throw new IllegalStateException("Can only forward validated documents");
+            throw new IllegalStateException(
+                "Can only forward validated documents. Current status: " + this.status + ". " +
+                "Document must be in VALIDATED state to be forwarded."
+            );
         }
         this.status = DocumentStatus.FORWARDED;
         this.processedAt = LocalDateTime.now();

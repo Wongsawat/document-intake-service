@@ -116,7 +116,12 @@ public class IncomingDocumentRepositoryImpl implements IncomingDocumentRepositor
             return objectMapper.writeValueAsString(result);
         } catch (Exception e) {
             log.error("Failed to serialize ValidationResult to JSON", e);
-            throw new ValidationResultSerializationException("Failed to serialize ValidationResult to JSON", e);
+            throw new ValidationResultSerializationException(
+                "Failed to serialize ValidationResult to JSON. " +
+                "This may indicate a problem with the ValidationResult structure. " +
+                "Error: " + e.getMessage(),
+                e
+            );
         }
     }
 
@@ -128,7 +133,13 @@ public class IncomingDocumentRepositoryImpl implements IncomingDocumentRepositor
             return objectMapper.readValue(json, ValidationResult.class);
         } catch (Exception e) {
             log.error("Failed to deserialize ValidationResult from JSON: {}", json, e);
-            throw new ValidationResultSerializationException("Failed to deserialize ValidationResult from JSON", e);
+            throw new ValidationResultSerializationException(
+                "Failed to deserialize ValidationResult from JSON. " +
+                "This may indicate corrupted data in the database or schema mismatch. " +
+                "JSON: " + (json.length() > 100 ? json.substring(0, 100) + "..." : json) + ". " +
+                "Error: " + e.getMessage(),
+                e
+            );
         }
     }
 }

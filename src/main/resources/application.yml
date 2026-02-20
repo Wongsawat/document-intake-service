@@ -39,6 +39,15 @@ camel:
 
 # Application-specific configuration
 app:
+  xml:
+    schemas:
+      # XSD schema paths for Thai e-Tax document validation
+      tax-invoice: e-tax-invoice-receipt-v2.1/ETDA/data/standard/TaxInvoice_CrossIndustryInvoice_2p1.xsd
+      receipt: e-tax-invoice-receipt-v2.1/ETDA/data/standard/Receipt_CrossIndustryInvoice_2p1.xsd
+      invoice: e-tax-invoice-receipt-v2.1/ETDA/data/standard/Invoice_CrossIndustryInvoice_2p1.xsd
+      debit-credit-note: e-tax-invoice-receipt-v2.1/ETDA/data/standard/DebitCreditNote_CrossIndustryInvoice_2p1.xsd
+      cancellation-note: e-tax-invoice-receipt-v2.1/ETDA/data/standard/CancellationNote_CrossIndustryInvoice_2p1.xsd
+      abbreviated-tax-invoice: e-tax-invoice-receipt-v2.1/ETDA/data/standard/AbbreviatedTaxInvoice_CrossIndustryInvoice_2p1.xsd
   kafka:
     topics:
       # Consumer topics
