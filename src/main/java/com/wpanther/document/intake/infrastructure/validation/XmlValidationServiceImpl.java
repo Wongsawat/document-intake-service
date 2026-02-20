@@ -51,29 +51,13 @@ import static javax.xml.XMLConstants.W3C_XML_SCHEMA_NS_URI;
 @Service
 public class XmlValidationServiceImpl implements XmlValidationService {
 
-    private SchemaPathConfig schemaPathConfig;
+    private final SchemaPathConfig schemaPathConfig;
 
     // Thread-safe cached JAXB contexts and schemas (initialized once at startup)
     private final Map<DocumentType, JAXBContext> jaxbContexts;
     private final Map<DocumentType, Schema> schemas;
     private final SchematronValidator schematronValidator;
     private final DocumentBuilderFactory documentBuilderFactory;
-
-    public XmlValidationServiceImpl() {
-        // Default constructor for unit tests - use default schema paths
-        this.schemaPathConfig = createDefaultSchemaConfig();
-        log.info("Initializing XmlValidationService...");
-        long startTime = System.currentTimeMillis();
-
-        this.jaxbContexts = initializeJaxbContexts();
-        this.schemas = initializeSchemas();
-        this.schematronValidator = new SchematronValidatorImpl();
-        this.documentBuilderFactory = createDocumentBuilderFactory();
-
-        long duration = System.currentTimeMillis() - startTime;
-        log.info("XmlValidationService initialized in {}ms with {} JAXB contexts and {} schemas",
-            duration, jaxbContexts.size(), schemas.size());
-    }
 
     public XmlValidationServiceImpl(SchemaPathConfig schemaPathConfig) {
         this.schemaPathConfig = schemaPathConfig;
@@ -88,39 +72,6 @@ public class XmlValidationServiceImpl implements XmlValidationService {
         long duration = System.currentTimeMillis() - startTime;
         log.info("XmlValidationService initialized in {}ms with {} JAXB contexts and {} schemas",
             duration, jaxbContexts.size(), schemas.size());
-    }
-
-    private SchemaPathConfig createDefaultSchemaConfig() {
-        SchemaPathConfig config = new SchemaPathConfig();
-        // Use reflection to set private fields
-        try {
-            var taxInvoiceField = SchemaPathConfig.class.getDeclaredField("taxInvoice");
-            taxInvoiceField.setAccessible(true);
-            taxInvoiceField.set(config, "e-tax-invoice-receipt-v2.1/ETDA/data/standard/TaxInvoice_CrossIndustryInvoice_2p1.xsd");
-
-            var receiptField = SchemaPathConfig.class.getDeclaredField("receipt");
-            receiptField.setAccessible(true);
-            receiptField.set(config, "e-tax-invoice-receipt-v2.1/ETDA/data/standard/Receipt_CrossIndustryInvoice_2p1.xsd");
-
-            var invoiceField = SchemaPathConfig.class.getDeclaredField("invoice");
-            invoiceField.setAccessible(true);
-            invoiceField.set(config, "e-tax-invoice-receipt-v2.1/ETDA/data/standard/Invoice_CrossIndustryInvoice_2p1.xsd");
-
-            var debitCreditNoteField = SchemaPathConfig.class.getDeclaredField("debitCreditNote");
-            debitCreditNoteField.setAccessible(true);
-            debitCreditNoteField.set(config, "e-tax-invoice-receipt-v2.1/ETDA/data/standard/DebitCreditNote_CrossIndustryInvoice_2p1.xsd");
-
-            var cancellationNoteField = SchemaPathConfig.class.getDeclaredField("cancellationNote");
-            cancellationNoteField.setAccessible(true);
-            cancellationNoteField.set(config, "e-tax-invoice-receipt-v2.1/ETDA/data/standard/CancellationNote_CrossIndustryInvoice_2p1.xsd");
-
-            var abbreviatedTaxInvoiceField = SchemaPathConfig.class.getDeclaredField("abbreviatedTaxInvoice");
-            abbreviatedTaxInvoiceField.setAccessible(true);
-            abbreviatedTaxInvoiceField.set(config, "e-tax-invoice-receipt-v2.1/ETDA/data/standard/AbbreviatedTaxInvoice_CrossIndustryInvoice_2p1.xsd");
-        } catch (Exception e) {
-            throw new RuntimeException("Failed to create default SchemaPathConfig", e);
-        }
-        return config;
     }
 
     @Override

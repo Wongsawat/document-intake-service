@@ -1,6 +1,7 @@
 package com.wpanther.document.intake.infrastructure.validation;
 
 import com.wpanther.document.intake.domain.model.ValidationResult;
+import com.wpanther.document.intake.infrastructure.config.SchemaPathConfig;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -194,7 +195,14 @@ class XmlValidationServiceImplTest {
 
     @BeforeEach
     void setUp() {
-        validationService = new XmlValidationServiceImpl();
+        SchemaPathConfig schemaConfig = new SchemaPathConfig();
+        schemaConfig.setTaxInvoice("e-tax-invoice-receipt-v2.1/ETDA/data/standard/TaxInvoice_CrossIndustryInvoice_2p1.xsd");
+        schemaConfig.setReceipt("e-tax-invoice-receipt-v2.1/ETDA/data/standard/Receipt_CrossIndustryInvoice_2p1.xsd");
+        schemaConfig.setInvoice("e-tax-invoice-receipt-v2.1/ETDA/data/standard/Invoice_CrossIndustryInvoice_2p1.xsd");
+        schemaConfig.setDebitCreditNote("e-tax-invoice-receipt-v2.1/ETDA/data/standard/DebitCreditNote_CrossIndustryInvoice_2p1.xsd");
+        schemaConfig.setCancellationNote("e-tax-invoice-receipt-v2.1/ETDA/data/standard/CancellationNote_CrossIndustryInvoice_2p1.xsd");
+        schemaConfig.setAbbreviatedTaxInvoice("e-tax-invoice-receipt-v2.1/ETDA/data/standard/AbbreviatedTaxInvoice_CrossIndustryInvoice_2p1.xsd");
+        validationService = new XmlValidationServiceImpl(schemaConfig);
     }
 
     // ==================== XML Well-formedness Tests ====================
