@@ -331,11 +331,43 @@ public class XmlValidationServiceImpl implements XmlValidationService {
     }
 
     /**
-     * Create document builder factory with namespace awareness (for fallback DOM parsing).
+     * Create document builder factory with namespace awareness and XXE protection (for fallback DOM parsing).
      */
     private DocumentBuilderFactory createDocumentBuilderFactory() {
         DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
         factory.setNamespaceAware(true);
+
+        // XXE protection - disable external entities to prevent XXE attacks
+        try {
+            factory.setFeature("http://apache.org/xml/features/disallow-doctype-decl", true);
+        } catch (Exception e) {
+            log.warn("Could not set disallow-doctype-decl feature: {}", e.getMessage());
+        }
+
+        try {
+            factory.setFeature("http://xml.org/sax/features/external-general-entities", false);
+        } catch (Exception e) {
+            log.warn("Could not set external-general-entities feature: {}", e.getMessage());
+        }
+
+        try {
+            factory.setFeature("http://xml.org/sax/features/external-parameter-entities", false);
+        } catch (Exception e) {
+            log.warn("Could not set external-parameter-entities feature: {}", e.getMessage());
+        }
+
+        try {
+            factory.setXIncludeAware(false);
+        } catch (Exception e) {
+            log.warn("Could not disable XInclude: {}", e.getMessage());
+        }
+
+        try {
+            factory.setExpandEntityReferences(false);
+        } catch (Exception e) {
+            log.warn("Could not disable entity reference expansion: {}", e.getMessage());
+        }
+
         return factory;
     }
 

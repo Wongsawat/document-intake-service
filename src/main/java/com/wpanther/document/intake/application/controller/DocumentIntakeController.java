@@ -2,12 +2,16 @@ package com.wpanther.document.intake.application.controller;
 
 import com.wpanther.document.intake.application.service.DocumentIntakeService;
 import com.wpanther.document.intake.domain.model.IncomingDocument;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 import org.apache.camel.ProducerTemplate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
@@ -18,6 +22,7 @@ import java.util.UUID;
  */
 @RestController
 @RequestMapping("/api/v1/documents")
+@Validated
 public class DocumentIntakeController {
 
     private static final Logger log = LoggerFactory.getLogger(DocumentIntakeController.class);
@@ -35,7 +40,7 @@ public class DocumentIntakeController {
      */
     @PostMapping(consumes = {MediaType.APPLICATION_XML_VALUE, MediaType.TEXT_XML_VALUE})
     public ResponseEntity<Map<String, Object>> submitDocument(
-        @RequestBody String xmlContent,
+        @RequestBody @NotBlank @Size(max = 10485760) String xmlContent,
         @RequestHeader(value = "X-Correlation-ID", required = false) String correlationId
     ) {
         log.info("Received document submission via REST API");

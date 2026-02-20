@@ -1,6 +1,7 @@
 package com.wpanther.document.intake.application.service;
 
 import com.wpanther.document.intake.domain.event.DocumentReceivedTraceEvent;
+import com.wpanther.document.intake.domain.event.EventStatus;
 import com.wpanther.document.intake.domain.event.StartSagaCommand;
 import com.wpanther.document.intake.domain.model.IncomingDocument;
 import com.wpanther.document.intake.domain.model.ValidationResult;
@@ -102,7 +103,7 @@ public class DocumentIntakeService {
             .documentType(document.getDocumentType().name())
             .documentNumber(document.getDocumentNumber())
             .correlationId(correlationId)
-            .status("RECEIVED")
+            .status(EventStatus.RECEIVED.getValue())
             .source(source)
             .build();
         eventPublisher.publishTraceEvent(traceEvent);
@@ -140,7 +141,7 @@ public class DocumentIntakeService {
                 .documentType(document.getDocumentType().name())
                 .documentNumber(document.getDocumentNumber())
                 .correlationId(correlationId)
-                .status("VALIDATED")
+                .status(EventStatus.VALIDATED.getValue())
                 .source(source)
                 .build();
             eventPublisher.publishTraceEvent(validatedEvent);
@@ -155,7 +156,7 @@ public class DocumentIntakeService {
                 .documentType(document.getDocumentType().name())
                 .documentNumber(document.getDocumentNumber())
                 .correlationId(correlationId)
-                .status("FORWARDED")
+                .status(EventStatus.FORWARDED.getValue())
                 .source(source)
                 .build();
             eventPublisher.publishTraceEvent(forwardedEvent);
