@@ -453,7 +453,7 @@ class XmlValidationServiceImplTest {
     @Test
     @DisplayName("Validate handles all document types correctly")
     void testValidateHandlesAllDocumentTypesCorrectly() {
-        // Test that the service can handle all 6 document types
+        // Test that service can handle all 6 document types
         assertThat(DocumentType.values()).hasSize(6);
 
         // Each document type should have a corresponding JAXB context
@@ -461,5 +461,132 @@ class XmlValidationServiceImplTest {
             assertThat(type.getContextPath()).isNotNull();
             assertThat(type.getNamespaceUri()).isNotNull();
         }
+    }
+
+    // ==================== Additional Coverage Tests ====================
+
+    @Test
+    @DisplayName("Extract invoice number returns null for invalid XML")
+    void testExtractInvoiceNumberReturnsNullForInvalidXml() {
+        String invalidXml = "<InvalidRoot>content</InvalidRoot>";
+        String documentNumber = validationService.extractInvoiceNumber(invalidXml);
+        assertThat(documentNumber).isNull();
+    }
+
+    @Test
+    @DisplayName("Extract document type returns null for unparseable XML")
+    void testExtractDocumentTypeReturnsNullForUnparseableXml() {
+        String unparseableXml = "<root><unclosed></root>";
+        DocumentType type = validationService.extractDocumentType(unparseableXml);
+        assertThat(type).isNull();
+    }
+
+    @Test
+    @DisplayName("Extract document type returns null for non-XML content")
+    void testExtractDocumentTypeReturnsNullForNonXmlContent() {
+        String nonXmlContent = "This is not XML at all";
+        DocumentType type = validationService.extractDocumentType(nonXmlContent);
+        assertThat(type).isNull();
+    }
+
+    @Test
+    @DisplayName("Validate handles malformed XML")
+    void testValidateHandlesMalformedXml() {
+        String malformedXml = "<root><unclosed></root>";
+        ValidationResult result = validationService.validate(malformedXml);
+        assertThat(result).isNotNull();
+    }
+
+    @Test
+    @DisplayName("Extract invoice number returns null for non-XML content")
+    void testExtractInvoiceNumberReturnsNullForNonXmlContent() {
+        String nonXmlContent = "This is not XML at all";
+        String documentNumber = validationService.extractInvoiceNumber(nonXmlContent);
+        assertThat(documentNumber).isNull();
+    }
+
+    @Test
+    @DisplayName("Validate handles XML with whitespace")
+    void testValidateHandlesXmlWithWhitespace() {
+        String xmlWithWhitespace = "\n\n" + VALID_TAX_INVOICE_XML + "\n\n";
+        ValidationResult result = validationService.validate(xmlWithWhitespace);
+        assertThat(result).isNotNull();
+    }
+
+    @Test
+    @DisplayName("Validate handles XML with special characters")
+    void testValidateHandlesXmlWithSpecialCharacters() {
+        String xmlWithSpecialChars = VALID_TAX_INVOICE_XML.replace("Test Seller Company Limited",
+            "Test Seller & Co. Ltd.");
+        ValidationResult result = validationService.validate(xmlWithSpecialChars);
+        assertThat(result).isNotNull();
+    }
+
+    @Test
+    @DisplayName("Validate handles XML with comments")
+    void testValidateHandlesXmlWithComments() {
+        String xmlWithComments = """
+            <?xml version="1.0" encoding="UTF-8"?>
+            <!-- Comment -->
+            <rsm:TaxInvoice_CrossIndustryInvoice
+                xmlns:ram="urn:etda:uncefact:data:standard:TaxInvoice_ReusableAggregateBusinessInformationEntity:2"
+                xmlns:rsm="urn:etda:uncefact:data:standard:TaxInvoice_CrossIndustryInvoice:2">
+                <rsm:ExchangedDocumentContext>
+                    <ram:GuidelineSpecifiedDocumentContextParameter>
+                        <ram:ID schemeAgencyID="ETDA" schemeVersionID="v2.1">ER3-2560</ram:ID>
+                    </ram:GuidelineSpecifiedDocumentContextParameter>
+                </rsm:ExchangedDocumentContext>
+                <rsm:ExchangedDocument>
+                    <ram:ID>TIV2024010001</ram:ID>
+                </rsm:ExchangedDocument>
+            </rsm:TaxInvoice_CrossIndustryInvoice>
+            """;
+        ValidationResult result = validationService.validate(xmlWithComments);
+        assertThat(result).isNotNull();
+    }
+
+    @Test
+    @DisplayName("Multiple validations do not interfere with each other")
+    void testMultipleValidationsDoNotInterfere() {
+        ValidationResult result1 = validationService.validate(VALID_TAX_INVOICE_XML);
+        ValidationResult result2 = validationService.validate(VALID_TAX_INVOICE_XML);
+        ValidationResult result3 = validationService.validate(VALID_TAX_INVOICE_XML);
+        assertThat(result1.valid()).isEqualTo(result2.valid()).isEqualTo(result3.valid());
+    }
+
+    @Test
+    @DisplayName("All document types have complete configuration")
+    void testAllDocumentTypesHaveCompleteConfiguration() {
+        for (DocumentType type : DocumentType.values()) {
+            assertThat(type.getContextPath()).isNotNull().isNotEmpty();
+            assertThat(type.getImplementationContextPath()).isNotNull().isNotEmpty();
+            assertThat(type.getNamespaceUri()).isNotNull().isNotEmpty();
+            assertThat(type.getInvoiceNumberExtractor()).isNotNull();
+        }
+    }
+
+    @Test
+    @DisplayName("Service initializes correctly with schema configuration")
+    void testServiceInitializesWithSchemaConfiguration() {
+        assertThat(validationService).isNotNull();
+        ValidationResult result = validationService.validate(VALID_TAX_INVOICE_XML);
+        assertThat(result).isNotNull();
+    }
+
+    @Test
+    @DisplayName("Extract document type uses namespace for detection")
+    void testExtractDocumentTypeUsesNamespace() {
+        DocumentType type = validationService.extractDocumentType(VALID_TAX_INVOICE_XML);
+        assertThat(type).isEqualTo(DocumentType.TAX_INVOICE);
+    }
+
+    @Test
+    @DisplayName("Extract document number from all document types")
+    void testExtractInvoiceNumberFromAllDocumentTypes() {
+        String receiptNumber = validationService.extractInvoiceNumber(RECEIPT_XML);
+        assertThat(receiptNumber).isEqualTo("RCT2024010001");
+
+        String taxInvoiceNumber = validationService.extractInvoiceNumber(VALID_TAX_INVOICE_XML);
+        assertThat(taxInvoiceNumber).isEqualTo("TIV2024010001");
     }
 }
