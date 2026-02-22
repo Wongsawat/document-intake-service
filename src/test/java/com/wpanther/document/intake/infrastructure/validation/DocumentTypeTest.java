@@ -169,4 +169,84 @@ class DocumentTypeTest {
         assertThat(DocumentType.CANCELLATION_NOTE.toDocumentSchematron()).isEqualTo(DocumentSchematron.CANCELLATION_NOTE);
         assertThat(DocumentType.ABBREVIATED_TAX_INVOICE.toDocumentSchematron()).isEqualTo(DocumentSchematron.ABBREVIATED_TAX_INVOICE);
     }
+
+    @Test
+    void testGetImplementationContextPath() {
+        assertThat(DocumentType.TAX_INVOICE.getImplementationContextPath()).contains("taxinvoice.rsm.impl");
+        assertThat(DocumentType.RECEIPT.getImplementationContextPath()).contains("receipt.rsm.impl");
+        assertThat(DocumentType.INVOICE.getImplementationContextPath()).contains("invoice.rsm.impl");
+        assertThat(DocumentType.DEBIT_CREDIT_NOTE.getImplementationContextPath()).contains("debitcreditnote.rsm.impl");
+        assertThat(DocumentType.CANCELLATION_NOTE.getImplementationContextPath()).contains("cancellationnote.rsm.impl");
+        assertThat(DocumentType.ABBREVIATED_TAX_INVOICE.getImplementationContextPath()).contains("abbreviatedtaxinvoice.rsm.impl");
+    }
+
+    @Test
+    void testGetInvoiceNumberExtractor() {
+        assertThat(DocumentType.TAX_INVOICE.getInvoiceNumberExtractor()).isSameAs(InvoiceNumberExtractorStrategies.TAX_INVOICE);
+        assertThat(DocumentType.RECEIPT.getInvoiceNumberExtractor()).isSameAs(InvoiceNumberExtractorStrategies.RECEIPT);
+        assertThat(DocumentType.INVOICE.getInvoiceNumberExtractor()).isSameAs(InvoiceNumberExtractorStrategies.INVOICE);
+        assertThat(DocumentType.DEBIT_CREDIT_NOTE.getInvoiceNumberExtractor()).isSameAs(InvoiceNumberExtractorStrategies.DEBIT_CREDIT_NOTE);
+        assertThat(DocumentType.CANCELLATION_NOTE.getInvoiceNumberExtractor()).isSameAs(InvoiceNumberExtractorStrategies.CANCELLATION_NOTE);
+        assertThat(DocumentType.ABBREVIATED_TAX_INVOICE.getInvoiceNumberExtractor()).isSameAs(InvoiceNumberExtractorStrategies.ABBREVIATED_TAX_INVOICE);
+    }
+
+    @Test
+    void testFromJaxbClassTaxInvoice() {
+        DocumentType result = DocumentType.fromJaxbClass(
+            com.wpanther.etax.generated.taxinvoice.rsm.TaxInvoice_CrossIndustryInvoiceType.class
+        );
+        assertThat(result).isEqualTo(DocumentType.TAX_INVOICE);
+    }
+
+    @Test
+    void testFromJaxbClassReceipt() {
+        DocumentType result = DocumentType.fromJaxbClass(
+            com.wpanther.etax.generated.receipt.rsm.Receipt_CrossIndustryInvoiceType.class
+        );
+        assertThat(result).isEqualTo(DocumentType.RECEIPT);
+    }
+
+    @Test
+    void testFromJaxbClassInvoice() {
+        DocumentType result = DocumentType.fromJaxbClass(
+            com.wpanther.etax.generated.invoice.rsm.Invoice_CrossIndustryInvoiceType.class
+        );
+        assertThat(result).isEqualTo(DocumentType.INVOICE);
+    }
+
+    @Test
+    void testFromJaxbClassDebitCreditNote() {
+        DocumentType result = DocumentType.fromJaxbClass(
+            com.wpanther.etax.generated.debitcreditnote.rsm.DebitCreditNote_CrossIndustryInvoiceType.class
+        );
+        assertThat(result).isEqualTo(DocumentType.DEBIT_CREDIT_NOTE);
+    }
+
+    @Test
+    void testFromJaxbClassCancellationNote() {
+        DocumentType result = DocumentType.fromJaxbClass(
+            com.wpanther.etax.generated.cancellationnote.rsm.CancellationNote_CrossIndustryInvoiceType.class
+        );
+        assertThat(result).isEqualTo(DocumentType.CANCELLATION_NOTE);
+    }
+
+    @Test
+    void testFromJaxbClassAbbreviatedTaxInvoice() {
+        DocumentType result = DocumentType.fromJaxbClass(
+            com.wpanther.etax.generated.abbreviatedtaxinvoice.rsm.AbbreviatedTaxInvoice_CrossIndustryInvoiceType.class
+        );
+        assertThat(result).isEqualTo(DocumentType.ABBREVIATED_TAX_INVOICE);
+    }
+
+    @Test
+    void testFromJaxbClassUnknownReturnsNull() {
+        DocumentType result = DocumentType.fromJaxbClass(String.class);
+        assertThat(result).isNull();
+    }
+
+    @Test
+    void testFromJaxbClassNullReturnsNull() {
+        DocumentType result = DocumentType.fromJaxbClass(null);
+        assertThat(result).isNull();
+    }
 }

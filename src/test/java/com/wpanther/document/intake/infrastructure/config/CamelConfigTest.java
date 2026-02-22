@@ -1,11 +1,9 @@
 package com.wpanther.document.intake.infrastructure.config;
 
 import com.wpanther.document.intake.application.service.DocumentIntakeService;
-import com.wpanther.document.intake.domain.model.IncomingDocument;
 import com.wpanther.document.intake.domain.model.DocumentStatus;
 import com.wpanther.document.intake.domain.model.ValidationResult;
 import org.apache.camel.CamelContext;
-import org.apache.camel.Endpoint;
 import org.apache.camel.builder.RouteBuilder;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -35,16 +33,19 @@ class CamelConfigTest {
     @Mock
     private DocumentIntakeService documentIntakeService;
 
+    @Mock
+    private CamelContext camelContext;
+
     private CamelConfig camelConfig;
 
     @BeforeEach
-    void setUp() {
-        // Create CamelConfig with mocked service and test properties
+    void setUp() throws Exception {
         camelConfig = new CamelConfig(
             documentIntakeService,
             "document.intake",
             "document.intake.dlq"
         );
+        camelConfig.setCamelContext(camelContext);
     }
 
     // ==================== Constructor Tests ====================
@@ -63,7 +64,6 @@ class CamelConfigTest {
     void testAllDocumentStatusesDefined() {
         DocumentStatus[] statuses = DocumentStatus.values();
         assertThat(statuses).hasSizeGreaterThanOrEqualTo(5);
-
         assertThat(statuses).contains(
             DocumentStatus.RECEIVED,
             DocumentStatus.VALIDATING,
@@ -108,9 +108,14 @@ class CamelConfigTest {
     @Test
     @DisplayName("DLQ topic is configured correctly")
     void testDlqTopicConfiguration() {
-        // Verify DLQ topic is configured via reflection
         assertThat(camelConfig).isNotNull();
-        // The DLQ topic is passed to the constructor as "document.intake.dlq"
-        // This test verifies the config was created successfully
+    }
+
+    // ==================== Route Configuration Tests ====================
+
+    @Test
+    @DisplayName("Route configuration has configure method")
+    void testRouteConfigurationHasConfigureMethod() throws Exception {
+        assertThat(camelConfig.getClass().getMethod("configure")).isNotNull();
     }
 }
