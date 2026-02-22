@@ -330,4 +330,90 @@ class DocumentReceivedTraceEventTest {
         assertThat(deserialized.getEventId()).isNotNull();
         assertThat(deserialized.getOccurredAt()).isNotNull();
     }
+
+    @Test
+    @DisplayName("Should deserialize JSON with all parent class fields to hit JsonCreator")
+    void shouldDeserializeJsonWithAllParentFieldsToHitJsonCreator() throws Exception {
+        // JSON with ALL parent class fields explicitly set
+        // This forces Jackson to use @JsonCreator constructor, not builder constructor
+        String json = "{\n" +
+                "  \"eventId\": \"550e8400-e29b-41d4-a716-446655440000\",\n" +
+                "  \"occurredAt\": \"2024-12-25T14:30:45.678Z\",\n" +
+                "  \"eventType\": \"DocumentReceivedTraceEvent\",\n" +
+                "  \"version\": 2,\n" +
+                "  \"documentId\": \"doc-999\",\n" +
+                "  \"documentType\": \"INVOICE\",\n" +
+                "  \"documentNumber\": \"INV-999\",\n" +
+                "  \"correlationId\": \"corr-999\",\n" +
+                "  \"status\": \"VALIDATED\",\n" +
+                "  \"source\": \"FILE\"\n" +
+                "}";
+
+        ObjectMapper mapper = MAPPER;
+        DocumentReceivedTraceEvent event = mapper.readValue(json, DocumentReceivedTraceEvent.class);
+
+        assertThat(event.getEventId()).isNotNull();
+        assertThat(event.getOccurredAt()).isNotNull();
+        assertThat(event.getEventType()).isEqualTo("DocumentReceivedTraceEvent");
+        assertThat(event.getVersion()).isEqualTo(1); // Version is validated to be 1 in IntegrationEvent
+        assertThat(event.getDocumentId()).isEqualTo("doc-999");
+        assertThat(event.getDocumentType()).isEqualTo("INVOICE");
+        assertThat(event.getDocumentNumber()).isEqualTo("INV-999");
+        assertThat(event.getCorrelationId()).isEqualTo("corr-999");
+        assertThat(event.getStatus()).isEqualTo("VALIDATED");
+        assertThat(event.getSource()).isEqualTo("FILE");
+    }
+
+    @Test
+    @DisplayName("Should deserialize minimal JSON to test JsonCreator field assignments")
+    void shouldDeserializeMinimalJsonToTestJsonCreator() throws Exception {
+        // Minimal JSON with all required fields
+        String json = "{\n" +
+                "  \"eventId\": \"00000000-0000-0000-0000-000000000000\",\n" +
+                "  \"occurredAt\": \"2024-01-01T00:00:00Z\",\n" +
+                "  \"eventType\": \"DocumentReceivedTraceEvent\",\n" +
+                "  \"version\": 1,\n" +
+                "  \"documentId\": \"minimal\",\n" +
+                "  \"documentType\": \"RECEIPT\",\n" +
+                "  \"documentNumber\": \"MIN\",\n" +
+                "  \"correlationId\": \"test\",\n" +
+                "  \"status\": \"RECEIVED\",\n" +
+                "  \"source\": \"MIN\"\n" +
+                "}";
+
+        ObjectMapper mapper = MAPPER;
+        DocumentReceivedTraceEvent event = mapper.readValue(json, DocumentReceivedTraceEvent.class);
+
+        assertThat(event.getEventId()).isNotNull();
+        assertThat(event.getDocumentId()).isEqualTo("minimal");
+        assertThat(event.getDocumentType()).isEqualTo("RECEIPT");
+        assertThat(event.getDocumentNumber()).isEqualTo("MIN");
+        assertThat(event.getCorrelationId()).isEqualTo("test");
+        assertThat(event.getStatus()).isEqualTo("RECEIVED");
+        assertThat(event.getSource()).isEqualTo("MIN");
+    }
+
+    @Test
+    @DisplayName("Should deserialize JSON with null correlationId in JsonCreator")
+    void shouldDeserializeJsonWithNullCorrelationIdInJsonCreator() throws Exception {
+        String json = "{\n" +
+                "  \"eventId\": \"00000000-0000-0000-0000-000000000000\",\n" +
+                "  \"occurredAt\": \"2024-01-01T00:00:00Z\",\n" +
+                "  \"eventType\": \"DocumentReceivedTraceEvent\",\n" +
+                "  \"version\": 1,\n" +
+                "  \"documentId\": \"doc-123\",\n" +
+                "  \"documentType\": \"TAX_INVOICE\",\n" +
+                "  \"documentNumber\": \"INV-001\",\n" +
+                "  \"correlationId\": null,\n" +
+                "  \"status\": \"RECEIVED\",\n" +
+                "  \"source\": \"API\"\n" +
+                "}";
+
+        ObjectMapper mapper = MAPPER;
+        DocumentReceivedTraceEvent event = mapper.readValue(json, DocumentReceivedTraceEvent.class);
+
+        assertThat(event.getEventId()).isNotNull();
+        assertThat(event.getCorrelationId()).isNull();
+        assertThat(event.getDocumentId()).isEqualTo("doc-123");
+    }
 }
