@@ -1,5 +1,6 @@
 package com.wpanther.document.intake.domain.event;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.wpanther.saga.domain.model.IntegrationEvent;
@@ -9,6 +10,9 @@ import jakarta.validation.constraints.Size;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.extern.jackson.Jacksonized;
+
+import java.time.Instant;
+import java.util.UUID;
 
 /**
  * Trace event for notification-service.
@@ -84,6 +88,31 @@ public class DocumentReceivedTraceEvent extends IntegrationEvent {
     private DocumentReceivedTraceEvent(String documentId, String documentType, String documentNumber,
                                        String correlationId, String status, String source) {
         super();
+        this.documentId = documentId;
+        this.documentType = documentType;
+        this.documentNumber = documentNumber;
+        this.correlationId = correlationId;
+        this.status = status;
+        this.source = source;
+    }
+
+    /**
+     * Constructor for Jackson deserialization - includes all fields from parent class.
+     * Used when consuming from Kafka.
+     */
+    @JsonCreator
+    private DocumentReceivedTraceEvent(
+            @JsonProperty("eventId") UUID eventId,
+            @JsonProperty("occurredAt") Instant occurredAt,
+            @JsonProperty("eventType") String eventType,
+            @JsonProperty("version") int version,
+            @JsonProperty("documentId") String documentId,
+            @JsonProperty("documentType") String documentType,
+            @JsonProperty("documentNumber") String documentNumber,
+            @JsonProperty("correlationId") String correlationId,
+            @JsonProperty("status") String status,
+            @JsonProperty("source") String source) {
+        super(eventId, occurredAt, eventType, version);
         this.documentId = documentId;
         this.documentType = documentType;
         this.documentNumber = documentNumber;

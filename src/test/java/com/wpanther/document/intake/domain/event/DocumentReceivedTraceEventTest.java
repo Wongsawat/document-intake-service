@@ -242,4 +242,92 @@ class DocumentReceivedTraceEventTest {
 
         assertThat(event.getStatus()).isEqualTo("FAILED");
     }
+
+    @Test
+    @DisplayName("Should deserialize JSON with different parent class field values")
+    void shouldDeserializeJsonWithDifferentParentFields() throws Exception {
+        String json = "{\n" +
+                "  \"eventId\": \"550e8400-e29b-41d4-a716-446655440000\",\n" +
+                "  \"occurredAt\": \"2024-12-25T14:30:45.678Z\",\n" +
+                "  \"eventType\": \"DocumentReceivedTraceEvent\",\n" +
+                "  \"version\": 1,\n" +
+                "  \"documentId\": \"doc-999\",\n" +
+                "  \"documentType\": \"INVOICE\",\n" +
+                "  \"documentNumber\": \"INV-999\",\n" +
+                "  \"correlationId\": \"corr-999\",\n" +
+                "  \"status\": \"VALIDATED\",\n" +
+                "  \"source\": \"FILE\"\n" +
+                "}";
+
+        ObjectMapper mapper = MAPPER;
+        DocumentReceivedTraceEvent event = mapper.readValue(json, DocumentReceivedTraceEvent.class);
+
+        assertThat(event.getEventId()).isNotNull();
+        assertThat(event.getDocumentId()).isEqualTo("doc-999");
+        assertThat(event.getDocumentType()).isEqualTo("INVOICE");
+        assertThat(event.getDocumentNumber()).isEqualTo("INV-999");
+        assertThat(event.getCorrelationId()).isEqualTo("corr-999");
+        assertThat(event.getStatus()).isEqualTo("VALIDATED");
+        assertThat(event.getSource()).isEqualTo("FILE");
+        // Verify parent fields were deserialized correctly
+        assertThat(event.getEventType()).isEqualTo("DocumentReceivedTraceEvent");
+        assertThat(event.getVersion()).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("Should deserialize minimal JSON with required parent fields")
+    void shouldDeserializeMinimalJson() throws Exception {
+        // JSON with all fields including parent class fields
+        String json = "{\n" +
+                "  \"eventId\": \"00000000-0000-0000-0000-000000000000\",\n" +
+                "  \"occurredAt\": \"2024-01-01T00:00:00Z\",\n" +
+                "  \"eventType\": \"DocumentReceivedTraceEvent\",\n" +
+                "  \"version\": 1,\n" +
+                "  \"documentId\": \"minimal\",\n" +
+                "  \"documentType\": \"RECEIPT\",\n" +
+                "  \"documentNumber\": \"MIN\",\n" +
+                "  \"correlationId\": \"test\",\n" +
+                "  \"status\": \"RECEIVED\",\n" +
+                "  \"source\": \"MIN\"\n" +
+                "}";
+
+        ObjectMapper mapper = MAPPER;
+        DocumentReceivedTraceEvent event = mapper.readValue(json, DocumentReceivedTraceEvent.class);
+
+        assertThat(event.getEventId()).isNotNull();
+        assertThat(event.getDocumentId()).isEqualTo("minimal");
+        assertThat(event.getVersion()).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("Should deserialize and serialize roundtrip")
+    void shouldDeserializeAndSerializeRoundtrip() throws Exception {
+        DocumentReceivedTraceEvent original = DocumentReceivedTraceEvent.builder()
+                .documentId("doc-123")
+                .documentType("TAX_INVOICE")
+                .documentNumber("INV-001")
+                .correlationId("corr-123")
+                .status("RECEIVED")
+                .source("API")
+                .build();
+
+        ObjectMapper mapper = MAPPER;
+        String json = mapper.writeValueAsString(original);
+
+        // Verify JSON contains eventId (should be auto-generated)
+        assertThat(json).contains("\"eventId\"");
+
+        DocumentReceivedTraceEvent deserialized = mapper.readValue(json, DocumentReceivedTraceEvent.class);
+
+        assertThat(deserialized.getDocumentId()).isEqualTo(original.getDocumentId());
+        assertThat(deserialized.getDocumentType()).isEqualTo(original.getDocumentType());
+        assertThat(deserialized.getDocumentNumber()).isEqualTo(original.getDocumentNumber());
+        assertThat(deserialized.getCorrelationId()).isEqualTo(original.getCorrelationId());
+        assertThat(deserialized.getStatus()).isEqualTo(original.getStatus());
+        assertThat(deserialized.getSource()).isEqualTo(original.getSource());
+        // Note: eventId may differ between original and deserialized due to auto-generation
+        // The important thing is that both have valid eventId
+        assertThat(deserialized.getEventId()).isNotNull();
+        assertThat(deserialized.getOccurredAt()).isNotNull();
+    }
 }

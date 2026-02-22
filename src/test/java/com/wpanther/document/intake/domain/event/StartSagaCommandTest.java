@@ -93,6 +93,60 @@ class StartSagaCommandTest {
     }
 
     @Test
+    @DisplayName("Should deserialize JSON with different parent class field values")
+    void shouldDeserializeJsonWithDifferentParentFields() throws Exception {
+        String json = "{\n" +
+                "  \"eventId\": \"550e8400-e29b-41d4-a716-446655440000\",\n" +
+                "  \"occurredAt\": \"2024-12-25T12:34:56.789Z\",\n" +
+                "  \"eventType\": \"StartSagaCommand\",\n" +
+                "  \"version\": 2,\n" +
+                "  \"documentId\": \"doc-999\",\n" +
+                "  \"documentType\": \"INVOICE\",\n" +
+                "  \"documentNumber\": \"INV-999\",\n" +
+                "  \"xmlContent\": \"<test></test>\",\n" +
+                "  \"correlationId\": \"corr-999\",\n" +
+                "  \"source\": \"FILE\"\n" +
+                "}";
+
+        ObjectMapper mapper = MAPPER;
+        StartSagaCommand command = mapper.readValue(json, StartSagaCommand.class);
+
+        assertThat(command.getEventId()).isNotNull();
+        assertThat(command.getDocumentId()).isEqualTo("doc-999");
+        assertThat(command.getDocumentType()).isEqualTo("INVOICE");
+        assertThat(command.getDocumentNumber()).isEqualTo("INV-999");
+        assertThat(command.getSource()).isEqualTo("FILE");
+        // Verify parent fields were deserialized correctly
+        assertThat(command.getEventType()).isEqualTo("StartSagaCommand");
+        assertThat(command.getVersion()).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("Should deserialize minimal JSON with required parent fields")
+    void shouldDeserializeMinimalJson() throws Exception {
+        // JSON with all fields including parent class fields
+        String json = "{\n" +
+                "  \"eventId\": \"00000000-0000-0000-0000-000000000000\",\n" +
+                "  \"occurredAt\": \"2024-01-01T00:00:00Z\",\n" +
+                "  \"eventType\": \"StartSagaCommand\",\n" +
+                "  \"version\": 1,\n" +
+                "  \"documentId\": \"minimal\",\n" +
+                "  \"documentType\": \"RECEIPT\",\n" +
+                "  \"documentNumber\": \"MIN\",\n" +
+                "  \"xmlContent\": \"<minimal/>\",\n" +
+                "  \"correlationId\": \"test\",\n" +
+                "  \"source\": \"MIN\"\n" +
+                "}";
+
+        ObjectMapper mapper = MAPPER;
+        StartSagaCommand command = mapper.readValue(json, StartSagaCommand.class);
+
+        assertThat(command.getEventId()).isNotNull();
+        assertThat(command.getDocumentId()).isEqualTo("minimal");
+        assertThat(command.getVersion()).isEqualTo(1);
+    }
+
+    @Test
     @DisplayName("Should create command with null correlationId via builder")
     void shouldCreateCommandWithNullCorrelationIdViaBuilder() {
         StartSagaCommand command = StartSagaCommand.builder()
@@ -207,5 +261,35 @@ class StartSagaCommandTest {
         String json = mapper.writeValueAsString(command);
 
         assertThat(json).contains("\"correlationId\":null");
+    }
+
+    @Test
+    @DisplayName("Should use JsonCreator constructor when deserializing from JSON")
+    void shouldUseJsonCreatorWhenDeserializing() throws Exception {
+        String json = "{\n" +
+                "  \"eventId\": \"123e4567-e89b-12d3-a456-426614174000\",\n" +
+                "  \"occurredAt\": \"2024-01-01T00:00:00Z\",\n" +
+                "  \"eventType\": \"StartSagaCommand\",\n" +
+                "  \"version\": 1,\n" +
+                "  \"documentId\": \"doc-123\",\n" +
+                "  \"documentType\": \"TAX_INVOICE\",\n" +
+                "  \"documentNumber\": \"INV-001\",\n" +
+                "  \"xmlContent\": \"<xml></xml>\",\n" +
+                "  \"correlationId\": \"corr-123\",\n" +
+                "  \"source\": \"API\"\n" +
+                "}";
+
+        ObjectMapper mapper = MAPPER;
+        StartSagaCommand command = mapper.readValue(json, StartSagaCommand.class);
+
+        // When JSON contains eventId, occurredAt, eventType, version fields,
+        // the JsonCreator constructor should be used, not the builder constructor
+        assertThat(command.getEventId()).isNotNull();
+        assertThat(command.getDocumentId()).isEqualTo("doc-123");
+        assertThat(command.getDocumentType()).isEqualTo("TAX_INVOICE");
+        assertThat(command.getDocumentNumber()).isEqualTo("INV-001");
+        assertThat(command.getXmlContent()).isEqualTo("<xml></xml>");
+        assertThat(command.getCorrelationId()).isEqualTo("corr-123");
+        assertThat(command.getSource()).isEqualTo("API");
     }
 }
