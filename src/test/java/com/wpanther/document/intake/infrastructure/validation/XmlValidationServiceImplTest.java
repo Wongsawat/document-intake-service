@@ -589,4 +589,37 @@ class XmlValidationServiceImplTest {
         String taxInvoiceNumber = validationService.extractInvoiceNumber(VALID_TAX_INVOICE_XML);
         assertThat(taxInvoiceNumber).isEqualTo("TIV2024010001");
     }
+
+    // ==================== Invalid XML Tests ====================
+
+    @Test
+    @DisplayName("Validate XML with malformed structure")
+    void testValidateMalformedXml() {
+        String malformedXml = "<?xml version=\"1.0\"?><broken><tag>";
+
+        ValidationResult result = validationService.validate(malformedXml);
+
+        assertThat(result.valid()).isFalse();
+        assertThat(result.hasErrors()).isTrue();
+    }
+
+    @Test
+    @DisplayName("Extract document type from completely invalid XML returns null")
+    void testExtractDocumentTypeFromCompletelyInvalidXmlReturnsNull() {
+        String completelyInvalidXml = "not xml at all";
+
+        DocumentType type = validationService.extractDocumentType(completelyInvalidXml);
+
+        assertThat(type).isNull();
+    }
+
+    @Test
+    @DisplayName("Extract invoice number from invalid XML returns null")
+    void testExtractInvoiceNumberFromInvalidXmlReturnsNull() {
+        String invalidXml = "not xml at all";
+
+        String documentNumber = validationService.extractInvoiceNumber(invalidXml);
+
+        assertThat(documentNumber).isNull();
+    }
 }

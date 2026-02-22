@@ -2,9 +2,15 @@ package com.wpanther.document.intake.infrastructure.config;
 
 import com.wpanther.document.intake.application.service.DocumentIntakeService;
 import com.wpanther.document.intake.domain.model.DocumentStatus;
+import com.wpanther.document.intake.domain.model.IncomingDocument;
 import com.wpanther.document.intake.domain.model.ValidationResult;
+import com.wpanther.document.intake.infrastructure.validation.DocumentType;
 import org.apache.camel.CamelContext;
+import org.apache.camel.Exchange;
+import org.apache.camel.Message;
+import org.apache.camel.Processor;
 import org.apache.camel.builder.RouteBuilder;
+import org.apache.camel.model.RouteDefinition;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -14,7 +20,12 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.TestPropertySource;
 
-import static org.assertj.core.api.Assertions.assertThat;
+import java.time.LocalDateTime;
+import java.util.UUID;
+
+import static org.assertj.core.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.*;
 
 /**
  * Unit tests for CamelConfig
@@ -55,6 +66,28 @@ class CamelConfigTest {
     void testConstructorInitializesAllFields() {
         assertThat(camelConfig).isNotNull();
         assertThat(camelConfig).isInstanceOf(RouteBuilder.class);
+    }
+
+    @Test
+    @DisplayName("CamelConfig with different topic names")
+    void testCamelConfigWithDifferentTopicNames() {
+        CamelConfig config = new CamelConfig(
+            documentIntakeService,
+            "different.topic",
+            "different.dlq"
+        );
+        assertThat(config).isNotNull();
+    }
+
+    @Test
+    @DisplayName("CamelConfig with empty topic names")
+    void testCamelConfigWithEmptyTopicNames() {
+        CamelConfig config = new CamelConfig(
+            documentIntakeService,
+            "",
+            ""
+        );
+        assertThat(config).isNotNull();
     }
 
     // ==================== Document Status Tests ====================
@@ -116,6 +149,36 @@ class CamelConfigTest {
     @Test
     @DisplayName("Route configuration has configure method")
     void testRouteConfigurationHasConfigureMethod() throws Exception {
+        assertThat(camelConfig.getClass().getMethod("configure")).isNotNull();
+    }
+
+    @Test
+    @DisplayName("CamelConfig constructor with various topic configurations")
+    void testCamelConfigWithVariousTopics() {
+        CamelConfig config1 = new CamelConfig(
+            documentIntakeService,
+            "topic1",
+            "dlq1"
+        );
+        CamelConfig config2 = new CamelConfig(
+            documentIntakeService,
+            "kafka:topic1",
+            "kafka:dlq1"
+        );
+
+        assertThat(config1).isNotNull();
+        assertThat(config2).isNotNull();
+    }
+
+    @Test
+    @DisplayName("CamelConfig is instance of RouteBuilder")
+    void testCamelConfigIsRouteBuilder() {
+        assertThat(camelConfig).isInstanceOf(RouteBuilder.class);
+    }
+
+    @Test
+    @DisplayName("CamelConfig has configure method")
+    void testCamelConfigHasConfigureMethod() throws Exception {
         assertThat(camelConfig.getClass().getMethod("configure")).isNotNull();
     }
 }
