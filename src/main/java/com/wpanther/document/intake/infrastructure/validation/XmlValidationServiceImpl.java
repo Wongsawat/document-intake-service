@@ -390,6 +390,7 @@ public class XmlValidationServiceImpl implements XmlValidationService {
 
     /**
      * Detect document type from DOM document namespace or root element (fallback).
+     * Returns null if document type cannot be detected.
      */
     private DocumentType detectDocumentTypeFromDom(Document doc) {
         String namespaceUri = doc.getDocumentElement().getNamespaceURI();
@@ -407,9 +408,10 @@ public class XmlValidationServiceImpl implements XmlValidationService {
             return type;
         }
 
-        // Default to TaxInvoice (most common)
-        log.warn("Could not detect document type from DOM, defaulting to TAX_INVOICE");
-        return DocumentType.TAX_INVOICE;
+        // Cannot detect document type - return null to indicate failure
+        log.debug("Could not detect document type from DOM (namespace: {}, root: {})",
+            namespaceUri, localName);
+        return null;
     }
 
     /**
