@@ -3,8 +3,10 @@ package com.wpanther.document.intake.infrastructure.config;
 import com.wpanther.document.intake.application.service.DocumentIntakeService;
 import com.wpanther.document.intake.domain.model.IncomingDocument;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.camel.LoggingLevel;
 import org.apache.camel.builder.RouteBuilder;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
 /**
@@ -13,6 +15,8 @@ import org.springframework.stereotype.Component;
  * Consumer routes receive documents from REST API and Kafka.
  * Producer routes have been removed - events are now published via the outbox pattern
  * and Debezium CDC handles Kafka publishing.
+ * <p>
+ * Rate limiting is applied using Camel's throttler component when enabled.
  */
 @Component
 @Slf4j
@@ -21,18 +25,26 @@ public class CamelConfig extends RouteBuilder {
     private final DocumentIntakeService intakeService;
     private final String documentIntakeTopic;
     private final String intakeDlqTopic;
+    private final RateLimitProperties rateLimitProperties;
 
     public CamelConfig(
             DocumentIntakeService intakeService,
             @Value("${app.kafka.topics.invoice-intake}") String documentIntakeTopic,
-            @Value("${app.kafka.topics.intake-dlq}") String intakeDlqTopic) {
+            @Value("${app.kafka.topics.intake-dlq}") String intakeDlqTopic,
+            RateLimitProperties rateLimitProperties) {
         this.intakeService = intakeService;
         this.documentIntakeTopic = documentIntakeTopic;
         this.intakeDlqTopic = intakeDlqTopic;
+        this.rateLimitProperties = rateLimitProperties;
     }
 
     @Override
     public void configure() throws Exception {
+
+        // Calculate maximum requests per period for throttling
+        long maxRequestsPerPeriod = rateLimitProperties.getRequestsPerSecond() *
+            rateLimitProperties.getTimePeriodSeconds();
+        long timePeriodMillis = rateLimitProperties.getTimePeriodSeconds() * 1000;
 
         // REST intake route — no error handler so exceptions propagate back to
         // ProducerTemplate.sendBodyAndHeader() and are caught by the REST controller.
@@ -42,7 +54,13 @@ public class CamelConfig extends RouteBuilder {
         from("direct:document-intake")
             .errorHandler(noErrorHandler())
             .routeId("document-intake-direct")
-            .log("Received document via REST")
+            // Apply rate limiting per client IP (using correlationId as proxy)
+            .throttle(maxRequestsPerPeriod)
+                .timePeriodMillis(timePeriodMillis)
+                .correlationExpression(header("correlationId"))
+                .asyncDelayed()
+            .end()
+            .log(LoggingLevel.INFO, "Received document via REST")
             .process(exchange -> {
                 String xmlContent = exchange.getIn().getBody(String.class);
                 String correlationId = exchange.getIn().getHeader("correlationId", String.class);
@@ -53,7 +71,7 @@ public class CamelConfig extends RouteBuilder {
                 exchange.getIn().setHeader("documentType", document.getDocumentType().name());
                 exchange.getIn().setHeader("isValid", document.isValid());
             })
-            .log("Document processed: documentId=${header.documentId}, isValid=${header.isValid}");
+            .log(LoggingLevel.INFO, "Document processed: documentId=${header.documentId}, isValid=${header.isValid}");
 
         // Kafka intake route — dead letter channel for messages that cannot be processed
         // after retries. autoCommitEnable=false ensures offsets are only committed after
@@ -65,7 +83,7 @@ public class CamelConfig extends RouteBuilder {
                 .useExponentialBackOff()
                 .logExhausted(true))
             .routeId("document-intake-kafka")
-            .log("Received document from Kafka: ${header[kafka.KEY]}")
+            .log(LoggingLevel.INFO, "Received document from Kafka: ${header[kafka.KEY]}")
             .process(exchange -> {
                 String xmlContent = exchange.getIn().getBody(String.class);
                 String correlationId = exchange.getIn().getHeader("kafka.KEY", String.class);
@@ -76,6 +94,6 @@ public class CamelConfig extends RouteBuilder {
                 exchange.getIn().setHeader("documentType", document.getDocumentType().name());
                 exchange.getIn().setHeader("isValid", document.isValid());
             })
-            .log("Document processed: documentId=${header.documentId}, isValid=${header.isValid}");
+            .log(LoggingLevel.INFO, "Document processed: documentId=${header.documentId}, isValid=${header.isValid}");
     }
 }

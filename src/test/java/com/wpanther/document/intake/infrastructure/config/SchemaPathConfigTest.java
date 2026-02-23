@@ -79,4 +79,70 @@ class SchemaPathConfigTest {
                 .hasMessageContaining("TAX_INVOICE")
                 .hasMessageContaining("RECEIPT");
     }
+
+    @Test
+    @DisplayName("Getters should return configured values")
+    void testGettersReturnConfiguredValues() {
+        assertThat(config.getTaxInvoice()).isEqualTo("path/to/taxinvoice.xsd");
+        assertThat(config.getReceipt()).isEqualTo("path/to/receipt.xsd");
+        assertThat(config.getInvoice()).isEqualTo("path/to/invoice.xsd");
+        assertThat(config.getDebitCreditNote()).isEqualTo("path/to/debitcreditnote.xsd");
+        assertThat(config.getCancellationNote()).isEqualTo("path/to/cancellationnote.xsd");
+        assertThat(config.getAbbreviatedTaxInvoice()).isEqualTo("path/to/abbreviatedtaxinvoice.xsd");
+    }
+
+    @Test
+    @DisplayName("Should handle null schema path")
+    void testShouldHandleNullSchemaPath() {
+        SchemaPathConfig emptyConfig = new SchemaPathConfig();
+        // When schema path is null, getSchemaPath returns null (does not throw)
+        String path = emptyConfig.getSchemaPath("TAX_INVOICE");
+        assertThat(path).isNull();
+    }
+
+    @Test
+    @DisplayName("Should be case sensitive for document types")
+    void testShouldBeCaseSensitiveForDocumentTypes() {
+        assertThatThrownBy(() -> config.getSchemaPath("tax_invoice"))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    @DisplayName("All getters work independently")
+    void testAllGettersWorkIndependently() {
+        SchemaPathConfig testConfig = new SchemaPathConfig();
+        testConfig.setTaxInvoice("/path/to/tax.xsd");
+        testConfig.setReceipt("/path/to/receipt.xsd");
+        testConfig.setInvoice("/path/to/invoice.xsd");
+        testConfig.setDebitCreditNote("/path/to/debit.xsd");
+        testConfig.setCancellationNote("/path/to/cancel.xsd");
+        testConfig.setAbbreviatedTaxInvoice("/path/to/abbrev.xsd");
+
+        assertThat(testConfig.getTaxInvoice()).isEqualTo("/path/to/tax.xsd");
+        assertThat(testConfig.getReceipt()).isEqualTo("/path/to/receipt.xsd");
+        assertThat(testConfig.getInvoice()).isEqualTo("/path/to/invoice.xsd");
+        assertThat(testConfig.getDebitCreditNote()).isEqualTo("/path/to/debit.xsd");
+        assertThat(testConfig.getCancellationNote()).isEqualTo("/path/to/cancel.xsd");
+        assertThat(testConfig.getAbbreviatedTaxInvoice()).isEqualTo("/path/to/abbrev.xsd");
+    }
+
+    @Test
+    @DisplayName("Should handle empty string document type")
+    void testShouldHandleEmptyStringDocumentType() {
+        assertThatThrownBy(() -> config.getSchemaPath(""))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    @DisplayName("Multiple SchemaPathConfig instances are independent")
+    void testMultipleInstancesAreIndependent() {
+        SchemaPathConfig config1 = new SchemaPathConfig();
+        SchemaPathConfig config2 = new SchemaPathConfig();
+
+        config1.setTaxInvoice("path1.xsd");
+        config2.setTaxInvoice("path2.xsd");
+
+        assertThat(config1.getTaxInvoice()).isEqualTo("path1.xsd");
+        assertThat(config2.getTaxInvoice()).isEqualTo("path2.xsd");
+    }
 }

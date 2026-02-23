@@ -1,5 +1,11 @@
 server:
   port: 8081
+  # Maximum size of HTTP request (includes headers, body, etc.)
+  max-http-request-header-size: 65536
+  tomcat:
+    # Maximum size of POST request body
+    max-swallow-size: -1  # Unlimited (we validate at application layer)
+    max-http-form-post-size: -1  # Unlimited
 
 spring:
   application:
@@ -7,6 +13,13 @@ spring:
   threads:
     virtual:
       enabled: true
+
+  # Servlet multipart configuration
+  servlet:
+    multipart:
+      enabled: true
+      max-file-size: ${MAX_FILE_SIZE:10MB}
+      max-request-size: ${MAX_REQUEST_SIZE:10MB}
 
   datasource:
     url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:intake_db}
@@ -45,6 +58,31 @@ camel:
       
 # Application-specific configuration
 app:
+  # Security configuration
+  security:
+    enabled: ${SECURITY_ENABLED:true}
+    jwt:
+      # OAuth2 JWT issuer URI (configure for your identity provider)
+      issuer-uri: ${JWT_ISSUER_URI:}
+      # JWKS endpoint (if not using standard issuer-uri)
+      jwks-uri: ${JWT_JWKS_URI:}
+    # Rate limiting using Apache Camel throttler
+    rate-limit:
+      enabled: ${RATE_LIMIT_ENABLED:true}
+      # Maximum requests per second per client IP
+      requests-per-second: ${RATE_LIMIT_REQUESTS_PER_SECOND:10}
+      # Time period in seconds for the rate limit
+      time-period-seconds: ${RATE_LIMIT_TIME_PERIOD_SECONDS:60}
+
+  # Validation limits
+  validation:
+    # Maximum XML document size in bytes (default: 10MB)
+    max-xml-size: ${MAX_XML_SIZE:10485760}
+    # Maximum element nesting depth (prevents deep element attacks)
+    max-xml-depth: ${MAX_XML_DEPTH:100}
+    # Maximum number of elements (prevents excessive element count attacks)
+    max-element-count: ${MAX_ELEMENT_COUNT:10000}
+
   xml:
     schemas:
       # XSD schema paths for Thai e-Tax document validation
@@ -54,6 +92,11 @@ app:
       debit-credit-note: e-tax-invoice-receipt-v2.1/ETDA/data/standard/DebitCreditNote_CrossIndustryInvoice_2p1.xsd
       cancellation-note: e-tax-invoice-receipt-v2.1/ETDA/data/standard/CancellationNote_CrossIndustryInvoice_2p1.xsd
       abbreviated-tax-invoice: e-tax-invoice-receipt-v2.1/ETDA/data/standard/AbbreviatedTaxInvoice_CrossIndustryInvoice_2p1.xsd
+
+  # Outbox configuration
+  outbox:
+    pending-threshold: ${OUTBOX_PENDING_THRESHOLD:100}
+
   kafka:
     topics:
       # Consumer topics

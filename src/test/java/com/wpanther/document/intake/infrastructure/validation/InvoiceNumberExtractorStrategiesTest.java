@@ -131,4 +131,52 @@ class InvoiceNumberExtractorStrategiesTest {
             InvoiceNumberExtractorStrategies.ABBREVIATED_TAX_INVOICE
         );
     }
+
+    @Test
+    @DisplayName("Strategies handle reflection exceptions gracefully")
+    void testStrategiesHandleReflectionExceptions() {
+        // Create an object that will cause reflection issues
+        Object problematicObject = new Object() {
+            public Object getExchangedDocument() {
+                throw new RuntimeException("Intentional test exception");
+            }
+        };
+
+        // Should handle exception and return null
+        assertThat(InvoiceNumberExtractorStrategies.TAX_INVOICE.extractInvoiceNumber(problematicObject)).isNull();
+    }
+
+    @Test
+    @DisplayName("Strategies handle objects where getID throws exception")
+    void testStrategiesHandleGetIdException() {
+        Object mockWithGetIdException = new Object() {
+            public Object getExchangedDocument() {
+                return new Object() {
+                    public String getID() {
+                        throw new RuntimeException("GetID exception");
+                    }
+                };
+            }
+        };
+
+        assertThat(InvoiceNumberExtractorStrategies.TAX_INVOICE.extractInvoiceNumber(mockWithGetIdException)).isNull();
+    }
+
+    @Test
+    @DisplayName("valueOf method returns correct enum constants")
+    void testValueOfMethod() {
+        assertThat(InvoiceNumberExtractorStrategies.valueOf("TAX_INVOICE")).isEqualTo(InvoiceNumberExtractorStrategies.TAX_INVOICE);
+        assertThat(InvoiceNumberExtractorStrategies.valueOf("RECEIPT")).isEqualTo(InvoiceNumberExtractorStrategies.RECEIPT);
+        assertThat(InvoiceNumberExtractorStrategies.valueOf("INVOICE")).isEqualTo(InvoiceNumberExtractorStrategies.INVOICE);
+        assertThat(InvoiceNumberExtractorStrategies.valueOf("DEBIT_CREDIT_NOTE")).isEqualTo(InvoiceNumberExtractorStrategies.DEBIT_CREDIT_NOTE);
+        assertThat(InvoiceNumberExtractorStrategies.valueOf("CANCELLATION_NOTE")).isEqualTo(InvoiceNumberExtractorStrategies.CANCELLATION_NOTE);
+        assertThat(InvoiceNumberExtractorStrategies.valueOf("ABBREVIATED_TAX_INVOICE")).isEqualTo(InvoiceNumberExtractorStrategies.ABBREVIATED_TAX_INVOICE);
+    }
+
+    @Test
+    @DisplayName("valueOf throws exception for invalid value")
+    void testValueOfThrowsExceptionForInvalidValue() {
+        assertThatThrownBy(() -> InvoiceNumberExtractorStrategies.valueOf("INVALID"))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
 }

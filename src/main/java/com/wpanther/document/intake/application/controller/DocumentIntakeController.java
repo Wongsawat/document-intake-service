@@ -2,6 +2,7 @@ package com.wpanther.document.intake.application.controller;
 
 import com.wpanther.document.intake.application.service.DocumentIntakeService;
 import com.wpanther.document.intake.domain.model.IncomingDocument;
+import com.wpanther.document.intake.infrastructure.config.ValidationProperties;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import jakarta.validation.ConstraintViolationException;
@@ -32,23 +33,39 @@ public class DocumentIntakeController {
 
     private final DocumentIntakeService intakeService;
     private final ProducerTemplate camelProducer;
+    private final ValidationProperties validationProperties;
 
-    public DocumentIntakeController(DocumentIntakeService intakeService, ProducerTemplate camelProducer) {
+    public DocumentIntakeController(
+            DocumentIntakeService intakeService,
+            ProducerTemplate camelProducer,
+            ValidationProperties validationProperties) {
         this.intakeService = intakeService;
         this.camelProducer = camelProducer;
+        this.validationProperties = validationProperties;
     }
 
     /**
      * Submit XML document.
      * Returns 202 Accepted on success, 400 for invalid/unrecognised documents,
-     * 409 for duplicate document numbers, 500 for unexpected errors.
+     * 409 for duplicate document numbers, 413 for payload too large, 500 for unexpected errors.
      */
     @PostMapping(consumes = {MediaType.APPLICATION_XML_VALUE, MediaType.TEXT_XML_VALUE})
     public ResponseEntity<Map<String, Object>> submitDocument(
-        @RequestBody @NotBlank @Size(max = 10485760) String xmlContent,
+        @RequestBody @NotBlank String xmlContent,
         @RequestHeader(value = "X-Correlation-ID", required = false) String correlationId
     ) {
         log.info("Received document submission via REST API");
+
+        // Validate content size
+        if (xmlContent.length() > validationProperties.getMaxXmlSize()) {
+            log.warn("Document rejected - size exceeds maximum: {} > {}",
+                xmlContent.length(), validationProperties.getMaxXmlSize());
+            return ResponseEntity.status(HttpStatus.PAYLOAD_TOO_LARGE).body(Map.of(
+                "error", "Payload too large",
+                "message", "XML content exceeds maximum size of " +
+                    validationProperties.getMaxXmlSizeMb() + "MB"
+            ));
+        }
 
         String effectiveCorrelationId = correlationId != null ? correlationId : UUID.randomUUID().toString();
 

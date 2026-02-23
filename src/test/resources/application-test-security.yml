@@ -1,0 +1,37 @@
+# Test configuration with security disabled for integration testing
+# This file allows tests to run without JWT authentication
+
+spring:
+  datasource:
+    url: jdbc:h2:mem:testdb
+    driver-class-name: org.h2.Driver
+    username: sa
+    password: ""
+
+  jpa:
+    database-platform: org.hibernate.dialect.H2Dialect
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: false
+
+  kafka:
+    bootstrap-servers: localhost:9092
+
+app:
+  # Disable security for testing
+  security:
+    enabled: false
+
+  # Disable rate limiting for testing
+  rate-limit:
+    enabled: false
+
+  validation:
+    max-xml-size: 10485760  # 10MB for testing
+    max-xml-depth: 100
+    max-element-count: 10000
+
+logging:
+  level:
+    root: INFO
+    com.wpanther.document.intake: DEBUG

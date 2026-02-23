@@ -22,10 +22,16 @@ import jakarta.xml.bind.Unmarshaller;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.w3c.dom.Document;
+import org.xml.sax.InputSource;
+import org.xml.sax.SAXException;
+import org.xml.sax.XMLReader;
+import org.xml.sax.helpers.XMLFilterImpl;
+import javax.xml.transform.sax.SAXSource;
 
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.ParserConfigurationException;
+import javax.xml.parsers.SAXParserFactory;
 import javax.xml.validation.Schema;
 import javax.xml.validation.SchemaFactory;
 import java.io.StringReader;
@@ -35,6 +41,7 @@ import java.util.List;
 import java.util.Map;
 
 import static javax.xml.XMLConstants.W3C_XML_SCHEMA_NS_URI;
+import static javax.xml.XMLConstants.FEATURE_SECURE_PROCESSING;
 
 /**
  * Implementation of XmlValidationService that provides three-layer validation:
@@ -62,6 +69,9 @@ public class XmlValidationServiceImpl implements XmlValidationService {
     // Each thread gets its own DocumentBuilder instance via ThreadLocal, created from its own factory
     // (with XXE protections applied). builder.reset() restores it to that initial state before reuse.
     private final ThreadLocal<DocumentBuilder> threadLocalDocumentBuilder;
+    // SAXParserFactory for XXE-protected XML reading in JAXB unmarshaling
+    // Thread-safe SAXParserFactory with XXE protections enabled
+    private final SAXParserFactory secureSaxParserFactory;
 
     public XmlValidationServiceImpl(SchemaPathConfig schemaPathConfig) {
         this.schemaPathConfig = schemaPathConfig;
@@ -78,6 +88,7 @@ public class XmlValidationServiceImpl implements XmlValidationService {
                 throw new IllegalStateException("Failed to create DocumentBuilder", e);
             }
         });
+        this.secureSaxParserFactory = createSecureSaxParserFactory();
 
         long duration = System.currentTimeMillis() - startTime;
         log.info("XmlValidationService initialized in {}ms with {} JAXB contexts and {} schemas",
@@ -232,6 +243,7 @@ public class XmlValidationServiceImpl implements XmlValidationService {
 
     /**
      * Unmarshal XML content with a specific document type's JAXB context.
+     * Uses XXE-protected SAX parser to prevent XML External Entity attacks.
      */
     private UnmarshalResult unmarshalWithDocumentType(String xmlContent, DocumentType docType,
                                                        ValidationErrorHandler errorHandler) throws JAXBException {
@@ -251,22 +263,32 @@ public class XmlValidationServiceImpl implements XmlValidationService {
         // Set validation event handler
         unmarshaller.setEventHandler(errorHandler);
 
-        // Unmarshal XML
-        Object result = unmarshaller.unmarshal(new StringReader(xmlContent));
+        // Create XXE-protected SAX source for unmarshaling
+        // This prevents XXE attacks by using a secure XMLReader
+        try {
+            XMLReader xmlReader = secureSaxParserFactory.newSAXParser().getXMLReader();
+            SAXSource saxSource = new SAXSource(xmlReader, new InputSource(new StringReader(xmlContent)));
 
-        // Handle JAXBElement wrapper (common when no @XmlRootElement annotation)
-        if (result instanceof JAXBElement) {
-            JAXBElement<?> jaxbElement = (JAXBElement<?>) result;
-            result = jaxbElement.getValue();
+            // Unmarshal XML using the secure SAX source
+            Object result = unmarshaller.unmarshal(saxSource);
+
+            // Handle JAXBElement wrapper (common when no @XmlRootElement annotation)
+            if (result instanceof JAXBElement) {
+                JAXBElement<?> jaxbElement = (JAXBElement<?>) result;
+                result = jaxbElement.getValue();
+            }
+
+            // Detect document type from unmarshaled object class
+            DocumentType detectedType = DocumentType.fromJaxbClass(result.getClass());
+            if (detectedType == null) {
+                detectedType = docType; // Fallback to the type we tried
+            }
+
+            return new UnmarshalResult(result, detectedType);
+
+        } catch (SAXException | ParserConfigurationException e) {
+            throw new JAXBException("Failed to create secure XML reader for XXE protection", e);
         }
-
-        // Detect document type from unmarshaled object class
-        DocumentType detectedType = DocumentType.fromJaxbClass(result.getClass());
-        if (detectedType == null) {
-            detectedType = docType; // Fallback to the type we tried
-        }
-
-        return new UnmarshalResult(result, detectedType);
     }
 
     /**
@@ -382,6 +404,73 @@ public class XmlValidationServiceImpl implements XmlValidationService {
             log.warn("Could not disable entity reference expansion: {}", e.getMessage());
         }
 
+        return factory;
+    }
+
+    /**
+     * Create SAX parser factory with XXE protection for JAXB unmarshaling.
+     * <p>
+     * This factory creates XMLReader instances that are protected against
+     * XML External Entity (XXE) attacks by disabling:
+     * - DTD declarations
+     * - External general entities
+     * - External parameter entities
+     * - XInclude processing
+     * <p>
+     * The secure XMLReader is passed to JAXB unmarshaller to ensure
+     * all XML parsing is protected from XXE vulnerabilities.
+     *
+     * @return SAXParserFactory configured with XXE protection
+     */
+    private SAXParserFactory createSecureSaxParserFactory() {
+        SAXParserFactory factory = SAXParserFactory.newInstance();
+        factory.setNamespaceAware(true);
+
+        // Enable secure processing
+        try {
+            factory.setFeature(FEATURE_SECURE_PROCESSING, true);
+        } catch (Exception e) {
+            log.warn("Could not set secure processing feature: {}", e.getMessage());
+        }
+
+        // XXE Protection: Disable DTD declarations
+        try {
+            factory.setFeature("http://apache.org/xml/features/disallow-doctype-decl", true);
+        } catch (Exception e) {
+            log.warn("Could not set disallow-doctype-decl feature: {}", e.getMessage());
+        }
+
+        // XXE Protection: Disable external general entities
+        try {
+            factory.setFeature("http://xml.org/sax/features/external-general-entities", false);
+        } catch (Exception e) {
+            log.warn("Could not set external-general-entities feature: {}", e.getMessage());
+        }
+
+        // XXE Protection: Disable external parameter entities
+        try {
+            factory.setFeature("http://xml.org/sax/features/external-parameter-entities", false);
+        } catch (Exception e) {
+            log.warn("Could not set external-parameter-entities feature: {}", e.getMessage());
+        }
+
+        // XXE Protection: Disable XInclude
+        try {
+            factory.setFeature("http://apache.org/xml/features/xinclude", false);
+        } catch (Exception e) {
+            log.warn("Could not disable XInclude feature: {}", e.getMessage());
+        }
+
+        // XXE Protection: Disable external entities loading
+        try {
+            factory.setFeature("http://xml.org/sax/features/external-entity-apis", false);
+        } catch (ParserConfigurationException | SAXException e) {
+            log.warn("Could not disable external-entity-apis feature: {}", e.getMessage());
+        } catch (Exception e) {
+            log.warn("Could not disable external-entity-apis feature: {}", e.getMessage());
+        }
+
+        log.info("Created secure SAXParserFactory with XXE protection enabled");
         return factory;
     }
 

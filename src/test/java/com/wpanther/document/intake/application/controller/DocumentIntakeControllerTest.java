@@ -5,6 +5,7 @@ import com.wpanther.document.intake.application.service.DocumentIntakeService;
 import com.wpanther.document.intake.domain.model.IncomingDocument;
 import com.wpanther.document.intake.domain.model.DocumentStatus;
 import com.wpanther.document.intake.domain.model.ValidationResult;
+import com.wpanther.document.intake.infrastructure.config.ValidationProperties;
 import com.wpanther.document.intake.infrastructure.validation.DocumentType;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -31,7 +32,12 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * Unit tests for DocumentIntakeController
  * Uses MockMvc for testing REST endpoints
  */
-@WebMvcTest(DocumentIntakeController.class)
+@WebMvcTest(controllers = DocumentIntakeController.class,
+    properties = "app.security.enabled=false",
+    excludeAutoConfiguration = {
+        org.springframework.boot.autoconfigure.security.servlet.SecurityAutoConfiguration.class,
+        org.springframework.boot.autoconfigure.security.oauth2.resource.servlet.OAuth2ResourceServerAutoConfiguration.class
+    })
 @DisplayName("Document Intake Controller Tests")
 class DocumentIntakeControllerTest {
 
@@ -44,6 +50,9 @@ class DocumentIntakeControllerTest {
     @MockBean
     private ProducerTemplate producerTemplate;
 
+    @MockBean
+    private ValidationProperties validationProperties;
+
     @Autowired
     private ObjectMapper objectMapper;
 
@@ -51,6 +60,12 @@ class DocumentIntakeControllerTest {
 
     @BeforeEach
     void setUp() {
+        // Configure ValidationProperties mock with default values
+        when(validationProperties.getMaxXmlSize()).thenReturn(10485760L); // 10MB
+        when(validationProperties.getMaxXmlSizeMb()).thenReturn(10);
+        when(validationProperties.getMaxXmlDepth()).thenReturn(100);
+        when(validationProperties.getMaxElementCount()).thenReturn(10000);
+
         testDocument = IncomingDocument.builder()
             .id(UUID.randomUUID())
             .documentNumber("INV-2024-001")

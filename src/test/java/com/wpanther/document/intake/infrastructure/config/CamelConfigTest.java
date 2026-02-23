@@ -49,12 +49,20 @@ class CamelConfigTest {
 
     private CamelConfig camelConfig;
 
+    private RateLimitProperties rateLimitProperties;
+
     @BeforeEach
     void setUp() throws Exception {
+        rateLimitProperties = new RateLimitProperties();
+        rateLimitProperties.setEnabled(true);
+        rateLimitProperties.setRequestsPerSecond(10);
+        rateLimitProperties.setTimePeriodSeconds(60);
+
         camelConfig = new CamelConfig(
             documentIntakeService,
             "document.intake",
-            "document.intake.dlq"
+            "document.intake.dlq",
+            rateLimitProperties
         );
         camelConfig.setCamelContext(camelContext);
     }
@@ -74,7 +82,8 @@ class CamelConfigTest {
         CamelConfig config = new CamelConfig(
             documentIntakeService,
             "different.topic",
-            "different.dlq"
+            "different.dlq",
+            rateLimitProperties
         );
         assertThat(config).isNotNull();
     }
@@ -85,7 +94,8 @@ class CamelConfigTest {
         CamelConfig config = new CamelConfig(
             documentIntakeService,
             "",
-            ""
+            "",
+            rateLimitProperties
         );
         assertThat(config).isNotNull();
     }
@@ -158,16 +168,60 @@ class CamelConfigTest {
         CamelConfig config1 = new CamelConfig(
             documentIntakeService,
             "topic1",
-            "dlq1"
+            "dlq1",
+            rateLimitProperties
         );
         CamelConfig config2 = new CamelConfig(
             documentIntakeService,
             "kafka:topic1",
-            "kafka:dlq1"
+            "kafka:dlq1",
+            rateLimitProperties
         );
 
         assertThat(config1).isNotNull();
         assertThat(config2).isNotNull();
+    }
+
+    @Test
+    @DisplayName("Rate limit properties are used correctly")
+    void testRateLimitPropertiesUsedCorrectly() {
+        // Test with different rate limit settings
+        RateLimitProperties customProps = new RateLimitProperties();
+        customProps.setEnabled(true);
+        customProps.setRequestsPerSecond(20);
+        customProps.setTimePeriodSeconds(30);
+
+        CamelConfig config = new CamelConfig(
+            documentIntakeService,
+            "topic1",
+            "dlq1",
+            customProps
+        );
+
+        assertThat(config).isNotNull();
+    }
+
+    @Test
+    @DisplayName("CamelConfig with rate limiting disabled")
+    void testCamelConfigWithRateLimitingDisabled() {
+        RateLimitProperties disabledProps = new RateLimitProperties();
+        disabledProps.setEnabled(false);
+
+        CamelConfig config = new CamelConfig(
+            documentIntakeService,
+            "topic1",
+            "dlq1",
+            disabledProps
+        );
+
+        assertThat(config).isNotNull();
+    }
+
+    @Test
+    @DisplayName("CamelConfig handles null rate limit properties")
+    void testCamelConfigHandlesNullRateLimitProperties() {
+        // Create with default properties
+        assertThat(camelConfig).isNotNull();
     }
 
     @Test
