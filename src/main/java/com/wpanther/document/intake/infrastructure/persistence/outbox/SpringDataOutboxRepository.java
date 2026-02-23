@@ -53,6 +53,15 @@ public interface SpringDataOutboxRepository extends JpaRepository<OutboxEventEnt
     );
 
     /**
+     * Count events by status.
+     * Used by OutboxHealthIndicator to report backlog and failure counts.
+     *
+     * @param status The status to count
+     * @return Number of events with the given status
+     */
+    long countByStatus(OutboxStatus status);
+
+    /**
      * Delete published events before a specified time.
      * Used by cleanup service to remove old published events.
      *

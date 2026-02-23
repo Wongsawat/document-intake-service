@@ -42,6 +42,8 @@ class JpaOutboxEventRepositoryTest {
                 .eventType("StartSagaCommand")
                 .payload("{\"data\":\"test\"}")
                 .status(OutboxStatus.PENDING)
+                .createdAt(Instant.now())
+                .retryCount(0)
                 .build();
 
         OutboxEventEntity savedEntity = OutboxEventEntity.fromDomain(domainEvent);
@@ -64,6 +66,8 @@ class JpaOutboxEventRepositoryTest {
                 .eventType("StartSagaCommand")
                 .payload("{\"data\":\"test\"}")
                 .status(OutboxStatus.PENDING)
+                .createdAt(Instant.now())
+                .retryCount(0)
                 .build();
 
         when(springRepository.findById(id)).thenReturn(Optional.of(entity));
@@ -168,6 +172,7 @@ class JpaOutboxEventRepositoryTest {
                 .payload("{\"data\":\"test\"}")
                 .status(status)
                 .createdAt(Instant.now())
+                .retryCount(0)
                 .build();
     }
 }

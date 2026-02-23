@@ -58,17 +58,7 @@ app:
       # Dead letter queue
       intake-dlq: document.intake.dlq
 
-      # LEGACY: Document-type-specific topics (kept for backward compatibility during migration)
-      tax-invoice: document.received.tax-invoice
-      receipt: document.received.receipt
-      invoice: document.received.invoice
-      debit-credit-note: document.received.debit-credit-note
-      cancellation: document.received.cancellation
-      abbreviated: document.received.abbreviated
-      # Legacy counting topic
-      document-received: document.received
-
-      # NEW: Saga orchestrator topics (outbox pattern with Debezium CDC)
+      # Saga orchestrator topics (outbox pattern with Debezium CDC)
       # Commands to orchestrator-service
       saga-commands-orchestrator: saga.commands.orchestrator
       # Trace events for notification-service
