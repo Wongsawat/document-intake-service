@@ -2,9 +2,9 @@ package com.wpanther.document.intake.application.controller;
 
 import com.wpanther.document.intake.application.service.DocumentIntakeService;
 import com.wpanther.document.intake.domain.model.IncomingDocument;
-import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
+import org.apache.camel.CamelExecutionException;
 import org.apache.camel.ProducerTemplate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -36,7 +36,9 @@ public class DocumentIntakeController {
     }
 
     /**
-     * Submit XML document
+     * Submit XML document.
+     * Returns 202 Accepted on success, 400 for invalid/unrecognised documents,
+     * 409 for duplicate document numbers, 500 for unexpected errors.
      */
     @PostMapping(consumes = {MediaType.APPLICATION_XML_VALUE, MediaType.TEXT_XML_VALUE})
     public ResponseEntity<Map<String, Object>> submitDocument(
@@ -45,22 +47,43 @@ public class DocumentIntakeController {
     ) {
         log.info("Received document submission via REST API");
 
+        String effectiveCorrelationId = correlationId != null ? correlationId : UUID.randomUUID().toString();
+
         try {
-            // Send to Camel route for processing
             camelProducer.sendBodyAndHeader(
                 "direct:document-intake",
                 xmlContent,
                 "correlationId",
-                correlationId != null ? correlationId : UUID.randomUUID().toString()
+                effectiveCorrelationId
             );
 
             return ResponseEntity.accepted().body(Map.of(
                 "message", "Document submitted for processing",
-                "correlationId", correlationId != null ? correlationId : "generated"
+                "correlationId", effectiveCorrelationId
             ));
 
         } catch (Exception e) {
-            log.error("Error submitting document", e);
+            // Unwrap CamelExecutionException to reach the original business exception
+            Throwable cause = (e instanceof CamelExecutionException && e.getCause() != null)
+                ? e.getCause() : e;
+
+            if (cause instanceof IllegalArgumentException) {
+                log.warn("Document rejected — invalid content: {}", cause.getMessage());
+                return ResponseEntity.badRequest().body(Map.of(
+                    "error", "Invalid document",
+                    "message", cause.getMessage()
+                ));
+            }
+
+            if (cause instanceof IllegalStateException) {
+                log.warn("Document rejected — duplicate: {}", cause.getMessage());
+                return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of(
+                    "error", "Document already exists",
+                    "message", cause.getMessage()
+                ));
+            }
+
+            log.error("Unexpected error submitting document", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of(
                 "error", "Failed to submit document",
                 "message", e.getMessage()
@@ -69,14 +92,14 @@ public class DocumentIntakeController {
     }
 
     /**
-     * Get document status by ID
+     * Get document status by ID.
      */
     @GetMapping("/{id}")
     public ResponseEntity<Map<String, Object>> getDocumentStatus(@PathVariable UUID id) {
         try {
             IncomingDocument document = intakeService.getDocument(id);
 
-            Map<String, Object> response = new java.util.HashMap<>();
+            java.util.Map<String, Object> response = new java.util.HashMap<>();
             response.put("id", document.getId().toString());
             response.put("documentNumber", document.getDocumentNumber());
             response.put("status", document.getStatus().name());

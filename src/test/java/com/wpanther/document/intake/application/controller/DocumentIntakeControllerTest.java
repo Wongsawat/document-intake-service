@@ -127,16 +127,30 @@ class DocumentIntakeControllerTest {
     }
 
     @Test
-    @DisplayName("POST /api/v1/documents returns error for invalid XML")
+    @DisplayName("POST /api/v1/documents returns 400 for invalid XML")
     void testSubmitInvoiceReturns400ForInvalidXml() throws Exception {
-        // The Camel route would throw an exception for invalid XML
         doThrow(new IllegalArgumentException("Could not extract document number"))
             .when(producerTemplate).sendBodyAndHeader(any(String.class), any(), any(String.class), any());
 
         mockMvc.perform(post("/api/v1/documents")
                 .contentType(MediaType.APPLICATION_XML)
                 .content("invalid xml"))
-            .andExpect(status().isInternalServerError());
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.error").value("Invalid document"));
+    }
+
+    @Test
+    @DisplayName("POST /api/v1/documents returns 409 for duplicate document number")
+    void testSubmitInvoiceReturns409ForDuplicateDocument() throws Exception {
+        doThrow(new IllegalStateException("Document number already exists: INV-2024-001"))
+            .when(producerTemplate).sendBodyAndHeader(any(String.class), any(), any(String.class), any());
+
+        mockMvc.perform(post("/api/v1/documents")
+                .contentType(MediaType.APPLICATION_XML)
+                .content("<test>xml</test>")
+                .header("X-Correlation-ID", "corr-dup"))
+            .andExpect(status().isConflict())
+            .andExpect(jsonPath("$.error").value("Document already exists"));
     }
 
     @Test
@@ -261,7 +275,7 @@ class DocumentIntakeControllerTest {
     }
 
     @Test
-    @DisplayName("POST /api/v1/documents with null correlation ID generates UUID")
+    @DisplayName("POST /api/v1/documents with null correlation ID returns generated UUID")
     void testSubmitInvoiceWithNullCorrelationIdGeneratesUuid() throws Exception {
         when(documentIntakeService.submitDocument(any(), eq("REST"), any()))
             .thenReturn(testDocument);
@@ -270,7 +284,10 @@ class DocumentIntakeControllerTest {
                 .contentType(MediaType.APPLICATION_XML)
                 .content("<test>xml</test>"))
             .andExpect(status().isAccepted())
-            .andExpect(jsonPath("$.correlationId").value("generated"));
+            .andExpect(jsonPath("$.correlationId").isString())
+            .andExpect(jsonPath("$.correlationId").value(
+                org.hamcrest.Matchers.matchesPattern(
+                    "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}")));
     }
 
     @Test
