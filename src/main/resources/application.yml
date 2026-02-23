@@ -105,5 +105,5 @@ logging:
     org.apache.camel: INFO
     org.hibernate.SQL: DEBUG
   pattern:
-    console: "%d{yyyy-MM-DD HH:mm:ss} - %msg%n"
-    file: "%d{yyyy-MM-DD HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+    console: "%d{yyyy-MM-dd HH:mm:ss} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"

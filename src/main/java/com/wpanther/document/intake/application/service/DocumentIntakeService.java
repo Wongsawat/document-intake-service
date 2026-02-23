@@ -157,7 +157,7 @@ public class DocumentIntakeService {
                 .build();
             eventPublisher.publishStartSagaCommand(sagaCommand);
 
-            // Update trace event status to VALIDATED
+            // Publish VALIDATED trace event
             DocumentReceivedTraceEvent validatedEvent = DocumentReceivedTraceEvent.builder()
                 .documentId(document.getId().toString())
                 .documentType(document.getDocumentType().name())
@@ -172,7 +172,7 @@ public class DocumentIntakeService {
             document.markForwarded();
             document = documentRepository.save(document);
 
-            // Publish trace event for FORWARDED status
+            // Publish FORWARDED trace event
             DocumentReceivedTraceEvent forwardedEvent = DocumentReceivedTraceEvent.builder()
                 .documentId(document.getId().toString())
                 .documentType(document.getDocumentType().name())
@@ -182,6 +182,20 @@ public class DocumentIntakeService {
                 .source(source)
                 .build();
             eventPublisher.publishTraceEvent(forwardedEvent);
+        } else {
+            // Publish INVALID trace event so notification-service tracks rejected documents
+            DocumentReceivedTraceEvent invalidEvent = DocumentReceivedTraceEvent.builder()
+                .documentId(document.getId().toString())
+                .documentType(document.getDocumentType().name())
+                .documentNumber(document.getDocumentNumber())
+                .correlationId(correlationId)
+                .status(EventStatus.INVALID.getValue())
+                .source(source)
+                .build();
+            eventPublisher.publishTraceEvent(invalidEvent);
+
+            log.warn("Document {} failed validation with {} error(s)",
+                documentNumber, document.getValidationResult().errorCount());
         }
 
         return document;

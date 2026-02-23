@@ -11,6 +11,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.HashMap;
 import java.util.Map;
 
 /**
@@ -36,20 +37,23 @@ public class EventPublisher {
      */
     @Transactional(propagation = Propagation.MANDATORY)
     public void publishStartSagaCommand(StartSagaCommand command) {
-        Map<String, String> headers = Map.of(
-            "correlationId", command.getCorrelationId(),
-            "documentType", command.getDocumentType()
-        );
+        Map<String, String> headers = new HashMap<>();
+        headers.put("documentType", command.getDocumentType());
+        if (command.getCorrelationId() != null) {
+            headers.put("correlationId", command.getCorrelationId());
+        }
 
-        String headersJson = toJson(headers);
+        String partitionKey = command.getCorrelationId() != null
+            ? command.getCorrelationId()
+            : command.getDocumentId();
 
         outboxService.saveWithRouting(
             command,
             "IncomingDocument",
             command.getDocumentId(),
             "saga.commands.orchestrator",
-            command.getCorrelationId(),  // partition key
-            headersJson                   // headers
+            partitionKey,
+            toJson(headers)
         );
 
         log.info("Published StartSagaCommand for document: {}", command.getDocumentId());
@@ -63,20 +67,23 @@ public class EventPublisher {
      */
     @Transactional(propagation = Propagation.MANDATORY)
     public void publishTraceEvent(DocumentReceivedTraceEvent event) {
-        Map<String, String> headers = Map.of(
-            "correlationId", event.getCorrelationId(),
-            "documentType", event.getDocumentType()
-        );
+        Map<String, String> headers = new HashMap<>();
+        headers.put("documentType", event.getDocumentType());
+        if (event.getCorrelationId() != null) {
+            headers.put("correlationId", event.getCorrelationId());
+        }
 
-        String headersJson = toJson(headers);
+        String partitionKey = event.getCorrelationId() != null
+            ? event.getCorrelationId()
+            : event.getDocumentId();
 
         outboxService.saveWithRouting(
             event,
             "IncomingDocument",
             event.getDocumentId(),
             "trace.document.received",
-            event.getCorrelationId(),  // partition key
-            headersJson                  // headers
+            partitionKey,
+            toJson(headers)
         );
 
         log.debug("Published DocumentReceivedTraceEvent for document: {}", event.getDocumentId());
