@@ -1,16 +1,15 @@
 package com.wpanther.document.intake.domain.event;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.wpanther.document.intake.infrastructure.validation.DocumentType;
-import com.wpanther.saga.domain.model.IntegrationEvent;
+import com.wpanther.saga.domain.enums.SagaStep;
+import com.wpanther.saga.domain.model.SagaCommand;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
-import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
-import lombok.extern.jackson.Jacksonized;
 
 import java.time.Instant;
 import java.util.UUID;
@@ -21,13 +20,15 @@ import java.util.UUID;
  * <p>
  * This command contains all information orchestrator needs to begin
  * orchestrating multi-step document processing pipeline.
+ * <p>
+ * Extends {@link SagaCommand} (non-sealed) as required by the sealed
+ * {@code IntegrationEvent} hierarchy. {@code sagaId} and {@code sagaStep}
+ * are {@code null} on creation because the saga has not started yet — the
+ * orchestrator-service assigns them when it creates the saga instance.
  */
 @Getter
-@Builder
-@Jacksonized
-@AllArgsConstructor
 @JsonIgnoreProperties(ignoreUnknown = true)
-public class StartSagaCommand extends IntegrationEvent {
+public class StartSagaCommand extends SagaCommand {
 
     private static final long serialVersionUID = 1L;
     private static final String DOCUMENT_TYPE_PATTERN =
@@ -66,12 +67,7 @@ public class StartSagaCommand extends IntegrationEvent {
     @Size(max = 10485760, message = "XML content must not exceed 10MB")
     private final String xmlContent;
 
-    /**
-     * Correlation ID for tracing request across all services.
-     */
-    @JsonProperty("correlationId")
-    @Size(max = 100, message = "Correlation ID must not exceed 100 characters")
-    private final String correlationId;
+    // correlationId is inherited from SagaCommand — not redeclared here.
 
     /**
      * Source of document (API, KAFKA, etc.)
@@ -80,4 +76,55 @@ public class StartSagaCommand extends IntegrationEvent {
     @NotBlank(message = "Source is required")
     @Size(max = 50, message = "Source must not exceed 50 characters")
     private final String source;
+
+    /**
+     * Creation constructor used by the Lombok builder.
+     * sagaId and sagaStep are {@code null} because the saga has not started yet.
+     */
+    @Builder
+    private StartSagaCommand(
+            String documentId,
+            String documentType,
+            String documentNumber,
+            String xmlContent,
+            String correlationId,
+            String source) {
+        super(null, null, correlationId);
+        this.documentId = documentId;
+        this.documentType = documentType;
+        this.documentNumber = documentNumber;
+        this.xmlContent = xmlContent;
+        this.source = source;
+    }
+
+    /**
+     * Jackson deserialization factory. Always delegates to the builder (creation path)
+     * so that {@code eventId} and {@code version} are always auto-generated, matching
+     * the original {@code @Jacksonized} behaviour. Saga-infrastructure fields
+     * ({@code sagaId}, {@code sagaStep}) present in JSON are intentionally ignored
+     * since they are assigned by the orchestrator, not by this service.
+     */
+    @JsonCreator
+    static StartSagaCommand fromJson(
+            @JsonProperty("eventId") UUID eventId,
+            @JsonProperty("occurredAt") Instant occurredAt,
+            @JsonProperty("eventType") String eventType,
+            @JsonProperty("version") int version,
+            @JsonProperty("sagaId") String sagaId,
+            @JsonProperty("sagaStep") SagaStep sagaStep,
+            @JsonProperty("correlationId") String correlationId,
+            @JsonProperty("documentId") String documentId,
+            @JsonProperty("documentType") String documentType,
+            @JsonProperty("documentNumber") String documentNumber,
+            @JsonProperty("xmlContent") String xmlContent,
+            @JsonProperty("source") String source) {
+        return StartSagaCommand.builder()
+                .documentId(documentId)
+                .documentType(documentType)
+                .documentNumber(documentNumber)
+                .xmlContent(xmlContent)
+                .correlationId(correlationId)
+                .source(source)
+                .build();
+    }
 }

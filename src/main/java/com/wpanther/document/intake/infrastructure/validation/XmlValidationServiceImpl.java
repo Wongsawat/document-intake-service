@@ -25,6 +25,7 @@ import org.w3c.dom.Document;
 
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
+import javax.xml.parsers.ParserConfigurationException;
 import javax.xml.validation.Schema;
 import javax.xml.validation.SchemaFactory;
 import java.io.StringReader;
@@ -57,7 +58,10 @@ public class XmlValidationServiceImpl implements XmlValidationService {
     private final Map<DocumentType, JAXBContext> jaxbContexts;
     private final Map<DocumentType, Schema> schemas;
     private final SchematronValidator schematronValidator;
-    private final DocumentBuilderFactory documentBuilderFactory;
+    // DocumentBuilderFactory.newDocumentBuilder() is not guaranteed thread-safe by the JAXP spec.
+    // Each thread gets its own DocumentBuilder instance via ThreadLocal, created from its own factory
+    // (with XXE protections applied). builder.reset() restores it to that initial state before reuse.
+    private final ThreadLocal<DocumentBuilder> threadLocalDocumentBuilder;
 
     public XmlValidationServiceImpl(SchemaPathConfig schemaPathConfig) {
         this.schemaPathConfig = schemaPathConfig;
@@ -67,7 +71,13 @@ public class XmlValidationServiceImpl implements XmlValidationService {
         this.jaxbContexts = initializeJaxbContexts();
         this.schemas = initializeSchemas();
         this.schematronValidator = new SchematronValidatorImpl();
-        this.documentBuilderFactory = createDocumentBuilderFactory();
+        this.threadLocalDocumentBuilder = ThreadLocal.withInitial(() -> {
+            try {
+                return createDocumentBuilderFactory().newDocumentBuilder();
+            } catch (ParserConfigurationException e) {
+                throw new IllegalStateException("Failed to create DocumentBuilder", e);
+            }
+        });
 
         long duration = System.currentTimeMillis() - startTime;
         log.info("XmlValidationService initialized in {}ms with {} JAXB contexts and {} schemas",
@@ -380,7 +390,8 @@ public class XmlValidationServiceImpl implements XmlValidationService {
      */
     private Document parseXmlDom(String xmlContent, List<String> errors) {
         try {
-            DocumentBuilder builder = documentBuilderFactory.newDocumentBuilder();
+            DocumentBuilder builder = threadLocalDocumentBuilder.get();
+            builder.reset();
             return builder.parse(new org.xml.sax.InputSource(new StringReader(xmlContent)));
         } catch (Exception e) {
             errors.add("Failed to parse XML: " + e.getMessage());
