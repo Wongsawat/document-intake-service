@@ -16,7 +16,7 @@ import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.apache.camel.ProducerTemplate;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.UUID;
 
 import static org.mockito.ArgumentMatchers.any;
@@ -60,7 +60,7 @@ class DocumentIntakeControllerTest {
             .documentType(DocumentType.TAX_INVOICE)
             .status(DocumentStatus.VALIDATED)
             .validationResult(ValidationResult.success())
-            .receivedAt(LocalDateTime.now())
+            .receivedAt(Instant.now())
             .build();
     }
 
@@ -203,7 +203,7 @@ class DocumentIntakeControllerTest {
             .documentType(null) // Null document type
             .status(DocumentStatus.VALIDATING)
             .validationResult(ValidationResult.success())
-            .receivedAt(LocalDateTime.now())
+            .receivedAt(Instant.now())
             .build();
 
         when(documentIntakeService.getDocument(testDocument.getId()))
@@ -227,7 +227,7 @@ class DocumentIntakeControllerTest {
             .documentType(DocumentType.TAX_INVOICE)
             .status(DocumentStatus.RECEIVED)
             .validationResult(ValidationResult.success())
-            .receivedAt(LocalDateTime.now())
+            .receivedAt(Instant.now())
             .processedAt(null) // Not yet processed
             .build();
 
@@ -251,7 +251,7 @@ class DocumentIntakeControllerTest {
             .documentType(DocumentType.TAX_INVOICE)
             .status(DocumentStatus.RECEIVED)
             .validationResult(null) // Not yet validated
-            .receivedAt(LocalDateTime.now())
+            .receivedAt(Instant.now())
             .build();
 
         when(documentIntakeService.getDocument(testDocument.getId()))

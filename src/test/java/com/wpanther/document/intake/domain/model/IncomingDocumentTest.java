@@ -5,7 +5,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.DisplayName;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
@@ -54,13 +54,13 @@ class IncomingDocumentTest {
     @DisplayName("Builder with all fields creates complete document")
     void testBuilderWithAllFields() {
         UUID id = UUID.randomUUID();
-        LocalDateTime now = LocalDateTime.now();
+        Instant now = Instant.now();
 
         IncomingDocument document = validBuilder
             .id(id)
             .status(DocumentStatus.RECEIVED)
             .receivedAt(now)
-            .processedAt(now.plusMinutes(5))
+            .processedAt(now.plusSeconds(300))
             .build();
 
         assertThat(document.getId()).isEqualTo(id);
@@ -71,7 +71,7 @@ class IncomingDocumentTest {
         assertThat(document.getDocumentType()).isEqualTo(DocumentType.TAX_INVOICE);
         assertThat(document.getStatus()).isEqualTo(DocumentStatus.RECEIVED);
         assertThat(document.getReceivedAt()).isEqualTo(now);
-        assertThat(document.getProcessedAt()).isEqualTo(now.plusMinutes(5));
+        assertThat(document.getProcessedAt()).isEqualTo(now.plusSeconds(300));
     }
 
     @Test
@@ -403,7 +403,7 @@ class IncomingDocumentTest {
     @DisplayName("Getters return correct values")
     void testGettersReturnCorrectValues() {
         UUID id = UUID.randomUUID();
-        LocalDateTime now = LocalDateTime.now();
+        Instant now = Instant.now();
 
         IncomingDocument document = validBuilder
             .id(id)

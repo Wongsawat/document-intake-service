@@ -2,7 +2,7 @@ package com.wpanther.document.intake.domain.model;
 
 import com.wpanther.document.intake.infrastructure.validation.DocumentType;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
@@ -30,8 +30,8 @@ public class IncomingDocument {
     private ValidationResult validationResult;
 
     // Timestamps
-    private final LocalDateTime receivedAt;
-    private LocalDateTime processedAt;
+    private final Instant receivedAt;
+    private Instant processedAt;
 
     private IncomingDocument(Builder builder) {
         this.id = builder.id != null ? builder.id : UUID.randomUUID();
@@ -42,7 +42,7 @@ public class IncomingDocument {
         this.documentType = builder.documentType;
         this.status = builder.status != null ? builder.status : DocumentStatus.RECEIVED;
         this.validationResult = builder.validationResult;
-        this.receivedAt = builder.receivedAt != null ? builder.receivedAt : LocalDateTime.now();
+        this.receivedAt = builder.receivedAt != null ? builder.receivedAt : Instant.now();
         this.processedAt = builder.processedAt;
 
         validateInvariant();
@@ -107,7 +107,7 @@ public class IncomingDocument {
             );
         }
         this.status = DocumentStatus.FORWARDED;
-        this.processedAt = LocalDateTime.now();
+        this.processedAt = Instant.now();
     }
 
     /**
@@ -115,7 +115,7 @@ public class IncomingDocument {
      */
     public void markFailed(String errorMessage) {
         this.status = DocumentStatus.FAILED;
-        this.processedAt = LocalDateTime.now();
+        this.processedAt = Instant.now();
 
         if (this.validationResult == null) {
             this.validationResult = ValidationResult.invalid(List.of(errorMessage));
@@ -165,11 +165,11 @@ public class IncomingDocument {
         return validationResult;
     }
 
-    public LocalDateTime getReceivedAt() {
+    public Instant getReceivedAt() {
         return receivedAt;
     }
 
-    public LocalDateTime getProcessedAt() {
+    public Instant getProcessedAt() {
         return processedAt;
     }
 
@@ -189,8 +189,8 @@ public class IncomingDocument {
         private DocumentType documentType;
         private DocumentStatus status;
         private ValidationResult validationResult;
-        private LocalDateTime receivedAt;
-        private LocalDateTime processedAt;
+        private Instant receivedAt;
+        private Instant processedAt;
 
         public Builder id(UUID id) {
             this.id = id;
@@ -232,12 +232,12 @@ public class IncomingDocument {
             return this;
         }
 
-        public Builder receivedAt(LocalDateTime receivedAt) {
+        public Builder receivedAt(Instant receivedAt) {
             this.receivedAt = receivedAt;
             return this;
         }
 
-        public Builder processedAt(LocalDateTime processedAt) {
+        public Builder processedAt(Instant processedAt) {
             this.processedAt = processedAt;
             return this;
         }

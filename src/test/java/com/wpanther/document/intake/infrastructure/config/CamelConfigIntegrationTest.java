@@ -18,7 +18,7 @@ import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.TestPropertySource;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -206,7 +206,7 @@ class CamelConfigIntegrationTest {
             .source("REST")
             .correlationId("test-corr")
             .status(DocumentStatus.VALIDATED)
-            .receivedAt(LocalDateTime.now())
+            .receivedAt(Instant.now())
             .validationResult(ValidationResult.success())
             .build();
     }
@@ -220,7 +220,7 @@ class CamelConfigIntegrationTest {
             .source("REST")
             .correlationId("test-corr")
             .status(DocumentStatus.INVALID)
-            .receivedAt(LocalDateTime.now())
+            .receivedAt(Instant.now())
             .validationResult(ValidationResult.invalid(java.util.List.of("XSD validation failed")))
             .build();
     }

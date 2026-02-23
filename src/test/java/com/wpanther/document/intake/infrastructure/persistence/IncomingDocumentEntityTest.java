@@ -6,7 +6,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -81,7 +81,7 @@ class IncomingDocumentEntityTest {
     @DisplayName("Builder creates entity with all fields")
     void testBuilderCreatesEntityWithAllFields() {
         UUID id = UUID.randomUUID();
-        LocalDateTime now = LocalDateTime.now();
+        Instant now = Instant.now();
         String validationResult = "{\"valid\":true,\"errors\":[],\"warnings\":[]}";
 
         IncomingDocumentEntity fullEntity = IncomingDocumentEntity.builder()
@@ -94,7 +94,7 @@ class IncomingDocumentEntityTest {
             .status(DocumentStatus.VALIDATED)
             .validationResult(validationResult)
             .receivedAt(now)
-            .processedAt(now.plusMinutes(5))
+            .processedAt(now.plusSeconds(300))
             .createdAt(now)
             .updatedAt(now)
             .build();
@@ -108,7 +108,7 @@ class IncomingDocumentEntityTest {
         assertThat(fullEntity.getStatus()).isEqualTo(DocumentStatus.VALIDATED);
         assertThat(fullEntity.getValidationResult()).isEqualTo(validationResult);
         assertThat(fullEntity.getReceivedAt()).isEqualTo(now);
-        assertThat(fullEntity.getProcessedAt()).isEqualTo(now.plusMinutes(5));
+        assertThat(fullEntity.getProcessedAt()).isEqualTo(now.plusSeconds(300));
         assertThat(fullEntity.getCreatedAt()).isEqualTo(now);
         assertThat(fullEntity.getUpdatedAt()).isEqualTo(now);
     }
@@ -225,7 +225,7 @@ class IncomingDocumentEntityTest {
     @DisplayName("All-args constructor creates entity with all values")
     void testAllArgsConstructor() {
         UUID id = UUID.randomUUID();
-        LocalDateTime now = LocalDateTime.now();
+        Instant now = Instant.now();
         String validationResult = "{\"valid\":true,\"errors\":[],\"warnings\":[]}";
 
         IncomingDocumentEntity fullEntity = new IncomingDocumentEntity(
@@ -238,7 +238,7 @@ class IncomingDocumentEntityTest {
             DocumentStatus.FORWARDED,
             validationResult,
             now,
-            now.plusMinutes(1),
+            now.plusSeconds(60),
             now,
             now
         );
@@ -252,7 +252,7 @@ class IncomingDocumentEntityTest {
         assertThat(fullEntity.getStatus()).isEqualTo(DocumentStatus.FORWARDED);
         assertThat(fullEntity.getValidationResult()).isEqualTo(validationResult);
         assertThat(fullEntity.getReceivedAt()).isEqualTo(now);
-        assertThat(fullEntity.getProcessedAt()).isEqualTo(now.plusMinutes(1));
+        assertThat(fullEntity.getProcessedAt()).isEqualTo(now.plusSeconds(60));
         assertThat(fullEntity.getCreatedAt()).isEqualTo(now);
         assertThat(fullEntity.getUpdatedAt()).isEqualTo(now);
     }

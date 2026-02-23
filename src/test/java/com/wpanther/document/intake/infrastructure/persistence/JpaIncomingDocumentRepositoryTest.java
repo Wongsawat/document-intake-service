@@ -324,7 +324,7 @@ class JpaIncomingDocumentRepositoryTest {
     @DisplayName("save updates existing entity")
     void testSaveUpdatesEntity() {
         testEntity.setStatus(DocumentStatus.FORWARDED);
-        testEntity.setProcessedAt(java.time.LocalDateTime.now());
+        testEntity.setProcessedAt(java.time.Instant.now());
 
         IncomingDocumentEntity updated = repository.save(testEntity);
 
