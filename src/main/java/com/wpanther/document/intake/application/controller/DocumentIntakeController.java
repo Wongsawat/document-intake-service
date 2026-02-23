@@ -4,6 +4,7 @@ import com.wpanther.document.intake.application.service.DocumentIntakeService;
 import com.wpanther.document.intake.domain.model.IncomingDocument;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
+import jakarta.validation.ConstraintViolationException;
 import org.apache.camel.CamelExecutionException;
 import org.apache.camel.ProducerTemplate;
 import org.slf4j.Logger;
@@ -13,9 +14,11 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.method.annotation.HandlerMethodValidationException;
 
 import java.util.Map;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 /**
  * REST controller for document intake
@@ -131,5 +134,38 @@ public class DocumentIntakeController {
                 "error", "Failed to retrieve document status"
             ));
         }
+    }
+
+    /**
+     * Handles Bean Validation constraint violations raised by Spring's AOP-based
+     * method validation (e.g. @NotBlank, @Size on method parameters).
+     */
+    @ExceptionHandler(ConstraintViolationException.class)
+    public ResponseEntity<Map<String, Object>> handleConstraintViolation(ConstraintViolationException ex) {
+        String message = ex.getConstraintViolations().stream()
+            .map(v -> v.getPropertyPath() + ": " + v.getMessage())
+            .collect(Collectors.joining("; "));
+        log.warn("Request constraint violation: {}", message);
+        return ResponseEntity.badRequest().body(Map.of(
+            "error", "Invalid request",
+            "message", message
+        ));
+    }
+
+    /**
+     * Handles validation failures raised by Spring MVC 6.1's built-in method validation
+     * (HandlerMethodValidationException replaces ConstraintViolationException for
+     * @Validated controller methods in Spring Framework 6.1+).
+     */
+    @ExceptionHandler(HandlerMethodValidationException.class)
+    public ResponseEntity<Map<String, Object>> handleMethodValidation(HandlerMethodValidationException ex) {
+        String message = ex.getAllErrors().stream()
+            .map(e -> e.getDefaultMessage() != null ? e.getDefaultMessage() : "Validation failed")
+            .collect(Collectors.joining("; "));
+        log.warn("Request validation failed: {}", message);
+        return ResponseEntity.badRequest().body(Map.of(
+            "error", "Invalid request",
+            "message", message
+        ));
     }
 }

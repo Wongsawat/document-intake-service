@@ -34,42 +34,42 @@ public class CamelConfig extends RouteBuilder {
     @Override
     public void configure() throws Exception {
 
-        // Error handling - Dead Letter Channel
-        errorHandler(deadLetterChannel("kafka:" + intakeDlqTopic)
-            .maximumRedeliveries(3)
-            .redeliveryDelay(1000)
-            .useExponentialBackOff()
-            .logExhausted(true));
-
-        // REST intake route
-        // Documents submitted via REST API are processed and events are published via outbox
+        // REST intake route — no error handler so exceptions propagate back to
+        // ProducerTemplate.sendBodyAndHeader() and are caught by the REST controller.
+        // The controller maps IllegalArgumentException → 400, IllegalStateException → 409,
+        // and any other exception → 500. A global DLQ here would silently swallow those
+        // exceptions and always return 202 regardless of validation outcome.
         from("direct:document-intake")
+            .errorHandler(noErrorHandler())
             .routeId("document-intake-direct")
             .log("Received document via REST")
             .process(exchange -> {
                 String xmlContent = exchange.getIn().getBody(String.class);
                 String correlationId = exchange.getIn().getHeader("correlationId", String.class);
 
-                // Submit and validate - this now publishes events via outbox
                 IncomingDocument document = intakeService.submitDocument(xmlContent, "REST", correlationId);
 
-                // Set response headers
                 exchange.getIn().setHeader("documentId", document.getId().toString());
                 exchange.getIn().setHeader("documentType", document.getDocumentType().name());
                 exchange.getIn().setHeader("isValid", document.isValid());
             })
             .log("Document processed: documentId=${header.documentId}, isValid=${header.isValid}");
 
-        // Kafka intake route
-        // Documents consumed from Kafka are processed and events are published via outbox
-        from("kafka:" + documentIntakeTopic + "?groupId=intake-service")
+        // Kafka intake route — dead letter channel for messages that cannot be processed
+        // after retries. autoCommitEnable=false ensures offsets are only committed after
+        // the exchange completes successfully (at-least-once delivery semantics).
+        from("kafka:" + documentIntakeTopic + "?groupId=intake-service&autoCommitEnable=false")
+            .errorHandler(deadLetterChannel("kafka:" + intakeDlqTopic)
+                .maximumRedeliveries(3)
+                .redeliveryDelay(1000)
+                .useExponentialBackOff()
+                .logExhausted(true))
             .routeId("document-intake-kafka")
             .log("Received document from Kafka: ${header[kafka.KEY]}")
             .process(exchange -> {
                 String xmlContent = exchange.getIn().getBody(String.class);
                 String correlationId = exchange.getIn().getHeader("kafka.KEY", String.class);
 
-                // Submit and validate - this now publishes events via outbox
                 IncomingDocument document = intakeService.submitDocument(xmlContent, "KAFKA", correlationId);
 
                 exchange.getIn().setHeader("documentId", document.getId().toString());

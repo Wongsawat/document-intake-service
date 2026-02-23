@@ -302,4 +302,14 @@ class DocumentIntakeControllerTest {
                 .header("X-Correlation-ID", ""))
             .andExpect(status().isAccepted());
     }
+
+    @Test
+    @DisplayName("POST /api/v1/documents returns 400 for blank body (@NotBlank violation)")
+    void testSubmitInvoiceReturns400ForBlankBody() throws Exception {
+        mockMvc.perform(post("/api/v1/documents")
+                .contentType(MediaType.APPLICATION_XML)
+                .content("   "))
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.error").exists());
+    }
 }
