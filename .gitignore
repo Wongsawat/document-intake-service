@@ -16,3 +16,4 @@ buildNumber.properties
 
 # Claude Code
 CLAUDE.md
+.worktrees/
