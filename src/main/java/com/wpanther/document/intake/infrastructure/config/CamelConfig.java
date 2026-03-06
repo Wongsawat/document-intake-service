@@ -1,6 +1,6 @@
 package com.wpanther.document.intake.infrastructure.config;
 
-import com.wpanther.document.intake.application.service.DocumentIntakeService;
+import com.wpanther.document.intake.domain.port.in.SubmitDocumentUseCase;
 import com.wpanther.document.intake.domain.model.IncomingDocument;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.camel.LoggingLevel;
@@ -22,17 +22,17 @@ import org.springframework.stereotype.Component;
 @Slf4j
 public class CamelConfig extends RouteBuilder {
 
-    private final DocumentIntakeService intakeService;
+    private final SubmitDocumentUseCase submitDocumentUseCase;
     private final String documentIntakeTopic;
     private final String intakeDlqTopic;
     private final RateLimitProperties rateLimitProperties;
 
     public CamelConfig(
-            DocumentIntakeService intakeService,
+            SubmitDocumentUseCase submitDocumentUseCase,
             @Value("${app.kafka.topics.invoice-intake}") String documentIntakeTopic,
             @Value("${app.kafka.topics.intake-dlq}") String intakeDlqTopic,
             RateLimitProperties rateLimitProperties) {
-        this.intakeService = intakeService;
+        this.submitDocumentUseCase = submitDocumentUseCase;
         this.documentIntakeTopic = documentIntakeTopic;
         this.intakeDlqTopic = intakeDlqTopic;
         this.rateLimitProperties = rateLimitProperties;
@@ -65,7 +65,7 @@ public class CamelConfig extends RouteBuilder {
                 String xmlContent = exchange.getIn().getBody(String.class);
                 String correlationId = exchange.getIn().getHeader("correlationId", String.class);
 
-                IncomingDocument document = intakeService.submitDocument(xmlContent, "REST", correlationId);
+                IncomingDocument document = submitDocumentUseCase.submitDocument(xmlContent, "REST", correlationId);
 
                 exchange.getIn().setHeader("documentId", document.getId().toString());
                 exchange.getIn().setHeader("documentType", document.getDocumentType().name());
@@ -88,7 +88,7 @@ public class CamelConfig extends RouteBuilder {
                 String xmlContent = exchange.getIn().getBody(String.class);
                 String correlationId = exchange.getIn().getHeader("kafka.KEY", String.class);
 
-                IncomingDocument document = intakeService.submitDocument(xmlContent, "KAFKA", correlationId);
+                IncomingDocument document = submitDocumentUseCase.submitDocument(xmlContent, "KAFKA", correlationId);
 
                 exchange.getIn().setHeader("documentId", document.getId().toString());
                 exchange.getIn().setHeader("documentType", document.getDocumentType().name());

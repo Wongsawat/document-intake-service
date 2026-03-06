@@ -27,7 +27,7 @@ import java.util.UUID;
  * ensuring atomicity and guaranteed delivery.
  */
 @Service
-public class DocumentIntakeService implements SubmitDocumentUseCase, GetDocumentUseCase {
+public class DocumentIntakeApplicationService implements SubmitDocumentUseCase, GetDocumentUseCase {
 
     private static final Logger log = LoggerFactory.getLogger(DocumentIntakeService.class);
 

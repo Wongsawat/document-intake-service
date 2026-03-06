@@ -3,10 +3,10 @@ package com.wpanther.document.intake.application.service;
 import com.wpanther.document.intake.domain.model.IncomingDocument;
 import com.wpanther.document.intake.domain.model.DocumentStatus;
 import com.wpanther.document.intake.domain.model.ValidationResult;
-import com.wpanther.document.intake.domain.repository.IncomingDocumentRepository;
-import com.wpanther.document.intake.domain.service.XmlValidationService;
-import com.wpanther.document.intake.infrastructure.messaging.EventPublisher;
-import com.wpanther.document.intake.infrastructure.validation.DocumentType;
+import com.wpanther.document.intake.domain.port.out.DocumentRepository;
+import com.wpanther.document.intake.domain.port.out.XmlValidationPort;
+import com.wpanther.document.intake.domain.port.out.DocumentEventPublisher;
+import com.wpanther.document.intake.domain.model.DocumentType;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -38,13 +38,13 @@ import static org.mockito.Mockito.*;
 class DocumentIntakeServiceTest {
 
     @Mock
-    private IncomingDocumentRepository documentRepository;
+    private DocumentRepository documentRepository;
 
     @Mock
-    private XmlValidationService validationService;
+    private XmlValidationPort validationService;
 
     @Mock
-    private EventPublisher eventPublisher;
+    private DocumentEventPublisher eventPublisher;
 
     @InjectMocks
     private DocumentIntakeService documentIntakeService;
@@ -100,7 +100,7 @@ class DocumentIntakeServiceTest {
     @BeforeEach
     void setUp() {
         // Default mock behaviors
-        when(validationService.extractInvoiceNumber(any())).thenReturn("INV-2024-001");
+        when(validationService.extractDocumentNumber(any())).thenReturn("INV-2024-001");
         when(validationService.extractDocumentType(any())).thenReturn(DocumentType.TAX_INVOICE);
         when(validationService.validate(any())).thenReturn(ValidationResult.success());
         when(documentRepository.existsByDocumentNumber(any())).thenReturn(false);
@@ -181,13 +181,13 @@ class DocumentIntakeServiceTest {
     void testSubmitInvoiceExtractsInvoiceNumber() {
         documentIntakeService.submitDocument(VALID_XML, "REST", "corr-123");
 
-        verify(validationService).extractInvoiceNumber(VALID_XML);
+        verify(validationService).extractDocumentNumber(VALID_XML);
     }
 
     @Test
     @DisplayName("Submit document with null document number throws exception")
     void testSubmitInvoiceHandlesNullInvoiceNumber() {
-        when(validationService.extractInvoiceNumber(any())).thenReturn(null);
+        when(validationService.extractDocumentNumber(any())).thenReturn(null);
 
         assertThatThrownBy(() -> documentIntakeService.submitDocument(VALID_XML, "REST", "corr-123"))
             .isInstanceOf(IllegalArgumentException.class)
@@ -200,7 +200,7 @@ class DocumentIntakeServiceTest {
     @Test
     @DisplayName("Submit document with blank document number throws exception")
     void testSubmitInvoiceHandlesBlankInvoiceNumber() {
-        when(validationService.extractInvoiceNumber(any())).thenReturn("   ");
+        when(validationService.extractDocumentNumber(any())).thenReturn("   ");
 
         assertThatThrownBy(() -> documentIntakeService.submitDocument(VALID_XML, "REST", "corr-123"))
             .isInstanceOf(IllegalArgumentException.class)
@@ -241,7 +241,7 @@ class DocumentIntakeServiceTest {
         assertThatThrownBy(() -> documentIntakeService.submitDocument(null, "REST", "corr-123"))
             .isInstanceOf(NullPointerException.class);
 
-        verify(validationService).extractInvoiceNumber(null);
+        verify(validationService).extractDocumentNumber(null);
         verify(documentRepository, never()).save(any());
     }
 
@@ -249,7 +249,7 @@ class DocumentIntakeServiceTest {
     @DisplayName("Submit document with empty XML throws exception")
     void testSubmitInvoiceWithEmptyXml() {
         // Override the default mock to return null for empty input
-        when(validationService.extractInvoiceNumber("")).thenReturn(null);
+        when(validationService.extractDocumentNumber("")).thenReturn(null);
 
         assertThatThrownBy(() -> documentIntakeService.submitDocument("", "REST", "corr-123"))
             .isInstanceOf(IllegalArgumentException.class)

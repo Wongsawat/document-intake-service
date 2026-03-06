@@ -1,4 +1,4 @@
-package com.wpanther.document.intake.infrastructure.persistence;
+package com.wpanther.document.intake.adapter.out.persistence;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.wpanther.document.intake.domain.exception.ValidationResultSerializationException;
@@ -20,14 +20,14 @@ import java.util.UUID;
  * and JPA IncomingDocumentEntity.
  */
 @Component
-public class IncomingDocumentRepositoryImpl implements DocumentRepository {
+public class JpaDocumentRepository implements DocumentRepository {
 
-    private static final Logger log = LoggerFactory.getLogger(IncomingDocumentRepositoryImpl.class);
+    private static final Logger log = LoggerFactory.getLogger(JpaDocumentRepository.class);
 
     private final JpaIncomingDocumentRepository jpaRepository;
     private final ObjectMapper objectMapper;
 
-    public IncomingDocumentRepositoryImpl(JpaIncomingDocumentRepository jpaRepository, ObjectMapper objectMapper) {
+    public JpaDocumentRepository(JpaIncomingDocumentRepository jpaRepository, ObjectMapper objectMapper) {
         this.jpaRepository = jpaRepository;
         this.objectMapper = objectMapper;
     }

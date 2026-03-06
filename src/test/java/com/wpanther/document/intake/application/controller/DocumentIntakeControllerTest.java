@@ -1,12 +1,13 @@
 package com.wpanther.document.intake.application.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.wpanther.document.intake.application.service.DocumentIntakeService;
+import com.wpanther.document.intake.domain.port.in.SubmitDocumentUseCase;
+import com.wpanther.document.intake.domain.port.in.GetDocumentUseCase;
 import com.wpanther.document.intake.domain.model.IncomingDocument;
 import com.wpanther.document.intake.domain.model.DocumentStatus;
 import com.wpanther.document.intake.domain.model.ValidationResult;
+import com.wpanther.document.intake.domain.model.DocumentType;
 import com.wpanther.document.intake.infrastructure.config.ValidationProperties;
-import com.wpanther.document.intake.infrastructure.validation.DocumentType;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -45,7 +46,10 @@ class DocumentIntakeControllerTest {
     private MockMvc mockMvc;
 
     @MockBean
-    private DocumentIntakeService documentIntakeService;
+    private SubmitDocumentUseCase submitDocumentUseCase;
+
+    @MockBean
+    private GetDocumentUseCase getDocumentUseCase;
 
     @MockBean
     private ProducerTemplate producerTemplate;
@@ -82,7 +86,7 @@ class DocumentIntakeControllerTest {
     @Test
     @DisplayName("POST /api/v1/documents returns 202 Accepted for valid document")
     void testSubmitInvoiceReturns202Accepted() throws Exception {
-        when(documentIntakeService.submitDocument(any(), eq("REST"), eq("corr-123")))
+        when(submitDocumentUseCase.submitDocument(any(), eq("REST"), eq("corr-123")))
             .thenReturn(testDocument);
 
         mockMvc.perform(post("/api/v1/documents")
@@ -96,7 +100,7 @@ class DocumentIntakeControllerTest {
     @Test
     @DisplayName("GET /api/v1/documents/{id} returns 200 OK when document exists")
     void testGetInvoiceByIdReturns200() throws Exception {
-        when(documentIntakeService.getDocument(testDocument.getId()))
+        when(getDocumentUseCase.getDocument(testDocument.getId()))
             .thenReturn(testDocument);
 
         mockMvc.perform(get("/api/v1/documents/{id}", testDocument.getId()))
@@ -110,7 +114,7 @@ class DocumentIntakeControllerTest {
     @DisplayName("GET /api/v1/documents/{id} returns 404 when document not found")
     void testGetInvoiceByIdReturns404() throws Exception {
         UUID unknownId = UUID.randomUUID();
-        when(documentIntakeService.getDocument(unknownId))
+        when(getDocumentUseCase.getDocument(unknownId))
             .thenThrow(new IllegalArgumentException("Document not found: " + unknownId));
 
         mockMvc.perform(get("/api/v1/documents/{id}", unknownId))
@@ -131,7 +135,7 @@ class DocumentIntakeControllerTest {
             .validationResult(ValidationResult.success())
             .build();
 
-        when(documentIntakeService.submitDocument(any(), eq("REST"), eq(null)))
+        when(submitDocumentUseCase.submitDocument(any(), eq("REST"), eq(null)))
             .thenReturn(document);
 
         mockMvc.perform(post("/api/v1/documents")
@@ -171,7 +175,7 @@ class DocumentIntakeControllerTest {
     @Test
     @DisplayName("GET /api/v1/documents/{id} returns validation result")
     void testGetInvoiceIncludesValidationResult() throws Exception {
-        when(documentIntakeService.getDocument(testDocument.getId()))
+        when(getDocumentUseCase.getDocument(testDocument.getId()))
             .thenReturn(testDocument);
 
         mockMvc.perform(get("/api/v1/documents/{id}", testDocument.getId()))
@@ -182,7 +186,7 @@ class DocumentIntakeControllerTest {
     @Test
     @DisplayName("POST /api/v1/documents handles different sources")
     void testSubmitInvoiceHandlesDifferentSources() throws Exception {
-        when(documentIntakeService.submitDocument(any(), eq("KAFKA"), eq("corr-456")))
+        when(submitDocumentUseCase.submitDocument(any(), eq("KAFKA"), eq("corr-456")))
             .thenReturn(testDocument);
 
         mockMvc.perform(post("/api/v1/documents")
@@ -196,7 +200,7 @@ class DocumentIntakeControllerTest {
     @Test
     @DisplayName("POST /api/v1/documents accepts text/xml content type")
     void testSubmitInvoiceAcceptsTextXmlContentType() throws Exception {
-        when(documentIntakeService.submitDocument(any(), eq("REST"), any()))
+        when(submitDocumentUseCase.submitDocument(any(), eq("REST"), any()))
             .thenReturn(testDocument);
 
         mockMvc.perform(post("/api/v1/documents")
@@ -221,7 +225,7 @@ class DocumentIntakeControllerTest {
             .receivedAt(Instant.now())
             .build();
 
-        when(documentIntakeService.getDocument(testDocument.getId()))
+        when(getDocumentUseCase.getDocument(testDocument.getId()))
             .thenReturn(documentWithNullType);
 
         mockMvc.perform(get("/api/v1/documents/{id}", testDocument.getId()))
@@ -246,7 +250,7 @@ class DocumentIntakeControllerTest {
             .processedAt(null) // Not yet processed
             .build();
 
-        when(documentIntakeService.getDocument(testDocument.getId()))
+        when(getDocumentUseCase.getDocument(testDocument.getId()))
             .thenReturn(documentWithoutProcessedAt);
 
         mockMvc.perform(get("/api/v1/documents/{id}", testDocument.getId()))
@@ -269,7 +273,7 @@ class DocumentIntakeControllerTest {
             .receivedAt(Instant.now())
             .build();
 
-        when(documentIntakeService.getDocument(testDocument.getId()))
+        when(getDocumentUseCase.getDocument(testDocument.getId()))
             .thenReturn(documentWithoutValidation);
 
         mockMvc.perform(get("/api/v1/documents/{id}", testDocument.getId()))
@@ -281,7 +285,7 @@ class DocumentIntakeControllerTest {
     @DisplayName("GET /api/v1/documents/{id} returns 500 for unexpected errors")
     void testGetInvoiceReturns500ForUnexpectedErrors() throws Exception {
         UUID testId = UUID.randomUUID();
-        when(documentIntakeService.getDocument(testId))
+        when(getDocumentUseCase.getDocument(testId))
             .thenThrow(new RuntimeException("Database connection failed"));
 
         mockMvc.perform(get("/api/v1/documents/{id}", testId))
@@ -292,7 +296,7 @@ class DocumentIntakeControllerTest {
     @Test
     @DisplayName("POST /api/v1/documents with null correlation ID returns generated UUID")
     void testSubmitInvoiceWithNullCorrelationIdGeneratesUuid() throws Exception {
-        when(documentIntakeService.submitDocument(any(), eq("REST"), any()))
+        when(submitDocumentUseCase.submitDocument(any(), eq("REST"), any()))
             .thenReturn(testDocument);
 
         mockMvc.perform(post("/api/v1/documents")
@@ -308,7 +312,7 @@ class DocumentIntakeControllerTest {
     @Test
     @DisplayName("POST /api/v1/documents handles empty correlation ID header")
     void testSubmitInvoiceHandlesEmptyCorrelationId() throws Exception {
-        when(documentIntakeService.submitDocument(any(), eq("REST"), any()))
+        when(submitDocumentUseCase.submitDocument(any(), eq("REST"), any()))
             .thenReturn(testDocument);
 
         mockMvc.perform(post("/api/v1/documents")

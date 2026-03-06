@@ -1,15 +1,8 @@
-package com.wpanther.document.intake.infrastructure.validation;
+package com.wpanther.document.intake.adapter.out.validation;
 
 import com.wpanther.document.intake.domain.model.ValidationResult;
 import com.wpanther.document.intake.domain.port.out.XmlValidationPort;
 import com.wpanther.document.intake.infrastructure.config.SchemaPathConfig;
-import com.wpanther.etax.generated.abbreviatedtaxinvoice.rsm.AbbreviatedTaxInvoice_CrossIndustryInvoiceType;
-import com.wpanther.etax.generated.cancellationnote.rsm.CancellationNote_CrossIndustryInvoiceType;
-import com.wpanther.etax.generated.debitcreditnote.rsm.DebitCreditNote_CrossIndustryInvoiceType;
-import com.wpanther.etax.generated.invoice.rsm.Invoice_CrossIndustryInvoiceType;
-import com.wpanther.etax.generated.receipt.rsm.Receipt_CrossIndustryInvoiceType;
-import com.wpanther.etax.generated.taxinvoice.rsm.TaxInvoice_CrossIndustryInvoiceType;
-import com.wpanther.etax.validation.DocumentSchematron;
 import com.wpanther.etax.validation.SchematronError;
 import com.wpanther.etax.validation.SchematronValidationResult;
 import com.wpanther.etax.validation.SchematronValidator;
@@ -44,26 +37,29 @@ import static javax.xml.XMLConstants.W3C_XML_SCHEMA_NS_URI;
 import static javax.xml.XMLConstants.FEATURE_SECURE_PROCESSING;
 
 /**
- * Implementation of XmlValidationService that provides three-layer validation:
+ * Adapter implementation of XmlValidationPort that provides three-layer validation:
  * 1. XML well-formedness (JAXB unmarshaling)
  * 2. XSD schema validation via JAXB with schema
  * 3. Schematron business rules validation via teda library
  * <p>
- * This service validates Thai e-Tax documents against XSD schemas and Schematron rules
+ * This adapter validates Thai e-Tax documents against XSD schemas and Schematron rules
  * bundled in the teda library, using JAXB for strongly-typed document processing.
  * <p>
  * The teda library uses an interface/implementation pattern where JAXB contexts
  * must be initialized with .impl packages for proper unmarshaling.
+ * <p>
+ * This class lives in the adapter layer because it contains framework-specific
+ * dependencies (teda library, JAXB, Spring) that must not leak into the domain.
  */
 @Slf4j
 @Service
-public class XmlValidationServiceImpl implements XmlValidationPort {
+public class TedaXmlValidationAdapter implements XmlValidationPort {
 
     private final SchemaPathConfig schemaPathConfig;
 
     // Thread-safe cached JAXB contexts and schemas (initialized once at startup)
-    private final Map<DocumentType, JAXBContext> jaxbContexts;
-    private final Map<DocumentType, Schema> schemas;
+    private final Map<TedaDocumentType, JAXBContext> jaxbContexts;
+    private final Map<TedaDocumentType, Schema> schemas;
     private final SchematronValidator schematronValidator;
     // DocumentBuilderFactory.newDocumentBuilder() is not guaranteed thread-safe by the JAXP spec.
     // Each thread gets its own DocumentBuilder instance via ThreadLocal, created from its own factory
@@ -73,9 +69,9 @@ public class XmlValidationServiceImpl implements XmlValidationPort {
     // Thread-safe SAXParserFactory with XXE protections enabled
     private final SAXParserFactory secureSaxParserFactory;
 
-    public XmlValidationServiceImpl(SchemaPathConfig schemaPathConfig) {
+    public TedaXmlValidationAdapter(SchemaPathConfig schemaPathConfig) {
         this.schemaPathConfig = schemaPathConfig;
-        log.info("Initializing XmlValidationService with config...");
+        log.info("Initializing TedaXmlValidationAdapter with config...");
         long startTime = System.currentTimeMillis();
 
         this.jaxbContexts = initializeJaxbContexts();
@@ -91,7 +87,7 @@ public class XmlValidationServiceImpl implements XmlValidationPort {
         this.secureSaxParserFactory = createSecureSaxParserFactory();
 
         long duration = System.currentTimeMillis() - startTime;
-        log.info("XmlValidationService initialized in {}ms with {} JAXB contexts and {} schemas",
+        log.info("TedaXmlValidationAdapter initialized in {}ms with {} JAXB contexts and {} schemas",
             duration, jaxbContexts.size(), schemas.size());
     }
 
@@ -117,13 +113,13 @@ public class XmlValidationServiceImpl implements XmlValidationPort {
                 return ValidationResult.invalid(errors, warnings);
             }
 
-            DocumentType docType = unmarshalResult.documentType;
+            TedaDocumentType docType = unmarshalResult.documentType;
             Object jaxbObject = unmarshalResult.jaxbObject;
 
             if (docType == null) {
                 return ValidationResult.invalid(List.of("Unable to detect document type from XML"));
             }
-            log.debug("Detected document type: {}", docType);
+            log.debug("Detected document type: {}", docType.getDomainType());
 
             // Step 2: Schematron business rules validation (only if XSD passed)
             if (errors.isEmpty()) {
@@ -181,12 +177,13 @@ public class XmlValidationServiceImpl implements XmlValidationPort {
                 // Fallback to DOM-based detection if JAXB unmarshaling fails
                 Document doc = parseXmlDom(xmlContent, new ArrayList<>());
                 if (doc != null) {
-                    return toDomainDocumentType(detectDocumentTypeFromDom(doc));
+                    TedaDocumentType tedaType = detectDocumentTypeFromDom(doc);
+                    return tedaType != null ? tedaType.getDomainType() : null;
                 }
                 return null;
             }
 
-            return toDomainDocumentType(result.documentType);
+            return result.documentType.getDomainType();
 
         } catch (Exception e) {
             log.error("Failed to extract document type", e);
@@ -197,7 +194,7 @@ public class XmlValidationServiceImpl implements XmlValidationPort {
     /**
      * Result of JAXB unmarshaling containing both the object and detected document type.
      */
-    private record UnmarshalResult(Object jaxbObject, DocumentType documentType) {}
+    private record UnmarshalResult(Object jaxbObject, TedaDocumentType documentType) {}
 
     /**
      * Unmarshal XML content using JAXB.
@@ -209,7 +206,7 @@ public class XmlValidationServiceImpl implements XmlValidationPort {
      * @return the unmarshaled object with detected document type
      * @throws JAXBException if unmarshaling fails catastrophically
      */
-    private UnmarshalResult unmarshalXml(String xmlContent, DocumentType docType,
+    private UnmarshalResult unmarshalXml(String xmlContent, TedaDocumentType docType,
                                           ValidationErrorHandler errorHandler) throws JAXBException {
         // Try each document type until we find one that works
         if (docType != null) {
@@ -219,20 +216,20 @@ public class XmlValidationServiceImpl implements XmlValidationPort {
         // Auto-detect document type by trying each context
         JAXBException lastException = null;
 
-        for (DocumentType type : DocumentType.values()) {
+        for (TedaDocumentType type : TedaDocumentType.values()) {
             try {
                 return unmarshalWithDocumentType(xmlContent, type, new ValidationErrorHandler());
             } catch (UnmarshalException e) {
                 // Try next document type
                 lastException = e;
-                log.debug("Failed to unmarshal as {}: {}", type, e.getMessage());
+                log.debug("Failed to unmarshal as {}: {}", type.getDomainType(), e.getMessage());
             }
         }
 
         // If all failed, try TaxInvoice as default with detailed error reporting
         log.warn("Could not auto-detect document type, trying TAX_INVOICE as default");
         try {
-            return unmarshalWithDocumentType(xmlContent, DocumentType.TAX_INVOICE, errorHandler);
+            return unmarshalWithDocumentType(xmlContent, TedaDocumentType.TAX_INVOICE, errorHandler);
         } catch (UnmarshalException e) {
             if (lastException != null) {
                 throw lastException;
@@ -245,11 +242,11 @@ public class XmlValidationServiceImpl implements XmlValidationPort {
      * Unmarshal XML content with a specific document type's JAXB context.
      * Uses XXE-protected SAX parser to prevent XML External Entity attacks.
      */
-    private UnmarshalResult unmarshalWithDocumentType(String xmlContent, DocumentType docType,
+    private UnmarshalResult unmarshalWithDocumentType(String xmlContent, TedaDocumentType docType,
                                                        ValidationErrorHandler errorHandler) throws JAXBException {
         JAXBContext jaxbContext = jaxbContexts.get(docType);
         if (jaxbContext == null) {
-            throw new JAXBException("No JAXB context available for " + docType);
+            throw new JAXBException("No JAXB context available for " + docType.getDomainType());
         }
 
         Unmarshaller unmarshaller = jaxbContext.createUnmarshaller();
@@ -279,7 +276,7 @@ public class XmlValidationServiceImpl implements XmlValidationPort {
             }
 
             // Detect document type from unmarshaled object class
-            DocumentType detectedType = DocumentType.fromJaxbClass(result.getClass());
+            TedaDocumentType detectedType = TedaDocumentType.fromJaxbClass(result.getClass());
             if (detectedType == null) {
                 detectedType = docType; // Fallback to the type we tried
             }
@@ -293,7 +290,7 @@ public class XmlValidationServiceImpl implements XmlValidationPort {
 
     /**
      * Extract invoice number from JAXB object using strategy pattern.
-     * Uses DocumentType-specific extractor for type-safe invoice number extraction.
+     * Uses TedaDocumentType-specific extractor for type-safe invoice number extraction.
      */
     private String extractInvoiceNumberFromJaxb(Object jaxbObject) {
         try {
@@ -302,14 +299,14 @@ public class XmlValidationServiceImpl implements XmlValidationPort {
             }
 
             // Get document type from JAXB object class
-            DocumentType docType = DocumentType.fromJaxbClass(jaxbObject.getClass());
-            if (docType == null) {
+            TedaDocumentType tedaType = TedaDocumentType.fromJaxbClass(jaxbObject.getClass());
+            if (tedaType == null) {
                 log.debug("Could not determine document type for invoice number extraction");
                 return null;
             }
 
             // Use strategy to extract invoice number
-            return docType.getInvoiceNumberExtractor().extractInvoiceNumber(jaxbObject);
+            return tedaType.getInvoiceNumberExtractor().extractInvoiceNumber(jaxbObject);
 
         } catch (Exception e) {
             log.error("Failed to extract invoice number from JAXB object", e);
@@ -321,17 +318,17 @@ public class XmlValidationServiceImpl implements XmlValidationPort {
      * Initialize JAXB contexts for all document types.
      * Uses implementation packages (.impl) as required by teda library's interface/implementation pattern.
      */
-    private Map<DocumentType, JAXBContext> initializeJaxbContexts() {
-        Map<DocumentType, JAXBContext> contextMap = new HashMap<>();
+    private Map<TedaDocumentType, JAXBContext> initializeJaxbContexts() {
+        Map<TedaDocumentType, JAXBContext> contextMap = new HashMap<>();
 
-        for (DocumentType type : DocumentType.values()) {
+        for (TedaDocumentType type : TedaDocumentType.values()) {
             try {
                 String contextPath = type.getImplementationContextPath();
                 JAXBContext jaxbContext = JAXBContext.newInstance(contextPath);
                 contextMap.put(type, jaxbContext);
-                log.info("Initialized JAXB context for {} using: {}", type, contextPath);
+                log.info("Initialized JAXB context for {} using: {}", type.getDomainType(), contextPath);
             } catch (JAXBException e) {
-                log.error("Failed to initialize JAXB context for {}: {}", type, e.getMessage());
+                log.error("Failed to initialize JAXB context for {}: {}", type.getDomainType(), e.getMessage());
             }
         }
 
@@ -342,24 +339,24 @@ public class XmlValidationServiceImpl implements XmlValidationPort {
      * Initialize XSD schemas for all document types.
      * Uses URL-based loading to allow schema factory to resolve relative imports.
      */
-    private Map<DocumentType, Schema> initializeSchemas() {
-        Map<DocumentType, Schema> schemaMap = new HashMap<>();
+    private Map<TedaDocumentType, Schema> initializeSchemas() {
+        Map<TedaDocumentType, Schema> schemaMap = new HashMap<>();
         SchemaFactory schemaFactory = SchemaFactory.newInstance(W3C_XML_SCHEMA_NS_URI);
 
-        for (DocumentType type : DocumentType.values()) {
+        for (TedaDocumentType type : TedaDocumentType.values()) {
             try {
-                String schemaPath = schemaPathConfig.getSchemaPath(type.name());
+                String schemaPath = schemaPathConfig.getSchemaPath(type.getDomainType().name());
                 java.net.URL schemaUrl = getClass().getClassLoader().getResource(schemaPath);
 
                 if (schemaUrl != null) {
                     Schema schema = schemaFactory.newSchema(schemaUrl);
                     schemaMap.put(type, schema);
-                    log.info("Loaded XSD schema for {} from {}", type, schemaPath);
+                    log.info("Loaded XSD schema for {} from {}", type.getDomainType(), schemaPath);
                 } else {
-                    log.warn("Schema file not found: {}. XSD validation will be skipped for {}", schemaPath, type);
+                    log.warn("Schema file not found: {}. XSD validation will be skipped for {}", schemaPath, type.getDomainType());
                 }
             } catch (Exception e) {
-                log.error("Failed to load schema for {}: {}", type, e.getMessage());
+                log.error("Failed to load schema for {}: {}", type.getDomainType(), e.getMessage());
             }
         }
 
@@ -456,7 +453,7 @@ public class XmlValidationServiceImpl implements XmlValidationPort {
 
         // XXE Protection: Disable XInclude
         try {
-            factory.setFeature("http://apache.org/xml/features/xinclude", false);
+            factory.setFeature("http://xml.org/sax/features/xinclude", false);
         } catch (Exception e) {
             log.warn("Could not disable XInclude feature: {}", e.getMessage());
         }
@@ -492,18 +489,18 @@ public class XmlValidationServiceImpl implements XmlValidationPort {
      * Detect document type from DOM document namespace or root element (fallback).
      * Returns null if document type cannot be detected.
      */
-    private DocumentType detectDocumentTypeFromDom(Document doc) {
+    private TedaDocumentType detectDocumentTypeFromDom(Document doc) {
         String namespaceUri = doc.getDocumentElement().getNamespaceURI();
         String localName = doc.getDocumentElement().getLocalName();
 
         // Try namespace first
-        DocumentType type = DocumentType.fromNamespaceUri(namespaceUri);
+        TedaDocumentType type = TedaDocumentType.fromNamespaceUri(namespaceUri);
         if (type != null) {
             return type;
         }
 
         // Fallback to root element name
-        type = DocumentType.fromRootElementName(localName);
+        type = TedaDocumentType.fromRootElementName(localName);
         if (type != null) {
             return type;
         }
@@ -517,14 +514,14 @@ public class XmlValidationServiceImpl implements XmlValidationPort {
     /**
      * Apply Schematron business rules validation using teda library.
      */
-    private void applySchematronValidation(String xmlContent, DocumentType docType,
+    private void applySchematronValidation(String xmlContent, TedaDocumentType docType,
                                            List<String> errors, List<String> warnings) {
         try {
-            DocumentSchematron schematronType = docType.toDocumentSchematron();
+            var schematronType = docType.toDocumentSchematron();
 
             // Skip validation for document types with empty Schematron rules
             if (schematronType.isEmptySchematron()) {
-                log.debug("Skipping Schematron validation for {} (empty ruleset)", docType);
+                log.debug("Skipping Schematron validation for {} (empty ruleset)", docType.getDomainType());
                 return;
             }
 
@@ -546,10 +543,10 @@ public class XmlValidationServiceImpl implements XmlValidationPort {
             }
 
             log.debug("Schematron validation completed for {}: {} errors, {} warnings",
-                docType, schematronResult.getErrors().size(), schematronResult.getWarnings().size());
+                docType.getDomainType(), schematronResult.getErrors().size(), schematronResult.getWarnings().size());
 
         } catch (Exception e) {
-            log.error("Schematron validation failed for {}", docType, e);
+            log.error("Schematron validation failed for {}", docType.getDomainType(), e);
             warnings.add("Schematron validation skipped due to error: " + e.getMessage());
         }
     }
@@ -574,11 +571,5 @@ public class XmlValidationServiceImpl implements XmlValidationPort {
         sb.append(error.getMessage());
 
         return sb.toString();
-    }
-
-    /** Maps infrastructure DocumentType to domain DocumentType by name. */
-    private com.wpanther.document.intake.domain.model.DocumentType toDomainDocumentType(DocumentType tedaType) {
-        if (tedaType == null) return null;
-        return com.wpanther.document.intake.domain.model.DocumentType.valueOf(tedaType.name());
     }
 }

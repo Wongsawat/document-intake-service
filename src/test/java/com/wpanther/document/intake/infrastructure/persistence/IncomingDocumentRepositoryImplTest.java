@@ -6,7 +6,7 @@ import com.wpanther.document.intake.domain.exception.ValidationResultSerializati
 import com.wpanther.document.intake.domain.model.DocumentStatus;
 import com.wpanther.document.intake.domain.model.IncomingDocument;
 import com.wpanther.document.intake.domain.model.ValidationResult;
-import com.wpanther.document.intake.infrastructure.validation.DocumentType;
+import com.wpanther.document.intake.domain.model.DocumentType;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.DisplayName;
@@ -118,7 +118,7 @@ class IncomingDocumentRepositoryImplTest {
                 .xmlContent("<xml></xml>")
                 .source("API")
                 .correlationId("corr-123")
-                .documentType(DocumentType.TAX_INVOICE)
+                .documentType(com.wpanther.document.intake.infrastructure.validation.DocumentType.TAX_INVOICE)
                 .status(DocumentStatus.RECEIVED)
                 .build();
 
@@ -151,7 +151,7 @@ class IncomingDocumentRepositoryImplTest {
                 .xmlContent("<xml></xml>")
                 .source("API")
                 .correlationId("corr-123")
-                .documentType(DocumentType.TAX_INVOICE)
+                .documentType(com.wpanther.document.intake.infrastructure.validation.DocumentType.TAX_INVOICE)
                 .status(DocumentStatus.RECEIVED)
                 .build();
 
@@ -202,7 +202,7 @@ class IncomingDocumentRepositoryImplTest {
                 .xmlContent("<xml></xml>")
                 .source("API")
                 .correlationId("corr-123")
-                .documentType(DocumentType.TAX_INVOICE)
+                .documentType(com.wpanther.document.intake.infrastructure.validation.DocumentType.TAX_INVOICE)
                 .status(DocumentStatus.VALIDATED)
                 .validationResult(json)
                 .build();
@@ -228,7 +228,7 @@ class IncomingDocumentRepositoryImplTest {
                 .xmlContent("<xml></xml>")
                 .source("API")
                 .correlationId("corr-123")
-                .documentType(DocumentType.TAX_INVOICE)
+                .documentType(com.wpanther.document.intake.infrastructure.validation.DocumentType.TAX_INVOICE)
                 .status(DocumentStatus.VALIDATED)
                 .validationResult(json)
                 .build();
@@ -248,7 +248,7 @@ class IncomingDocumentRepositoryImplTest {
                 .xmlContent(document.getXmlContent())
                 .source(document.getSource())
                 .correlationId(document.getCorrelationId())
-                .documentType(document.getDocumentType())
+                .documentType(toInfraDocumentType(document.getDocumentType()))
                 .status(document.getStatus())
                 .build();
     }
@@ -260,8 +260,14 @@ class IncomingDocumentRepositoryImplTest {
                 .xmlContent("<xml></xml>")
                 .source("API")
                 .correlationId("corr-123")
-                .documentType(DocumentType.TAX_INVOICE)
+                .documentType(com.wpanther.document.intake.infrastructure.validation.DocumentType.TAX_INVOICE)
                 .status(status)
                 .build();
+    }
+
+    
+    private com.wpanther.document.intake.infrastructure.validation.DocumentType toInfraDocumentType(com.wpanther.document.intake.domain.model.DocumentType domainType) {
+        if (domainType == null) return null;
+        return com.wpanther.document.intake.infrastructure.validation.DocumentType.valueOf(domainType.name());
     }
 }

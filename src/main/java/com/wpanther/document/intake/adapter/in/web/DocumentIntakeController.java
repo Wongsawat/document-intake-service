@@ -1,4 +1,4 @@
-package com.wpanther.document.intake.application.controller;
+package com.wpanther.document.intake.adapter.in.web;
 
 import com.wpanther.document.intake.domain.port.in.GetDocumentUseCase;
 import com.wpanther.document.intake.domain.port.in.SubmitDocumentUseCase;

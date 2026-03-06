@@ -1,10 +1,10 @@
 package com.wpanther.document.intake.infrastructure.config;
 
-import com.wpanther.document.intake.application.service.DocumentIntakeService;
+import com.wpanther.document.intake.domain.port.in.SubmitDocumentUseCase;
 import com.wpanther.document.intake.domain.model.DocumentStatus;
 import com.wpanther.document.intake.domain.model.IncomingDocument;
 import com.wpanther.document.intake.domain.model.ValidationResult;
-import com.wpanther.document.intake.infrastructure.validation.DocumentType;
+import com.wpanther.document.intake.domain.model.DocumentType;
 import org.apache.camel.CamelContext;
 import org.apache.camel.Exchange;
 import org.apache.camel.Message;
@@ -42,7 +42,7 @@ import static org.mockito.Mockito.*;
 class CamelConfigTest {
 
     @Mock
-    private DocumentIntakeService documentIntakeService;
+    private SubmitDocumentUseCase submitDocumentUseCase;
 
     @Mock
     private CamelContext camelContext;
@@ -59,7 +59,7 @@ class CamelConfigTest {
         rateLimitProperties.setTimePeriodSeconds(60);
 
         camelConfig = new CamelConfig(
-            documentIntakeService,
+            submitDocumentUseCase,
             "document.intake",
             "document.intake.dlq",
             rateLimitProperties
@@ -80,7 +80,7 @@ class CamelConfigTest {
     @DisplayName("CamelConfig with different topic names")
     void testCamelConfigWithDifferentTopicNames() {
         CamelConfig config = new CamelConfig(
-            documentIntakeService,
+            submitDocumentUseCase,
             "different.topic",
             "different.dlq",
             rateLimitProperties
@@ -92,7 +92,7 @@ class CamelConfigTest {
     @DisplayName("CamelConfig with empty topic names")
     void testCamelConfigWithEmptyTopicNames() {
         CamelConfig config = new CamelConfig(
-            documentIntakeService,
+            submitDocumentUseCase,
             "",
             "",
             rateLimitProperties
@@ -166,13 +166,13 @@ class CamelConfigTest {
     @DisplayName("CamelConfig constructor with various topic configurations")
     void testCamelConfigWithVariousTopics() {
         CamelConfig config1 = new CamelConfig(
-            documentIntakeService,
+            submitDocumentUseCase,
             "topic1",
             "dlq1",
             rateLimitProperties
         );
         CamelConfig config2 = new CamelConfig(
-            documentIntakeService,
+            submitDocumentUseCase,
             "kafka:topic1",
             "kafka:dlq1",
             rateLimitProperties
@@ -192,7 +192,7 @@ class CamelConfigTest {
         customProps.setTimePeriodSeconds(30);
 
         CamelConfig config = new CamelConfig(
-            documentIntakeService,
+            submitDocumentUseCase,
             "topic1",
             "dlq1",
             customProps
@@ -208,7 +208,7 @@ class CamelConfigTest {
         disabledProps.setEnabled(false);
 
         CamelConfig config = new CamelConfig(
-            documentIntakeService,
+            submitDocumentUseCase,
             "topic1",
             "dlq1",
             disabledProps
