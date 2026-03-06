@@ -1,6 +1,7 @@
 package com.wpanther.document.intake.application.controller;
 
-import com.wpanther.document.intake.application.service.DocumentIntakeService;
+import com.wpanther.document.intake.domain.port.in.GetDocumentUseCase;
+import com.wpanther.document.intake.domain.port.in.SubmitDocumentUseCase;
 import com.wpanther.document.intake.domain.model.IncomingDocument;
 import com.wpanther.document.intake.infrastructure.config.ValidationProperties;
 import jakarta.validation.constraints.NotBlank;
@@ -31,17 +32,20 @@ public class DocumentIntakeController {
 
     private static final Logger log = LoggerFactory.getLogger(DocumentIntakeController.class);
 
-    private final DocumentIntakeService intakeService;
+    private final SubmitDocumentUseCase submitDocumentUseCase;
     private final ProducerTemplate camelProducer;
     private final ValidationProperties validationProperties;
+    private final GetDocumentUseCase getDocumentUseCase;
 
     public DocumentIntakeController(
-            DocumentIntakeService intakeService,
+            SubmitDocumentUseCase submitDocumentUseCase,
             ProducerTemplate camelProducer,
-            ValidationProperties validationProperties) {
-        this.intakeService = intakeService;
+            ValidationProperties validationProperties,
+            GetDocumentUseCase getDocumentUseCase) {
+        this.submitDocumentUseCase = submitDocumentUseCase;
         this.camelProducer = camelProducer;
         this.validationProperties = validationProperties;
+        this.getDocumentUseCase = getDocumentUseCase;
     }
 
     /**
@@ -117,7 +121,7 @@ public class DocumentIntakeController {
     @GetMapping("/{id}")
     public ResponseEntity<Map<String, Object>> getDocumentStatus(@PathVariable UUID id) {
         try {
-            IncomingDocument document = intakeService.getDocument(id);
+            IncomingDocument document = getDocumentUseCase.getDocument(id);
 
             java.util.Map<String, Object> response = new java.util.HashMap<>();
             response.put("id", document.getId().toString());

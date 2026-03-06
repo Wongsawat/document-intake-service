@@ -1,7 +1,5 @@
 package com.wpanther.document.intake.domain.model;
 
-import com.wpanther.document.intake.infrastructure.validation.DocumentType;
-
 import java.time.Instant;
 import java.util.List;
 import java.util.Objects;

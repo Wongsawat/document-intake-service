@@ -3,9 +3,10 @@ package com.wpanther.document.intake.infrastructure.persistence;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.wpanther.document.intake.domain.exception.ValidationResultSerializationException;
 import com.wpanther.document.intake.domain.model.DocumentStatus;
+import com.wpanther.document.intake.domain.model.DocumentType;
 import com.wpanther.document.intake.domain.model.IncomingDocument;
 import com.wpanther.document.intake.domain.model.ValidationResult;
-import com.wpanther.document.intake.domain.repository.IncomingDocumentRepository;
+import com.wpanther.document.intake.domain.port.out.DocumentRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
@@ -19,7 +20,7 @@ import java.util.UUID;
  * and JPA IncomingDocumentEntity.
  */
 @Component
-public class IncomingDocumentRepositoryImpl implements IncomingDocumentRepository {
+public class IncomingDocumentRepositoryImpl implements DocumentRepository {
 
     private static final Logger log = LoggerFactory.getLogger(IncomingDocumentRepositoryImpl.class);
 
@@ -77,7 +78,7 @@ public class IncomingDocumentRepositoryImpl implements IncomingDocumentRepositor
             .xmlContent(document.getXmlContent())
             .source(document.getSource())
             .correlationId(document.getCorrelationId())
-            .documentType(document.getDocumentType())
+            .documentType(toInfraDocumentType(document.getDocumentType()))
             .status(document.getStatus())
             .validationResult(validationResult != null ? mapValidationResult(validationResult) : null)
             .receivedAt(document.getReceivedAt())
@@ -95,7 +96,7 @@ public class IncomingDocumentRepositoryImpl implements IncomingDocumentRepositor
             .xmlContent(entity.getXmlContent())
             .source(entity.getSource())
             .correlationId(entity.getCorrelationId())
-            .documentType(entity.getDocumentType())
+            .documentType(toDomainDocumentType(entity.getDocumentType()))
             .status(entity.getStatus())
             .receivedAt(entity.getReceivedAt())
             .processedAt(entity.getProcessedAt());
@@ -141,5 +142,21 @@ public class IncomingDocumentRepositoryImpl implements IncomingDocumentRepositor
                 e
             );
         }
+    }
+
+    /**
+     * Convert domain DocumentType to infrastructure DocumentType
+     */
+    private com.wpanther.document.intake.infrastructure.validation.DocumentType toInfraDocumentType(DocumentType domainType) {
+        if (domainType == null) return null;
+        return com.wpanther.document.intake.infrastructure.validation.DocumentType.valueOf(domainType.name());
+    }
+
+    /**
+     * Convert infrastructure DocumentType to domain DocumentType
+     */
+    private DocumentType toDomainDocumentType(com.wpanther.document.intake.infrastructure.validation.DocumentType infraType) {
+        if (infraType == null) return null;
+        return DocumentType.valueOf(infraType.name());
     }
 }

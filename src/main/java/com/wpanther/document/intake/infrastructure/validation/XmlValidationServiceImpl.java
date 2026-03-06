@@ -1,7 +1,7 @@
 package com.wpanther.document.intake.infrastructure.validation;
 
 import com.wpanther.document.intake.domain.model.ValidationResult;
-import com.wpanther.document.intake.domain.service.XmlValidationService;
+import com.wpanther.document.intake.domain.port.out.XmlValidationPort;
 import com.wpanther.document.intake.infrastructure.config.SchemaPathConfig;
 import com.wpanther.etax.generated.abbreviatedtaxinvoice.rsm.AbbreviatedTaxInvoice_CrossIndustryInvoiceType;
 import com.wpanther.etax.generated.cancellationnote.rsm.CancellationNote_CrossIndustryInvoiceType;
@@ -57,7 +57,7 @@ import static javax.xml.XMLConstants.FEATURE_SECURE_PROCESSING;
  */
 @Slf4j
 @Service
-public class XmlValidationServiceImpl implements XmlValidationService {
+public class XmlValidationServiceImpl implements XmlValidationPort {
 
     private final SchemaPathConfig schemaPathConfig;
 
@@ -146,7 +146,7 @@ public class XmlValidationServiceImpl implements XmlValidationService {
     }
 
     @Override
-    public String extractInvoiceNumber(String xmlContent) {
+    public String extractDocumentNumber(String xmlContent) {
         if (xmlContent == null || xmlContent.isBlank()) {
             return null;
         }
@@ -168,7 +168,7 @@ public class XmlValidationServiceImpl implements XmlValidationService {
     }
 
     @Override
-    public DocumentType extractDocumentType(String xmlContent) {
+    public com.wpanther.document.intake.domain.model.DocumentType extractDocumentType(String xmlContent) {
         if (xmlContent == null || xmlContent.isBlank()) {
             return null;
         }
@@ -181,12 +181,12 @@ public class XmlValidationServiceImpl implements XmlValidationService {
                 // Fallback to DOM-based detection if JAXB unmarshaling fails
                 Document doc = parseXmlDom(xmlContent, new ArrayList<>());
                 if (doc != null) {
-                    return detectDocumentTypeFromDom(doc);
+                    return toDomainDocumentType(detectDocumentTypeFromDom(doc));
                 }
                 return null;
             }
 
-            return result.documentType;
+            return toDomainDocumentType(result.documentType);
 
         } catch (Exception e) {
             log.error("Failed to extract document type", e);
@@ -574,5 +574,11 @@ public class XmlValidationServiceImpl implements XmlValidationService {
         sb.append(error.getMessage());
 
         return sb.toString();
+    }
+
+    /** Maps infrastructure DocumentType to domain DocumentType by name. */
+    private com.wpanther.document.intake.domain.model.DocumentType toDomainDocumentType(DocumentType tedaType) {
+        if (tedaType == null) return null;
+        return com.wpanther.document.intake.domain.model.DocumentType.valueOf(tedaType.name());
     }
 }

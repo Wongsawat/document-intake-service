@@ -241,23 +241,23 @@ class XmlValidationServiceImplTest {
     @Test
     @DisplayName("Extract document type from TaxInvoice")
     void testExtractDocumentTypeTaxInvoice() {
-        DocumentType type = validationService.extractDocumentType(VALID_TAX_INVOICE_XML);
+        com.wpanther.document.intake.domain.model.DocumentType type = validationService.extractDocumentType(VALID_TAX_INVOICE_XML);
 
-        assertThat(type).isEqualTo(DocumentType.TAX_INVOICE);
+        assertThat(type.name()).isEqualTo("TAX_INVOICE");
     }
 
     @Test
     @DisplayName("Extract document type from Receipt")
     void testExtractDocumentTypeReceipt() {
-        DocumentType type = validationService.extractDocumentType(RECEIPT_XML);
+        com.wpanther.document.intake.domain.model.DocumentType type = validationService.extractDocumentType(RECEIPT_XML);
 
-        assertThat(type).isEqualTo(DocumentType.RECEIPT);
+        assertThat(type.name()).isEqualTo("RECEIPT");
     }
 
     @Test
     @DisplayName("Extract document type from null returns null")
     void testExtractDocumentTypeNullReturnsNull() {
-        DocumentType type = validationService.extractDocumentType(null);
+        com.wpanther.document.intake.domain.model.DocumentType type = validationService.extractDocumentType(null);
 
         assertThat(type).isNull();
     }
@@ -267,7 +267,7 @@ class XmlValidationServiceImplTest {
     @Test
     @DisplayName("Extract document number from TaxInvoice")
     void testExtractInvoiceNumberFromTaxInvoice() {
-        String documentNumber = validationService.extractInvoiceNumber(VALID_TAX_INVOICE_XML);
+        String documentNumber = validationService.extractDocumentNumber(VALID_TAX_INVOICE_XML);
 
         assertThat(documentNumber).isEqualTo("TIV2024010001");
     }
@@ -275,7 +275,7 @@ class XmlValidationServiceImplTest {
     @Test
     @DisplayName("Extract document number from Receipt")
     void testExtractInvoiceNumberFromReceipt() {
-        String documentNumber = validationService.extractInvoiceNumber(RECEIPT_XML);
+        String documentNumber = validationService.extractDocumentNumber(RECEIPT_XML);
 
         assertThat(documentNumber).isEqualTo("RCT2024010001");
     }
@@ -283,7 +283,7 @@ class XmlValidationServiceImplTest {
     @Test
     @DisplayName("Extract document number from null XML returns null")
     void testExtractInvoiceNumberNullXmlReturnsNull() {
-        String documentNumber = validationService.extractInvoiceNumber(null);
+        String documentNumber = validationService.extractDocumentNumber(null);
 
         assertThat(documentNumber).isNull();
     }
@@ -291,7 +291,7 @@ class XmlValidationServiceImplTest {
     @Test
     @DisplayName("Extract document number from empty XML returns null")
     void testExtractInvoiceNumberEmptyXmlReturnsNull() {
-        String documentNumber = validationService.extractInvoiceNumber("");
+        String documentNumber = validationService.extractDocumentNumber("");
 
         assertThat(documentNumber).isNull();
     }
@@ -305,10 +305,10 @@ class XmlValidationServiceImplTest {
         assertThat(validationService).isNotNull();
 
         // Verify by successfully extracting document types
-        assertThat(validationService.extractDocumentType(VALID_TAX_INVOICE_XML))
-            .isEqualTo(DocumentType.TAX_INVOICE);
-        assertThat(validationService.extractDocumentType(RECEIPT_XML))
-            .isEqualTo(DocumentType.RECEIPT);
+        assertThat(validationService.extractDocumentType(VALID_TAX_INVOICE_XML).name())
+            .isEqualTo("TAX_INVOICE");
+        assertThat(validationService.extractDocumentType(RECEIPT_XML).name())
+            .isEqualTo("RECEIPT");
     }
 
     // ==================== Error Collection Tests ====================
@@ -389,7 +389,7 @@ class XmlValidationServiceImplTest {
             <root/>
             """;
 
-        DocumentType type = validationService.extractDocumentType(emptyRoot);
+        com.wpanther.document.intake.domain.model.DocumentType type = validationService.extractDocumentType(emptyRoot);
 
         assertThat(type).isNull();
     }
@@ -438,15 +438,15 @@ class XmlValidationServiceImplTest {
     @DisplayName("Full validation pipeline: extract type then validate")
     void testFullValidationPipeline() {
         // Step 1: Extract document type
-        DocumentType type = validationService.extractDocumentType(VALID_TAX_INVOICE_XML);
-        assertThat(type).isEqualTo(DocumentType.TAX_INVOICE);
+        com.wpanther.document.intake.domain.model.DocumentType type = validationService.extractDocumentType(VALID_TAX_INVOICE_XML);
+        assertThat(type.name()).isEqualTo("TAX_INVOICE");
 
         // Step 2: Validate
         ValidationResult result = validationService.validate(VALID_TAX_INVOICE_XML);
         assertThat(result.valid()).isTrue();
 
         // Step 3: Extract document number
-        String documentNumber = validationService.extractInvoiceNumber(VALID_TAX_INVOICE_XML);
+        String documentNumber = validationService.extractDocumentNumber(VALID_TAX_INVOICE_XML);
         assertThat(documentNumber).isEqualTo("TIV2024010001");
     }
 
@@ -469,7 +469,7 @@ class XmlValidationServiceImplTest {
     @DisplayName("Extract invoice number returns null for invalid XML")
     void testExtractInvoiceNumberReturnsNullForInvalidXml() {
         String invalidXml = "<InvalidRoot>content</InvalidRoot>";
-        String documentNumber = validationService.extractInvoiceNumber(invalidXml);
+        String documentNumber = validationService.extractDocumentNumber(invalidXml);
         assertThat(documentNumber).isNull();
     }
 
@@ -477,7 +477,7 @@ class XmlValidationServiceImplTest {
     @DisplayName("Extract document type returns null for unparseable XML")
     void testExtractDocumentTypeReturnsNullForUnparseableXml() {
         String unparseableXml = "<root><unclosed></root>";
-        DocumentType type = validationService.extractDocumentType(unparseableXml);
+        com.wpanther.document.intake.domain.model.DocumentType type = validationService.extractDocumentType(unparseableXml);
         assertThat(type).isNull();
     }
 
@@ -485,7 +485,7 @@ class XmlValidationServiceImplTest {
     @DisplayName("Extract document type returns null for non-XML content")
     void testExtractDocumentTypeReturnsNullForNonXmlContent() {
         String nonXmlContent = "This is not XML at all";
-        DocumentType type = validationService.extractDocumentType(nonXmlContent);
+        com.wpanther.document.intake.domain.model.DocumentType type = validationService.extractDocumentType(nonXmlContent);
         assertThat(type).isNull();
     }
 
@@ -501,7 +501,7 @@ class XmlValidationServiceImplTest {
     @DisplayName("Extract invoice number returns null for non-XML content")
     void testExtractInvoiceNumberReturnsNullForNonXmlContent() {
         String nonXmlContent = "This is not XML at all";
-        String documentNumber = validationService.extractInvoiceNumber(nonXmlContent);
+        String documentNumber = validationService.extractDocumentNumber(nonXmlContent);
         assertThat(documentNumber).isNull();
     }
 
@@ -576,17 +576,17 @@ class XmlValidationServiceImplTest {
     @Test
     @DisplayName("Extract document type uses namespace for detection")
     void testExtractDocumentTypeUsesNamespace() {
-        DocumentType type = validationService.extractDocumentType(VALID_TAX_INVOICE_XML);
-        assertThat(type).isEqualTo(DocumentType.TAX_INVOICE);
+        com.wpanther.document.intake.domain.model.DocumentType type = validationService.extractDocumentType(VALID_TAX_INVOICE_XML);
+        assertThat(type.name()).isEqualTo("TAX_INVOICE");
     }
 
     @Test
     @DisplayName("Extract document number from all document types")
     void testExtractInvoiceNumberFromAllDocumentTypes() {
-        String receiptNumber = validationService.extractInvoiceNumber(RECEIPT_XML);
+        String receiptNumber = validationService.extractDocumentNumber(RECEIPT_XML);
         assertThat(receiptNumber).isEqualTo("RCT2024010001");
 
-        String taxInvoiceNumber = validationService.extractInvoiceNumber(VALID_TAX_INVOICE_XML);
+        String taxInvoiceNumber = validationService.extractDocumentNumber(VALID_TAX_INVOICE_XML);
         assertThat(taxInvoiceNumber).isEqualTo("TIV2024010001");
     }
 
@@ -608,7 +608,7 @@ class XmlValidationServiceImplTest {
     void testExtractDocumentTypeFromCompletelyInvalidXmlReturnsNull() {
         String completelyInvalidXml = "not xml at all";
 
-        DocumentType type = validationService.extractDocumentType(completelyInvalidXml);
+        com.wpanther.document.intake.domain.model.DocumentType type = validationService.extractDocumentType(completelyInvalidXml);
 
         assertThat(type).isNull();
     }
@@ -618,7 +618,7 @@ class XmlValidationServiceImplTest {
     void testExtractInvoiceNumberFromInvalidXmlReturnsNull() {
         String invalidXml = "not xml at all";
 
-        String documentNumber = validationService.extractInvoiceNumber(invalidXml);
+        String documentNumber = validationService.extractDocumentNumber(invalidXml);
 
         assertThat(documentNumber).isNull();
     }
@@ -629,10 +629,10 @@ class XmlValidationServiceImplTest {
     @DisplayName("Document type detection handles all document types")
     void testDocumentTypeDetectionHandlesAllTypes() {
         // Test all 6 document types can be detected
-        assertThat(validationService.extractDocumentType(VALID_TAX_INVOICE_XML))
-            .isEqualTo(DocumentType.TAX_INVOICE);
-        assertThat(validationService.extractDocumentType(RECEIPT_XML))
-            .isEqualTo(DocumentType.RECEIPT);
+        assertThat(validationService.extractDocumentType(VALID_TAX_INVOICE_XML).name())
+            .isEqualTo("TAX_INVOICE");
+        assertThat(validationService.extractDocumentType(RECEIPT_XML).name())
+            .isEqualTo("RECEIPT");
     }
 
     @Test
@@ -647,7 +647,7 @@ class XmlValidationServiceImplTest {
             </UnknownRoot>
             """;
 
-        DocumentType type = validationService.extractDocumentType(xmlWithUnknownType);
+        com.wpanther.document.intake.domain.model.DocumentType type = validationService.extractDocumentType(xmlWithUnknownType);
 
         // Should return null when document type cannot be detected
         // NOT default to TAX_INVOICE (that was a bug)
@@ -669,7 +669,7 @@ class XmlValidationServiceImplTest {
             </rsm:TaxInvoice_CrossIndustryInvoice>
             """;
 
-        String documentNumber = validationService.extractInvoiceNumber(xmlWithoutId);
+        String documentNumber = validationService.extractDocumentNumber(xmlWithoutId);
 
         // Should return null when invoice number field is not present
         assertThat(documentNumber).isNull();
@@ -710,7 +710,7 @@ class XmlValidationServiceImplTest {
     @Test
     @DisplayName("Invoice number extraction returns null for null input")
     void testInvoiceNumberExtractionReturnsNullForNull() {
-        String documentNumber = validationService.extractInvoiceNumber(null);
+        String documentNumber = validationService.extractDocumentNumber(null);
 
         assertThat(documentNumber).isNull();
     }
@@ -718,7 +718,7 @@ class XmlValidationServiceImplTest {
     @Test
     @DisplayName("Document type extraction returns null for null input")
     void testDocumentTypeExtractionReturnsNullForNull() {
-        DocumentType type = validationService.extractDocumentType(null);
+        com.wpanther.document.intake.domain.model.DocumentType type = validationService.extractDocumentType(null);
 
         assertThat(type).isNull();
     }
@@ -726,7 +726,7 @@ class XmlValidationServiceImplTest {
     @Test
     @DisplayName("Document type extraction returns null for empty input")
     void testDocumentTypeExtractionReturnsNullForEmpty() {
-        DocumentType type = validationService.extractDocumentType("");
+        com.wpanther.document.intake.domain.model.DocumentType type = validationService.extractDocumentType("");
 
         assertThat(type).isNull();
     }
@@ -750,18 +750,18 @@ class XmlValidationServiceImplTest {
     @DisplayName("Multiple document type extractions are independent")
     void testMultipleDocumentTypeExtractionsAreIndependent() {
         // Test that multiple extractions don't interfere with each other
-        DocumentType type1 = validationService.extractDocumentType(VALID_TAX_INVOICE_XML);
-        DocumentType type2 = validationService.extractDocumentType(RECEIPT_XML);
-        DocumentType type3 = validationService.extractDocumentType(VALID_TAX_INVOICE_XML);
+        com.wpanther.document.intake.domain.model.DocumentType type1 = validationService.extractDocumentType(VALID_TAX_INVOICE_XML);
+        com.wpanther.document.intake.domain.model.DocumentType type2 = validationService.extractDocumentType(RECEIPT_XML);
+        com.wpanther.document.intake.domain.model.DocumentType type3 = validationService.extractDocumentType(VALID_TAX_INVOICE_XML);
 
         assertThat(type1).isEqualTo(type3);
-        assertThat(type2).isEqualTo(DocumentType.RECEIPT);
+        assertThat(type2.name()).isEqualTo("RECEIPT");
     }
 
     @Test
     @DisplayName("Extract invoice number from Receipt document")
     void testExtractInvoiceNumberFromReceiptDocument() {
-        String receiptNumber = validationService.extractInvoiceNumber(RECEIPT_XML);
+        String receiptNumber = validationService.extractDocumentNumber(RECEIPT_XML);
 
         assertThat(receiptNumber).isEqualTo("RCT2024010001");
     }
@@ -769,8 +769,8 @@ class XmlValidationServiceImplTest {
     @Test
     @DisplayName("Extract document type from Receipt document")
     void testExtractDocumentTypeFromReceiptDocument() {
-        DocumentType type = validationService.extractDocumentType(RECEIPT_XML);
+        com.wpanther.document.intake.domain.model.DocumentType type = validationService.extractDocumentType(RECEIPT_XML);
 
-        assertThat(type).isEqualTo(DocumentType.RECEIPT);
+        assertThat(type.name()).isEqualTo("RECEIPT");
     }
 }

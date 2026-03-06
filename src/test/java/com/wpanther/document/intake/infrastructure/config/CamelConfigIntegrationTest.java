@@ -1,10 +1,10 @@
 package com.wpanther.document.intake.infrastructure.config;
 
-import com.wpanther.document.intake.application.service.DocumentIntakeService;
+import com.wpanther.document.intake.domain.port.in.SubmitDocumentUseCase;
 import com.wpanther.document.intake.domain.model.IncomingDocument;
 import com.wpanther.document.intake.domain.model.DocumentStatus;
 import com.wpanther.document.intake.domain.model.ValidationResult;
-import com.wpanther.document.intake.infrastructure.validation.DocumentType;
+import com.wpanther.document.intake.domain.model.DocumentType;
 import org.apache.camel.CamelContext;
 import org.apache.camel.ProducerTemplate;
 import org.apache.camel.test.spring.junit5.CamelSpringBootTest;
@@ -60,11 +60,11 @@ class CamelConfigIntegrationTest {
     private ProducerTemplate producerTemplate;
 
     @MockBean
-    private DocumentIntakeService documentIntakeService;
+    private SubmitDocumentUseCase submitDocumentUseCase;
 
     @BeforeEach
     void setUp() {
-        reset(documentIntakeService);
+        reset(submitDocumentUseCase);
     }
 
     @Test
@@ -96,9 +96,8 @@ class CamelConfigIntegrationTest {
         IncomingDocument validDocument = createValidDocument(documentId, "TIV2024010001",
             DocumentType.TAX_INVOICE, xmlContent);
 
-        when(documentIntakeService.submitDocument(eq(xmlContent), eq("REST"), eq(correlationId)))
+        when(submitDocumentUseCase.submitDocument(eq(xmlContent), eq("REST"), eq(correlationId)))
             .thenReturn(validDocument);
-        doNothing().when(documentIntakeService).markForwarded(documentId);
 
         // When - send to the route (will fail at Kafka but service should be called)
         try {
@@ -110,19 +109,19 @@ class CamelConfigIntegrationTest {
         }
 
         // Then - verify service was called
-        verify(documentIntakeService).submitDocument(eq(xmlContent), eq("REST"), eq(correlationId));
+        verify(submitDocumentUseCase).submitDocument(eq(xmlContent), eq("REST"), eq(correlationId));
     }
 
     @Test
-    @DisplayName("REST intake route - invalid XML calls service but doesn't mark forwarded")
-    void testRestIntakeRoute_InvalidXml_DoesNotForward() throws Exception {
+    @DisplayName("REST intake route - invalid XML calls service")
+    void testRestIntakeRoute_InvalidXml_CallsService() throws Exception {
         // Given
         String xmlContent = VALID_TAX_INVOICE_XML;
         UUID documentId = UUID.randomUUID();
 
         IncomingDocument invalidDocument = createInvalidDocument(documentId, xmlContent);
 
-        when(documentIntakeService.submitDocument(anyString(), anyString(), anyString()))
+        when(submitDocumentUseCase.submitDocument(anyString(), anyString(), anyString()))
             .thenReturn(invalidDocument);
 
         // When
@@ -132,9 +131,8 @@ class CamelConfigIntegrationTest {
             // May throw exception or not depending on route behavior
         }
 
-        // Then - service was called but markForwarded was not
-        verify(documentIntakeService).submitDocument(anyString(), anyString(), anyString());
-        verify(documentIntakeService, never()).markForwarded(any());
+        // Then - service was called
+        verify(submitDocumentUseCase).submitDocument(anyString(), anyString(), anyString());
     }
 
     @Test
@@ -167,7 +165,7 @@ class CamelConfigIntegrationTest {
         IncomingDocument validDocument = createValidDocument(documentId, "RCT-001",
             DocumentType.RECEIPT, xmlContent);
 
-        when(documentIntakeService.submitDocument(anyString(), anyString(), anyString()))
+        when(submitDocumentUseCase.submitDocument(anyString(), anyString(), anyString()))
             .thenReturn(validDocument);
 
         // When
@@ -178,7 +176,7 @@ class CamelConfigIntegrationTest {
         }
 
         // Then - service was called with correct parameters
-        verify(documentIntakeService).submitDocument(anyString(), eq("REST"), anyString());
+        verify(submitDocumentUseCase).submitDocument(anyString(), eq("REST"), anyString());
     }
 
     @Test

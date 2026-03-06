@@ -3,12 +3,14 @@ package com.wpanther.document.intake.application.service;
 import com.wpanther.document.intake.domain.event.DocumentReceivedTraceEvent;
 import com.wpanther.document.intake.domain.event.EventStatus;
 import com.wpanther.document.intake.domain.event.StartSagaCommand;
+import com.wpanther.document.intake.domain.model.DocumentType;
 import com.wpanther.document.intake.domain.model.IncomingDocument;
 import com.wpanther.document.intake.domain.model.ValidationResult;
-import com.wpanther.document.intake.domain.repository.IncomingDocumentRepository;
-import com.wpanther.document.intake.domain.service.XmlValidationService;
-import com.wpanther.document.intake.infrastructure.messaging.EventPublisher;
-import com.wpanther.document.intake.infrastructure.validation.DocumentType;
+import com.wpanther.document.intake.domain.port.in.GetDocumentUseCase;
+import com.wpanther.document.intake.domain.port.in.SubmitDocumentUseCase;
+import com.wpanther.document.intake.domain.port.out.DocumentEventPublisher;
+import com.wpanther.document.intake.domain.port.out.DocumentRepository;
+import com.wpanther.document.intake.domain.port.out.XmlValidationPort;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -25,17 +27,17 @@ import java.util.UUID;
  * ensuring atomicity and guaranteed delivery.
  */
 @Service
-public class DocumentIntakeService {
+public class DocumentIntakeService implements SubmitDocumentUseCase, GetDocumentUseCase {
 
     private static final Logger log = LoggerFactory.getLogger(DocumentIntakeService.class);
 
-    private final IncomingDocumentRepository documentRepository;
-    private final XmlValidationService validationService;
-    private final EventPublisher eventPublisher;
+    private final DocumentRepository documentRepository;
+    private final XmlValidationPort validationService;
+    private final DocumentEventPublisher eventPublisher;
 
-    public DocumentIntakeService(IncomingDocumentRepository documentRepository,
-                                XmlValidationService validationService,
-                                EventPublisher eventPublisher) {
+    public DocumentIntakeService(DocumentRepository documentRepository,
+                                XmlValidationPort validationService,
+                                DocumentEventPublisher eventPublisher) {
         this.documentRepository = documentRepository;
         this.validationService = validationService;
         this.eventPublisher = eventPublisher;
@@ -62,11 +64,12 @@ public class DocumentIntakeService {
      * @throws IllegalStateException if document number already exists
      */
     @Transactional
+    @Override
     public IncomingDocument submitDocument(String xmlContent, String source, String correlationId) {
         log.info("Submitting document from source: {} with correlationId: {}", source, correlationId);
 
         // Extract document number
-        String documentNumber = validationService.extractInvoiceNumber(xmlContent);
+        String documentNumber = validationService.extractDocumentNumber(xmlContent);
         if (documentNumber == null || documentNumber.isBlank()) {
             throw new IllegalArgumentException(
                 "Could not extract document number from XML. " +
@@ -226,6 +229,7 @@ public class DocumentIntakeService {
      * @throws IllegalArgumentException if document not found
      */
     @Transactional(readOnly = true)
+    @Override
     public IncomingDocument getDocument(UUID id) {
         return documentRepository.findById(id)
             .orElseThrow(() -> new IllegalArgumentException("Document not found: " + id));
