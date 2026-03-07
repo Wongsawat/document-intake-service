@@ -1,4 +1,4 @@
-package com.wpanther.document.intake.adapter.out.validation;
+package com.wpanther.document.intake.infrastructure.adapter.out.validation;
 
 /**
  * Strategy interface for extracting invoice numbers from different document types.

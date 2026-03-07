@@ -1,4 +1,4 @@
-package com.wpanther.document.intake.adapter.out.persistence;
+package com.wpanther.document.intake.infrastructure.adapter.out.persistence;
 
 import com.wpanther.document.intake.domain.model.DocumentStatus;
 import com.wpanther.document.intake.infrastructure.validation.DocumentType;

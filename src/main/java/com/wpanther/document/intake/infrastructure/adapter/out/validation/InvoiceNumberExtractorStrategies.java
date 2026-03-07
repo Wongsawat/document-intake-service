@@ -1,4 +1,4 @@
-package com.wpanther.document.intake.adapter.out.validation;
+package com.wpanther.document.intake.infrastructure.adapter.out.validation;
 
 import com.wpanther.etax.generated.abbreviatedtaxinvoice.rsm.AbbreviatedTaxInvoice_CrossIndustryInvoiceType;
 import com.wpanther.etax.generated.cancellationnote.rsm.CancellationNote_CrossIndustryInvoiceType;

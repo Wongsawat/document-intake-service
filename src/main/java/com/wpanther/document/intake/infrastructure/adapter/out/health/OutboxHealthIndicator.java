@@ -1,4 +1,4 @@
-package com.wpanther.document.intake.adapter.out.health;
+package com.wpanther.document.intake.infrastructure.adapter.out.health;
 
 import com.wpanther.document.intake.adapter.out.persistence.outbox.SpringDataOutboxRepository;
 import com.wpanther.saga.domain.outbox.OutboxStatus;

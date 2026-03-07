@@ -1,4 +1,4 @@
-package com.wpanther.document.intake.adapter.out.validation;
+package com.wpanther.document.intake.infrastructure.adapter.out.validation;
 
 import com.wpanther.document.intake.domain.model.ValidationResult;
 import com.wpanther.document.intake.domain.port.out.XmlValidationPort;

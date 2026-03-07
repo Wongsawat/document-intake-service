@@ -1,4 +1,4 @@
-package com.wpanther.document.intake.adapter.out.persistence.outbox;
+package com.wpanther.document.intake.infrastructure.adapter.out.persistence.outbox;
 
 import com.wpanther.saga.domain.outbox.OutboxStatus;
 import org.springframework.data.domain.Pageable;

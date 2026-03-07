@@ -1,4 +1,4 @@
-package com.wpanther.document.intake.adapter.in.metrics;
+package com.wpanther.document.intake.infrastructure.adapter.in.metrics;
 
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;

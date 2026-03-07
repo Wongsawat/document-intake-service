@@ -1,4 +1,4 @@
-package com.wpanther.document.intake.adapter.out.persistence;
+package com.wpanther.document.intake.infrastructure.adapter.out.persistence;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.wpanther.document.intake.domain.exception.ValidationResultSerializationException;
