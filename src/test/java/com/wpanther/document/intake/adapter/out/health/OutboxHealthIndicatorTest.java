@@ -1,6 +1,6 @@
-package com.wpanther.document.intake.infrastructure.health;
+package com.wpanther.document.intake.adapter.out.health;
 
-import com.wpanther.document.intake.infrastructure.persistence.outbox.SpringDataOutboxRepository;
+import com.wpanther.document.intake.adapter.out.persistence.outbox.SpringDataOutboxRepository;
 import com.wpanther.saga.domain.outbox.OutboxStatus;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;

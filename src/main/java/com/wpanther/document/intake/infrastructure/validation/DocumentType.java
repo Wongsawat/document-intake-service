@@ -1,5 +1,7 @@
 package com.wpanther.document.intake.infrastructure.validation;
 
+import com.wpanther.document.intake.adapter.out.validation.InvoiceNumberExtractor;
+import com.wpanther.document.intake.adapter.out.validation.InvoiceNumberExtractorStrategies;
 import com.wpanther.etax.generated.abbreviatedtaxinvoice.rsm.AbbreviatedTaxInvoice_CrossIndustryInvoiceType;
 import com.wpanther.etax.generated.cancellationnote.rsm.CancellationNote_CrossIndustryInvoiceType;
 import com.wpanther.etax.generated.debitcreditnote.rsm.DebitCreditNote_CrossIndustryInvoiceType;

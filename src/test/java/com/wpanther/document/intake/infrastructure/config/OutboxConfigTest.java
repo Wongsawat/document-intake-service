@@ -1,7 +1,7 @@
 package com.wpanther.document.intake.infrastructure.config;
 
-import com.wpanther.document.intake.infrastructure.persistence.outbox.JpaOutboxEventRepository;
-import com.wpanther.document.intake.infrastructure.persistence.outbox.SpringDataOutboxRepository;
+import com.wpanther.document.intake.adapter.out.persistence.outbox.JpaOutboxEventRepository;
+import com.wpanther.document.intake.adapter.out.persistence.outbox.SpringDataOutboxRepository;
 import com.wpanther.saga.domain.outbox.OutboxEventRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.DisplayName;

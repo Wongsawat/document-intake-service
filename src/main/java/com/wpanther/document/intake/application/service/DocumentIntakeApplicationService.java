@@ -29,13 +29,13 @@ import java.util.UUID;
 @Service
 public class DocumentIntakeApplicationService implements SubmitDocumentUseCase, GetDocumentUseCase {
 
-    private static final Logger log = LoggerFactory.getLogger(DocumentIntakeService.class);
+    private static final Logger log = LoggerFactory.getLogger(DocumentIntakeApplicationService.class);
 
     private final DocumentRepository documentRepository;
     private final XmlValidationPort validationService;
     private final DocumentEventPublisher eventPublisher;
 
-    public DocumentIntakeService(DocumentRepository documentRepository,
+    public DocumentIntakeApplicationService(DocumentRepository documentRepository,
                                 XmlValidationPort validationService,
                                 DocumentEventPublisher eventPublisher) {
         this.documentRepository = documentRepository;

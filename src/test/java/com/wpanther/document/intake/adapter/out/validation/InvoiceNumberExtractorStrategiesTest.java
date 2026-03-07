@@ -1,4 +1,4 @@
-package com.wpanther.document.intake.infrastructure.validation;
+package com.wpanther.document.intake.adapter.out.validation;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.DisplayName;

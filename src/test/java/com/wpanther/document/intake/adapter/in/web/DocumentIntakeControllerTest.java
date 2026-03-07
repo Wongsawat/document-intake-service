@@ -1,4 +1,4 @@
-package com.wpanther.document.intake.application.controller;
+package com.wpanther.document.intake.adapter.in.web;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.wpanther.document.intake.domain.port.in.SubmitDocumentUseCase;
