@@ -1,4 +1,4 @@
-package com.wpanther.document.intake.domain.port.out;
+package com.wpanther.document.intake.domain.repository;
 
 import com.wpanther.document.intake.domain.model.DocumentStatus;
 import com.wpanther.document.intake.domain.model.IncomingDocument;
