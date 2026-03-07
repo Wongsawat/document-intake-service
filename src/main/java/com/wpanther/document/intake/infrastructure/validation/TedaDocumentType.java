@@ -24,7 +24,7 @@ import java.util.stream.Collectors;
  *   <li>JAXB must be initialized with .impl packages only</li>
  * </ul>
  */
-public enum DocumentType {
+public enum TedaDocumentType {
 
     TAX_INVOICE(
         "com.wpanther.etax.generated.taxinvoice.rsm:" +
