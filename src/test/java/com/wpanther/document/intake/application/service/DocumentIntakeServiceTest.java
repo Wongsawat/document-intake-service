@@ -29,7 +29,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
 /**
- * Unit tests for DocumentIntakeService
+ * Unit tests for DocumentIntakeApplicationService
  * Tests use mocks for repository and validation service dependencies
  */
 @ExtendWith(MockitoExtension.class)
@@ -47,7 +47,7 @@ class DocumentIntakeServiceTest {
     private DocumentEventPublisher eventPublisher;
 
     @InjectMocks
-    private DocumentIntakeService documentIntakeService;
+    private DocumentIntakeApplicationService documentIntakeService;
 
     private static final String VALID_XML = """
         <?xml version="1.0" encoding="UTF-8"?>
