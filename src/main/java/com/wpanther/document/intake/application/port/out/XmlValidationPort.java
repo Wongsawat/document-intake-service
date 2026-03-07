@@ -1,4 +1,4 @@
-package com.wpanther.document.intake.domain.port.out;
+package com.wpanther.document.intake.application.port.out;
 
 import com.wpanther.document.intake.domain.model.DocumentType;
 import com.wpanther.document.intake.domain.model.ValidationResult;
