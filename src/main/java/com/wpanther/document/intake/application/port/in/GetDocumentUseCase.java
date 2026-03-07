@@ -1,4 +1,4 @@
-package com.wpanther.document.intake.domain.port.in;
+package com.wpanther.document.intake.application.port.in;
 
 import com.wpanther.document.intake.domain.model.IncomingDocument;
 import java.util.UUID;
