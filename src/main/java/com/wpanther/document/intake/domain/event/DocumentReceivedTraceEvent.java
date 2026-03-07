@@ -6,8 +6,6 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.wpanther.saga.domain.model.TraceEvent;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
-import lombok.Builder;
-import lombok.Getter;
 
 import java.time.Instant;
 import java.util.UUID;
@@ -25,59 +23,25 @@ import java.util.UUID;
  * serves as the correlation handle); {@code traceType} ← {@code status}
  * (the document lifecycle status IS the type of trace event).
  * {@code source} is inherited from {@code TraceEvent} — not redeclared here.
+ * <p>
+ * <strong>Domain purity:</strong> This class uses a manual builder pattern
+ * instead of Lombok to maintain zero compile-time dependencies in the domain layer.
  */
-@Getter
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class DocumentReceivedTraceEvent extends TraceEvent {
 
     private static final long serialVersionUID = 1L;
 
-    /**
-     * ID of IncomingDocument that was received.
-     */
-    @JsonProperty("documentId")
-    @NotBlank(message = "Document ID is required")
-    @Size(max = 100, message = "Document ID must not exceed 100 characters")
     private final String documentId;
-
-    /**
-     * Type of document (TAX_INVOICE, RECEIPT, INVOICE, etc.)
-     */
-    @JsonProperty("documentType")
-    @NotBlank(message = "Document type is required")
-    @Size(max = 50, message = "Document type must not exceed 50 characters")
     private final String documentType;
-
-    /**
-     * The document number from the document.
-     */
-    @JsonProperty("documentNumber")
-    @NotBlank(message = "Document number is required")
-    @Size(max = 50, message = "Document number must not exceed 50 characters")
     private final String documentNumber;
-
-    /**
-     * Correlation ID for tracing this request across all services.
-     */
-    @JsonProperty("correlationId")
-    @Size(max = 100, message = "Correlation ID must not exceed 100 characters")
     private final String correlationId;
-
-    /**
-     * Current status of document (RECEIVED, VALIDATED, etc.)
-     */
-    @JsonProperty("status")
-    @NotBlank(message = "Status is required")
-    @Size(max = 50, message = "Status must not exceed 50 characters")
     private final String status;
 
-    // source is inherited from TraceEvent — not redeclared here.
-
     /**
-     * Creation constructor used by the Lombok builder.
+     * Private constructor used by the builder.
      * Maps: documentId → sagaId, status → traceType, source → TraceEvent.source.
      */
-    @Builder
     private DocumentReceivedTraceEvent(
             String documentId,
             String documentType,
@@ -92,6 +56,122 @@ public class DocumentReceivedTraceEvent extends TraceEvent {
         this.correlationId = correlationId;
         this.status = status;
     }
+
+    // ==================== Getters ====================
+
+    /**
+     * ID of IncomingDocument that was received.
+     */
+    @JsonProperty("documentId")
+    public String getDocumentId() {
+        return documentId;
+    }
+
+    /**
+     * Type of document (TAX_INVOICE, RECEIPT, INVOICE, etc.)
+     */
+    @JsonProperty("documentType")
+    public String getDocumentType() {
+        return documentType;
+    }
+
+    /**
+     * The document number from the document.
+     */
+    @JsonProperty("documentNumber")
+    public String getDocumentNumber() {
+        return documentNumber;
+    }
+
+    /**
+     * Correlation ID for tracing this request across all services.
+     */
+    @JsonProperty("correlationId")
+    public String getCorrelationId() {
+        return correlationId;
+    }
+
+    /**
+     * Current status of document (RECEIVED, VALIDATED, etc.)
+     */
+    @JsonProperty("status")
+    public String getStatus() {
+        return status;
+    }
+
+    // ==================== Builder ====================
+
+    /**
+     * Builder for {@link DocumentReceivedTraceEvent}.
+     * <p>
+     * Provides a fluent API for creating immutable DocumentReceivedTraceEvent instances.
+     */
+    public static class Builder {
+        private String documentId;
+        private String documentType;
+        private String documentNumber;
+        private String correlationId;
+        private String status;
+        private String source;
+
+        public Builder documentId(String documentId) {
+            this.documentId = documentId;
+            return this;
+        }
+
+        public Builder documentType(String documentType) {
+            this.documentType = documentType;
+            return this;
+        }
+
+        public Builder documentNumber(String documentNumber) {
+            this.documentNumber = documentNumber;
+            return this;
+        }
+
+        public Builder correlationId(String correlationId) {
+            this.correlationId = correlationId;
+            return this;
+        }
+
+        public Builder status(String status) {
+            this.status = status;
+            return this;
+        }
+
+        public Builder source(String source) {
+            this.source = source;
+            return this;
+        }
+
+        /**
+         * Builds the DocumentReceivedTraceEvent instance.
+         *
+         * @return a new {@link DocumentReceivedTraceEvent} with the values set in this builder
+         * @throws IllegalArgumentException if required fields are null or blank
+         */
+        public DocumentReceivedTraceEvent build() {
+            return new DocumentReceivedTraceEvent(
+                documentId,
+                documentType,
+                documentNumber,
+                correlationId,
+                status,
+                source
+            );
+        }
+    }
+
+    /**
+     * Creates a new builder for {@link DocumentReceivedTraceEvent}.
+     *
+     * @return a new {@link Builder}
+     */
+    public static Builder builder() {
+        return new Builder();
+    }
+
+    // ==================== Jackson @JsonCreator ====================
 
     /**
      * Jackson deserialization factory. Always delegates to the builder (creation path)

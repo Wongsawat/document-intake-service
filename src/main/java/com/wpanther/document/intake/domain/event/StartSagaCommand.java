@@ -8,8 +8,6 @@ import com.wpanther.saga.domain.model.SagaCommand;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
-import lombok.Builder;
-import lombok.Getter;
 
 import java.time.Instant;
 import java.util.UUID;
@@ -25,8 +23,10 @@ import java.util.UUID;
  * {@code IntegrationEvent} hierarchy. {@code sagaId} and {@code sagaStep}
  * are {@code null} on creation because the saga has not started yet — the
  * orchestrator-service assigns them when it creates the saga instance.
+ * <p>
+ * <strong>Domain purity:</strong> This class uses a manual builder pattern
+ * instead of Lombok to maintain zero compile-time dependencies in the domain layer.
  */
-@Getter
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class StartSagaCommand extends SagaCommand {
 
@@ -34,54 +34,16 @@ public class StartSagaCommand extends SagaCommand {
     private static final String DOCUMENT_TYPE_PATTERN =
         "TAX_INVOICE|RECEIPT|INVOICE|DEBIT_CREDIT_NOTE|CANCELLATION_NOTE|ABBREVIATED_TAX_INVOICE";
 
-    /**
-     * ID of IncomingDocument that triggered this saga.
-     */
-    @JsonProperty("documentId")
-    @NotBlank(message = "Document ID is required")
-    @Size(max = 100, message = "Document ID must not exceed 100 characters")
     private final String documentId;
-
-    /**
-     * Type of document (TAX_INVOICE, INVOICE, RECEIPT, etc.)
-     */
-    @JsonProperty("documentType")
-    @NotBlank(message = "Document type is required")
-    @Pattern(regexp = DOCUMENT_TYPE_PATTERN, message = "Invalid document type")
     private final String documentType;
-
-    /**
-     * The document number from document.
-     */
-    @JsonProperty("documentNumber")
-    @NotBlank(message = "Document number is required")
-    @Size(max = 50, message = "Document number must not exceed 50 characters")
     private final String documentNumber;
-
-    /**
-     * The full XML content of document.
-     * This will be passed through pipeline for processing and signing.
-     */
-    @JsonProperty("xmlContent")
-    @NotBlank(message = "XML content is required")
-    @Size(max = 10485760, message = "XML content must not exceed 10MB")
     private final String xmlContent;
-
-    // correlationId is inherited from SagaCommand — not redeclared here.
-
-    /**
-     * Source of document (API, KAFKA, etc.)
-     */
-    @JsonProperty("source")
-    @NotBlank(message = "Source is required")
-    @Size(max = 50, message = "Source must not exceed 50 characters")
     private final String source;
 
     /**
-     * Creation constructor used by the Lombok builder.
+     * Private constructor used by the builder.
      * sagaId and sagaStep are {@code null} because the saga has not started yet.
      */
-    @Builder
     private StartSagaCommand(
             String documentId,
             String documentType,
@@ -96,6 +58,123 @@ public class StartSagaCommand extends SagaCommand {
         this.xmlContent = xmlContent;
         this.source = source;
     }
+
+    // ==================== Getters ====================
+
+    /**
+     * ID of IncomingDocument that triggered this saga.
+     */
+    @JsonProperty("documentId")
+    public String getDocumentId() {
+        return documentId;
+    }
+
+    /**
+     * Type of document (TAX_INVOICE, INVOICE, RECEIPT, etc.)
+     */
+    @JsonProperty("documentType")
+    public String getDocumentType() {
+        return documentType;
+    }
+
+    /**
+     * The document number from document.
+     */
+    @JsonProperty("documentNumber")
+    public String getDocumentNumber() {
+        return documentNumber;
+    }
+
+    /**
+     * The full XML content of document.
+     * This will be passed through pipeline for processing and signing.
+     */
+    @JsonProperty("xmlContent")
+    public String getXmlContent() {
+        return xmlContent;
+    }
+
+    /**
+     * Source of document (API, KAFKA, etc.)
+     */
+    @JsonProperty("source")
+    public String getSource() {
+        return source;
+    }
+
+    // ==================== Builder ====================
+
+    /**
+     * Builder for {@link StartSagaCommand}.
+     * <p>
+     * Provides a fluent API for creating immutable StartSagaCommand instances.
+     */
+    public static class Builder {
+        private String documentId;
+        private String documentType;
+        private String documentNumber;
+        private String xmlContent;
+        private String correlationId;
+        private String source;
+
+        public Builder documentId(String documentId) {
+            this.documentId = documentId;
+            return this;
+        }
+
+        public Builder documentType(String documentType) {
+            this.documentType = documentType;
+            return this;
+        }
+
+        public Builder documentNumber(String documentNumber) {
+            this.documentNumber = documentNumber;
+            return this;
+        }
+
+        public Builder xmlContent(String xmlContent) {
+            this.xmlContent = xmlContent;
+            return this;
+        }
+
+        public Builder correlationId(String correlationId) {
+            this.correlationId = correlationId;
+            return this;
+        }
+
+        public Builder source(String source) {
+            this.source = source;
+            return this;
+        }
+
+        /**
+         * Builds the StartSagaCommand instance.
+         *
+         * @return a new {@link StartSagaCommand} with the values set in this builder
+         * @throws IllegalArgumentException if required fields are null or blank
+         */
+        public StartSagaCommand build() {
+            return new StartSagaCommand(
+                documentId,
+                documentType,
+                documentNumber,
+                xmlContent,
+                correlationId,
+                source
+            );
+        }
+    }
+
+    /**
+     * Creates a new builder for {@link StartSagaCommand}.
+     *
+     * @return a new {@link Builder}
+     */
+    public static Builder builder() {
+        return new Builder();
+    }
+
+    // ==================== Jackson @JsonCreator ====================
 
     /**
      * Jackson deserialization factory. Always delegates to the builder (creation path)

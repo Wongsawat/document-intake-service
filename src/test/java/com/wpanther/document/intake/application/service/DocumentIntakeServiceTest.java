@@ -7,6 +7,7 @@ import com.wpanther.document.intake.domain.port.out.DocumentRepository;
 import com.wpanther.document.intake.domain.port.out.XmlValidationPort;
 import com.wpanther.document.intake.domain.port.out.DocumentEventPublisher;
 import com.wpanther.document.intake.domain.model.DocumentType;
+import com.wpanther.document.intake.adapter.in.metrics.DocumentIntakeMetrics;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -45,6 +46,9 @@ class DocumentIntakeServiceTest {
 
     @Mock
     private DocumentEventPublisher eventPublisher;
+
+    @Mock
+    private DocumentIntakeMetrics metrics;
 
     @InjectMocks
     private DocumentIntakeApplicationService documentIntakeService;
@@ -105,6 +109,13 @@ class DocumentIntakeServiceTest {
         when(validationService.validate(any())).thenReturn(ValidationResult.success());
         when(documentRepository.existsByDocumentNumber(any())).thenReturn(false);
         when(documentRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+        // Metrics methods do nothing by default
+        doNothing().when(metrics).incrementReceived();
+        doNothing().when(metrics).incrementValidated(any());
+        doNothing().when(metrics).incrementInvalid(any());
+        doNothing().when(metrics).incrementForwarded(any());
+        doNothing().when(metrics).incrementFailed(any());
+        doNothing().when(metrics).recordProcessingTime(anyLong());
     }
 
     // ==================== Happy Path Tests ====================

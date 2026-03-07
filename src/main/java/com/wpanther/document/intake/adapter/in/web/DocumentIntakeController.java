@@ -4,6 +4,13 @@ import com.wpanther.document.intake.domain.port.in.GetDocumentUseCase;
 import com.wpanther.document.intake.domain.port.in.SubmitDocumentUseCase;
 import com.wpanther.document.intake.domain.model.IncomingDocument;
 import com.wpanther.document.intake.infrastructure.config.ValidationProperties;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import jakarta.validation.ConstraintViolationException;
@@ -28,6 +35,7 @@ import java.util.stream.Collectors;
 @RestController
 @RequestMapping("/api/v1/documents")
 @Validated
+@Tag(name = "Document Intake", description = "API for submitting and retrieving Thai e-Tax XML documents")
 public class DocumentIntakeController {
 
     private static final Logger log = LoggerFactory.getLogger(DocumentIntakeController.class);
@@ -54,8 +62,50 @@ public class DocumentIntakeController {
      * 409 for duplicate document numbers, 413 for payload too large, 500 for unexpected errors.
      */
     @PostMapping(consumes = {MediaType.APPLICATION_XML_VALUE, MediaType.TEXT_XML_VALUE})
+    @Operation(
+        summary = "Submit a Thai e-Tax XML document",
+        description = "Submit an XML document (Tax Invoice, Invoice, Receipt, etc.) for validation and processing. " +
+                      "The document undergoes three-layer validation: well-formedness, XSD schema, and Schematron business rules. " +
+                      "Valid documents trigger a saga orchestration workflow."
+    )
+    @ApiResponses(value = {
+        @ApiResponse(
+            responseCode = "202",
+            description = "Document accepted for processing",
+            content = @Content(schema = @Schema(implementation = SubmitDocumentResponse.class))
+        ),
+        @ApiResponse(
+            responseCode = "400",
+            description = "Invalid document content (validation failed)",
+            content = @Content(schema = @Schema(implementation = ErrorResponse.class))
+        ),
+        @ApiResponse(
+            responseCode = "409",
+            description = "Document number already exists (duplicate)",
+            content = @Content(schema = @Schema(implementation = ErrorResponse.class))
+        ),
+        @ApiResponse(
+            responseCode = "413",
+            description = "Payload too large (exceeds maximum XML size)",
+            content = @Content(schema = @Schema(implementation = ErrorResponse.class))
+        ),
+        @ApiResponse(
+            responseCode = "500",
+            description = "Internal server error",
+            content = @Content(schema = @Schema(implementation = ErrorResponse.class))
+        )
+    })
     public ResponseEntity<Map<String, Object>> submitDocument(
+        @Parameter(
+            description = "Thai e-Tax XML document content",
+            required = true,
+            schema = @Schema(type = "string", format = "xml", example = "<TaxInvoice_CrossIndustryInvoice>...</TaxInvoice_CrossIndustryInvoice>")
+        )
         @RequestBody @NotBlank String xmlContent,
+        @Parameter(
+            description = "Optional correlation ID for distributed tracing",
+            example = "550e8400-e29b-41d4-a716-446655440000"
+        )
         @RequestHeader(value = "X-Correlation-ID", required = false) String correlationId
     ) {
         log.info("Received document submission via REST API");
@@ -119,7 +169,29 @@ public class DocumentIntakeController {
      * Get document status by ID.
      */
     @GetMapping("/{id}")
-    public ResponseEntity<Map<String, Object>> getDocumentStatus(@PathVariable UUID id) {
+    @Operation(
+        summary = "Get document status",
+        description = "Retrieve the current status and details of a submitted document by its UUID"
+    )
+    @ApiResponses(value = {
+        @ApiResponse(
+            responseCode = "200",
+            description = "Document found",
+            content = @Content(schema = @Schema(implementation = DocumentStatusResponse.class))
+        ),
+        @ApiResponse(
+            responseCode = "404",
+            description = "Document not found"
+        ),
+        @ApiResponse(
+            responseCode = "500",
+            description = "Internal server error",
+            content = @Content(schema = @Schema(implementation = ErrorResponse.class))
+        )
+    })
+    public ResponseEntity<Map<String, Object>> getDocumentStatus(
+        @Parameter(description = "Document UUID", example = "550e8400-e29b-41d4-a716-446655440000")
+        @PathVariable UUID id) {
         try {
             IncomingDocument document = getDocumentUseCase.getDocument(id);
 
@@ -188,5 +260,73 @@ public class DocumentIntakeController {
             "error", "Invalid request",
             "message", message
         ));
+    }
+
+    // ==================== OpenAPI Schema Classes ====================
+
+    /**
+     * Schema for successful document submission response.
+     */
+    @Schema(description = "Response returned when document is accepted for processing")
+    private static class SubmitDocumentResponse {
+        @Schema(description = "Success message", example = "Document submitted for processing")
+        private String message;
+
+        @Schema(description = "Correlation ID for tracking", example = "550e8400-e29b-41d4-a716-446655440000")
+        private String correlationId;
+    }
+
+    /**
+     * Schema for document status response.
+     */
+    @Schema(description = "Document status and details")
+    private static class DocumentStatusResponse {
+        @Schema(description = "Document UUID", example = "550e8400-e29b-41d4-a716-446655440000")
+        private String id;
+
+        @Schema(description = "Document number from the XML", example = "TAX-2025-001")
+        private String documentNumber;
+
+        @Schema(description = "Current document status", example = "VALIDATED")
+        private String status;
+
+        @Schema(description = "Document type", example = "TAX_INVOICE")
+        private String documentType;
+
+        @Schema(description = "Timestamp when document was received", example = "2025-01-15T10:30:00Z")
+        private String receivedAt;
+
+        @Schema(description = "Timestamp when document was processed", example = "2025-01-15T10:30:05Z")
+        private String processedAt;
+
+        @Schema(description = "Validation result details")
+        private ValidationResult validationResult;
+    }
+
+    /**
+     * Schema for validation result.
+     */
+    @Schema(description = "Validation result details")
+    private static class ValidationResult {
+        @Schema(description = "Whether document is valid", example = "true")
+        private boolean valid;
+
+        @Schema(description = "Validation error messages", example = "[]")
+        private java.util.List<String> errors;
+
+        @Schema(description = "Validation warning messages", example = "[]")
+        private java.util.List<String> warnings;
+    }
+
+    /**
+     * Schema for error responses.
+     */
+    @Schema(description = "Error response")
+    private static class ErrorResponse {
+        @Schema(description = "Error type", example = "Invalid document")
+        private String error;
+
+        @Schema(description = "Detailed error message", example = "Document type could not be determined from XML namespace")
+        private String message;
     }
 }

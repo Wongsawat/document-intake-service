@@ -1,5 +1,6 @@
 package com.wpanther.document.intake.application.service;
 
+import com.wpanther.document.intake.adapter.in.metrics.DocumentIntakeMetrics;
 import com.wpanther.document.intake.domain.event.DocumentReceivedTraceEvent;
 import com.wpanther.document.intake.domain.event.EventStatus;
 import com.wpanther.document.intake.domain.event.StartSagaCommand;
@@ -25,6 +26,8 @@ import java.util.UUID;
  * This service handles document submission, validation, and event publishing via the outbox pattern.
  * Events are written to the outbox table within the same transaction as domain state changes,
  * ensuring atomicity and guaranteed delivery.
+ * <p>
+ * Metrics are recorded for document intake rates, validation results, and processing times.
  */
 @Service
 public class DocumentIntakeApplicationService implements SubmitDocumentUseCase, GetDocumentUseCase {
@@ -34,13 +37,16 @@ public class DocumentIntakeApplicationService implements SubmitDocumentUseCase, 
     private final DocumentRepository documentRepository;
     private final XmlValidationPort validationService;
     private final DocumentEventPublisher eventPublisher;
+    private final DocumentIntakeMetrics metrics;
 
     public DocumentIntakeApplicationService(DocumentRepository documentRepository,
                                 XmlValidationPort validationService,
-                                DocumentEventPublisher eventPublisher) {
+                                DocumentEventPublisher eventPublisher,
+                                DocumentIntakeMetrics metrics) {
         this.documentRepository = documentRepository;
         this.validationService = validationService;
         this.eventPublisher = eventPublisher;
+        this.metrics = metrics;
     }
 
     /**
@@ -55,6 +61,8 @@ public class DocumentIntakeApplicationService implements SubmitDocumentUseCase, 
      * <p>
      * All database changes and event writes happen within a single transaction.
      * Events are written to the outbox table and Debezium CDC publishes them to Kafka.
+     * <p>
+     * Metrics are recorded for monitoring and observability.
      *
      * @param xmlContent the XML content to validate
      * @param source the source of the document (API, KAFKA, etc.)
@@ -66,11 +74,16 @@ public class DocumentIntakeApplicationService implements SubmitDocumentUseCase, 
     @Transactional
     @Override
     public IncomingDocument submitDocument(String xmlContent, String source, String correlationId) {
+        long startTime = System.currentTimeMillis();
         log.info("Submitting document from source: {} with correlationId: {}", source, correlationId);
+
+        // Record document received
+        metrics.incrementReceived();
 
         // Extract document number
         String documentNumber = validationService.extractDocumentNumber(xmlContent);
         if (documentNumber == null || documentNumber.isBlank()) {
+            metrics.incrementInvalid("missing_document_number");
             throw new IllegalArgumentException(
                 "Could not extract document number from XML. " +
                 "Ensure XML has valid document number in the expected field location. " +
@@ -81,6 +94,7 @@ public class DocumentIntakeApplicationService implements SubmitDocumentUseCase, 
         // Extract document type
         DocumentType documentType = validationService.extractDocumentType(xmlContent);
         if (documentType == null) {
+            metrics.incrementInvalid("unknown_document_type");
             throw new IllegalArgumentException(
                 "Could not detect document type from XML. " +
                 "Ensure XML namespace URI matches one of the supported document types: " +
@@ -92,6 +106,7 @@ public class DocumentIntakeApplicationService implements SubmitDocumentUseCase, 
         // Check if already exists
         if (documentRepository.existsByDocumentNumber(documentNumber)) {
             log.warn("Document number {} already exists", documentNumber);
+            metrics.incrementFailed("duplicate_document_number");
             throw new IllegalStateException(
                 "Document number already exists: " + documentNumber + ". " +
                 "A document with this number has already been submitted. " +
@@ -113,6 +128,7 @@ public class DocumentIntakeApplicationService implements SubmitDocumentUseCase, 
             document = documentRepository.save(document);
         } catch (DataIntegrityViolationException e) {
             log.warn("Concurrent duplicate document number detected on save: {}", documentNumber);
+            metrics.incrementFailed("concurrent_duplicate");
             throw new IllegalStateException(
                 "Document number already exists: " + documentNumber + ". " +
                 "A document with this number has already been submitted. " +
@@ -150,6 +166,9 @@ public class DocumentIntakeApplicationService implements SubmitDocumentUseCase, 
         // Publish StartSagaCommand AFTER validation (only for valid documents)
         // This triggers the saga orchestrator to begin the multi-step processing pipeline
         if (document.isValid()) {
+            // Record validation success
+            metrics.incrementValidated(documentType.name());
+
             StartSagaCommand sagaCommand = StartSagaCommand.builder()
                 .documentId(document.getId().toString())
                 .documentType(document.getDocumentType().name())
@@ -175,6 +194,9 @@ public class DocumentIntakeApplicationService implements SubmitDocumentUseCase, 
             document.markForwarded();
             document = documentRepository.save(document);
 
+            // Record forward to orchestrator
+            metrics.incrementForwarded(documentType.name());
+
             // Publish FORWARDED trace event
             DocumentReceivedTraceEvent forwardedEvent = DocumentReceivedTraceEvent.builder()
                 .documentId(document.getId().toString())
@@ -186,6 +208,12 @@ public class DocumentIntakeApplicationService implements SubmitDocumentUseCase, 
                 .build();
             eventPublisher.publishTraceEvent(forwardedEvent);
         } else {
+            // Record validation failure
+            String failureReason = validationResult.errorCount() > 0
+                ? "validation_errors"
+                : "validation_warnings";
+            metrics.incrementInvalid(failureReason);
+
             // Publish INVALID trace event so notification-service tracks rejected documents
             DocumentReceivedTraceEvent invalidEvent = DocumentReceivedTraceEvent.builder()
                 .documentId(document.getId().toString())
@@ -200,6 +228,11 @@ public class DocumentIntakeApplicationService implements SubmitDocumentUseCase, 
             log.warn("Document {} failed validation with {} error(s)",
                 documentNumber, document.getValidationResult().errorCount());
         }
+
+        // Record processing time
+        long processingTime = System.currentTimeMillis() - startTime;
+        metrics.recordProcessingTime(processingTime);
+        log.debug("Document processing time: {} ms", processingTime);
 
         return document;
     }
