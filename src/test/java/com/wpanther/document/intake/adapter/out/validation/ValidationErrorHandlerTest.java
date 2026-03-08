@@ -1,4 +1,4 @@
-package com.wpanther.document.intake.adapter.out.validation;
+package com.wpanther.document.intake.infrastructure.adapter.out.validation;
 
 import jakarta.xml.bind.ValidationEvent;
 import jakarta.xml.bind.ValidationEventLocator;

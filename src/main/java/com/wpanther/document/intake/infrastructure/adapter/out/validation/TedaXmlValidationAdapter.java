@@ -1,7 +1,7 @@
 package com.wpanther.document.intake.infrastructure.adapter.out.validation;
 
 import com.wpanther.document.intake.domain.model.ValidationResult;
-import com.wpanther.document.intake.domain.port.out.XmlValidationPort;
+import com.wpanther.document.intake.application.port.out.XmlValidationPort;
 import com.wpanther.document.intake.infrastructure.config.SchemaPathConfig;
 import com.wpanther.etax.validation.SchematronError;
 import com.wpanther.etax.validation.SchematronValidationResult;

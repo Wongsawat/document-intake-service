@@ -1,7 +1,7 @@
-package com.wpanther.document.intake.adapter.out.persistence;
+package com.wpanther.document.intake.infrastructure.adapter.out.persistence;
 
 import com.wpanther.document.intake.domain.model.DocumentStatus;
-import com.wpanther.document.intake.infrastructure.validation.DocumentType;
+import com.wpanther.document.intake.domain.model.DocumentType;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;

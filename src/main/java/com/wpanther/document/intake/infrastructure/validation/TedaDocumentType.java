@@ -1,7 +1,7 @@
 package com.wpanther.document.intake.infrastructure.validation;
 
-import com.wpanther.document.intake.adapter.out.validation.InvoiceNumberExtractor;
-import com.wpanther.document.intake.adapter.out.validation.InvoiceNumberExtractorStrategies;
+import com.wpanther.document.intake.infrastructure.adapter.out.validation.InvoiceNumberExtractor;
+import com.wpanther.document.intake.infrastructure.adapter.out.validation.InvoiceNumberExtractorStrategies;
 import com.wpanther.etax.generated.abbreviatedtaxinvoice.rsm.AbbreviatedTaxInvoice_CrossIndustryInvoiceType;
 import com.wpanther.etax.generated.cancellationnote.rsm.CancellationNote_CrossIndustryInvoiceType;
 import com.wpanther.etax.generated.debitcreditnote.rsm.DebitCreditNote_CrossIndustryInvoiceType;
@@ -91,7 +91,7 @@ public enum TedaDocumentType {
     private final Class<?> jaxbClass;
     private final String rootElementName;
 
-    DocumentType(String contextPath, String namespaceUri,
+    TedaDocumentType(String contextPath, String namespaceUri,
                  Class<?> jaxbClass, String rootElementName) {
         this.contextPath = contextPath;
         this.namespaceUri = namespaceUri;
@@ -160,14 +160,14 @@ public enum TedaDocumentType {
      * Find document type by namespace URI.
      *
      * @param namespaceUri the XML namespace URI
-     * @return the matching DocumentType, or null if not found
+     * @return the matching TedaDocumentType, or null if not found
      */
-    public static DocumentType fromNamespaceUri(String namespaceUri) {
+    public static TedaDocumentType fromNamespaceUri(String namespaceUri) {
         if (namespaceUri == null) {
             return null;
         }
 
-        for (DocumentType type : values()) {
+        for (TedaDocumentType type : values()) {
             if (type.namespaceUri.equals(namespaceUri)) {
                 return type;
             }
@@ -180,14 +180,14 @@ public enum TedaDocumentType {
      * Find document type by root element name.
      *
      * @param rootElementName the root element local name
-     * @return the matching DocumentType, or null if not found
+     * @return the matching TedaDocumentType, or null if not found
      */
-    public static DocumentType fromRootElementName(String rootElementName) {
+    public static TedaDocumentType fromRootElementName(String rootElementName) {
         if (rootElementName == null) {
             return null;
         }
 
-        for (DocumentType type : values()) {
+        for (TedaDocumentType type : values()) {
             if (type.rootElementName.equals(rootElementName)) {
                 return type;
             }
@@ -201,14 +201,14 @@ public enum TedaDocumentType {
      * Used when document type is detected from an unmarshaled JAXB object.
      *
      * @param clazz the JAXB class to match
-     * @return the matching DocumentType, or null if not found
+     * @return the matching TedaDocumentType, or null if not found
      */
-    public static DocumentType fromJaxbClass(Class<?> clazz) {
+    public static TedaDocumentType fromJaxbClass(Class<?> clazz) {
         if (clazz == null) {
             return null;
         }
 
-        for (DocumentType type : values()) {
+        for (TedaDocumentType type : values()) {
             if (type.jaxbClass.isAssignableFrom(clazz)) {
                 return type;
             }

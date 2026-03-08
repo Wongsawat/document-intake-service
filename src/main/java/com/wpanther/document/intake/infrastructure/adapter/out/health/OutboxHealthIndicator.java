@@ -1,6 +1,6 @@
 package com.wpanther.document.intake.infrastructure.adapter.out.health;
 
-import com.wpanther.document.intake.adapter.out.persistence.outbox.SpringDataOutboxRepository;
+import com.wpanther.document.intake.infrastructure.adapter.out.persistence.outbox.SpringDataOutboxRepository;
 import com.wpanther.saga.domain.outbox.OutboxStatus;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

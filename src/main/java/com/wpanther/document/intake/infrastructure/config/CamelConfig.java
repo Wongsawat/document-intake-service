@@ -1,6 +1,6 @@
 package com.wpanther.document.intake.infrastructure.config;
 
-import com.wpanther.document.intake.domain.port.in.SubmitDocumentUseCase;
+import com.wpanther.document.intake.application.port.in.SubmitDocumentUseCase;
 import com.wpanther.document.intake.domain.model.IncomingDocument;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.camel.LoggingLevel;
