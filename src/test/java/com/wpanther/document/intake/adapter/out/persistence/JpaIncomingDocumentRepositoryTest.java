@@ -323,10 +323,23 @@ class JpaIncomingDocumentRepositoryTest {
     @Test
     @DisplayName("save updates existing entity")
     void testSaveUpdatesEntity() {
-        testEntity.setStatus(DocumentStatus.FORWARDED);
-        testEntity.setProcessedAt(java.time.Instant.now());
+        // Create updated version using builder pattern
+        IncomingDocumentEntity updatedEntity = IncomingDocumentEntity.builder()
+            .id(testEntity.getId())
+            .documentNumber(testEntity.getDocumentNumber())
+            .xmlContent(testEntity.getXmlContent())
+            .source(testEntity.getSource())
+            .correlationId(testEntity.getCorrelationId())
+            .documentType(testEntity.getDocumentType())
+            .status(DocumentStatus.FORWARDED)
+            .validationResult(testEntity.getValidationResult())
+            .receivedAt(testEntity.getReceivedAt())
+            .processedAt(java.time.Instant.now())
+            .createdAt(testEntity.getCreatedAt())
+            .updatedAt(testEntity.getUpdatedAt())
+            .build();
 
-        IncomingDocumentEntity updated = repository.save(testEntity);
+        IncomingDocumentEntity updated = repository.save(updatedEntity);
 
         assertThat(updated.getStatus()).isEqualTo(DocumentStatus.FORWARDED);
         assertThat(updated.getProcessedAt()).isNotNull();

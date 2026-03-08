@@ -12,6 +12,10 @@ import java.util.UUID;
 
 /**
  * JPA Entity for IncomingDocument aggregate
+ *
+ * <p><strong>Design note:</strong> Setters are intentionally omitted to prevent bypassing
+ * the aggregate's state machine. Use the builder pattern for construction and let JPA
+ * use reflection for field access during persistence operations.</p>
  */
 @Entity
 @Table(name = "incoming_documents", indexes = {
@@ -21,9 +25,8 @@ import java.util.UUID;
     @Index(name = "idx_incoming_document_type", columnList = "document_type")
 })
 @Getter
-@Setter
-@NoArgsConstructor
-@AllArgsConstructor
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
+@AllArgsConstructor(access = AccessLevel.PROTECTED)
 @Builder
 public class IncomingDocumentEntity {
 

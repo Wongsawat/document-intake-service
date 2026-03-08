@@ -48,7 +48,12 @@ class IncomingDocumentEntityTest {
     @DisplayName("@PrePersist keeps existing UUID when id is set")
     void testPrePersistKeepsExistingUuid() {
         UUID existingId = UUID.randomUUID();
-        entity.setId(existingId);
+        entity = IncomingDocumentEntity.builder()
+            .id(existingId)
+            .documentNumber("INV-2024-001")
+            .xmlContent("<test>xml</test>")
+            .source("REST")
+            .build();
 
         entity.onCreate();
 
@@ -68,7 +73,12 @@ class IncomingDocumentEntityTest {
     @Test
     @DisplayName("@PrePersist keeps existing status when set")
     void testPrePersistKeepsExistingStatus() {
-        entity.setStatus(DocumentStatus.VALIDATED);
+        entity = IncomingDocumentEntity.builder()
+            .documentNumber("INV-2024-001")
+            .xmlContent("<test>xml</test>")
+            .source("REST")
+            .status(DocumentStatus.VALIDATED)
+            .build();
 
         entity.onCreate();
 
@@ -113,6 +123,44 @@ class IncomingDocumentEntityTest {
         assertThat(fullEntity.getUpdatedAt()).isEqualTo(now);
     }
 
+    @Test
+    @DisplayName("Builder allows creating multiple entities with different values")
+    void testBuilderCreatesMultipleEntities() {
+        UUID id1 = UUID.randomUUID();
+        UUID id2 = UUID.randomUUID();
+        String validationResult = "{\"valid\":true,\"errors\":[],\"warnings\":[]}";
+
+        IncomingDocumentEntity entity1 = IncomingDocumentEntity.builder()
+            .id(id1)
+            .documentNumber("INV-2024-001")
+            .xmlContent("<xml>content1</xml>")
+            .source("REST")
+            .documentType(DocumentType.TAX_INVOICE)
+            .status(DocumentStatus.RECEIVED)
+            .validationResult(validationResult)
+            .build();
+
+        IncomingDocumentEntity entity2 = IncomingDocumentEntity.builder()
+            .id(id2)
+            .documentNumber("INV-2024-999")
+            .xmlContent("<xml>content2</xml>")
+            .source("KAFKA")
+            .documentType(DocumentType.INVOICE)
+            .status(DocumentStatus.INVALID)
+            .validationResult(validationResult)
+            .build();
+
+        assertThat(entity1.getId()).isEqualTo(id1);
+        assertThat(entity1.getDocumentNumber()).isEqualTo("INV-2024-001");
+        assertThat(entity1.getStatus()).isEqualTo(DocumentStatus.RECEIVED);
+        assertThat(entity1.getDocumentType()).isEqualTo(DocumentType.TAX_INVOICE);
+
+        assertThat(entity2.getId()).isEqualTo(id2);
+        assertThat(entity2.getDocumentNumber()).isEqualTo("INV-2024-999");
+        assertThat(entity2.getStatus()).isEqualTo(DocumentStatus.INVALID);
+        assertThat(entity2.getDocumentType()).isEqualTo(DocumentType.INVOICE);
+    }
+
     // ==================== Enum Persistence Tests ====================
 
     @Test
@@ -152,7 +200,12 @@ class IncomingDocumentEntityTest {
     void testValidationResultJson() {
         String validationResult = "{\"valid\":true,\"errors\":[],\"warnings\":[\"Warning 1\"]}";
 
-        entity.setValidationResult(validationResult);
+        entity = IncomingDocumentEntity.builder()
+            .documentNumber("INV-2024-001")
+            .xmlContent("<test>xml</test>")
+            .source("REST")
+            .validationResult(validationResult)
+            .build();
 
         assertThat(entity.getValidationResult()).isNotNull();
         assertThat(entity.getValidationResult()).contains("valid");
@@ -162,7 +215,12 @@ class IncomingDocumentEntityTest {
     @Test
     @DisplayName("Entity handles null validationResult")
     void testNullValidationResult() {
-        entity.setValidationResult(null);
+        entity = IncomingDocumentEntity.builder()
+            .documentNumber("INV-2024-001")
+            .xmlContent("<test>xml</test>")
+            .source("REST")
+            .validationResult(null)
+            .build();
 
         assertThat(entity.getValidationResult()).isNull();
     }
@@ -171,37 +229,15 @@ class IncomingDocumentEntityTest {
     @DisplayName("Entity handles empty validationResult")
     void testEmptyValidationResult() {
         String emptyResult = "{}";
-        entity.setValidationResult(emptyResult);
+        entity = IncomingDocumentEntity.builder()
+            .documentNumber("INV-2024-001")
+            .xmlContent("<test>xml</test>")
+            .source("REST")
+            .validationResult(emptyResult)
+            .build();
 
         assertThat(entity.getValidationResult()).isNotNull();
         assertThat(entity.getValidationResult()).isEqualTo("{}");
-    }
-
-    // ==================== Field Assignment Tests ====================
-
-    @Test
-    @DisplayName("Setters update all fields correctly")
-    void testSettersUpdateFields() {
-        UUID id = UUID.randomUUID();
-        String validationResult = "{\"valid\":false,\"errors\":[\"Error 1\"],\"warnings\":[]}";
-
-        entity.setId(id);
-        entity.setDocumentNumber("INV-2024-999");
-        entity.setXmlContent("<updated>xml</updated>");
-        entity.setSource("UPDATED");
-        entity.setCorrelationId("corr-updated");
-        entity.setDocumentType(DocumentType.INVOICE);
-        entity.setStatus(DocumentStatus.INVALID);
-        entity.setValidationResult(validationResult);
-
-        assertThat(entity.getId()).isEqualTo(id);
-        assertThat(entity.getDocumentNumber()).isEqualTo("INV-2024-999");
-        assertThat(entity.getXmlContent()).isEqualTo("<updated>xml</updated>");
-        assertThat(entity.getSource()).isEqualTo("UPDATED");
-        assertThat(entity.getCorrelationId()).isEqualTo("corr-updated");
-        assertThat(entity.getDocumentType()).isEqualTo(DocumentType.INVOICE);
-        assertThat(entity.getStatus()).isEqualTo(DocumentStatus.INVALID);
-        assertThat(entity.getValidationResult()).isEqualTo(validationResult);
     }
 
     // ==================== Constructor Tests ====================
@@ -262,7 +298,12 @@ class IncomingDocumentEntityTest {
     @Test
     @DisplayName("Entity handles null correlationId")
     void testNullCorrelationId() {
-        entity.setCorrelationId(null);
+        entity = IncomingDocumentEntity.builder()
+            .documentNumber("INV-2024-001")
+            .xmlContent("<test>xml</test>")
+            .source("REST")
+            .correlationId(null)
+            .build();
 
         assertThat(entity.getCorrelationId()).isNull();
     }
@@ -270,7 +311,12 @@ class IncomingDocumentEntityTest {
     @Test
     @DisplayName("Entity handles null processedAt")
     void testNullProcessedAt() {
-        entity.setProcessedAt(null);
+        entity = IncomingDocumentEntity.builder()
+            .documentNumber("INV-2024-001")
+            .xmlContent("<test>xml</test>")
+            .source("REST")
+            .processedAt(null)
+            .build();
 
         assertThat(entity.getProcessedAt()).isNull();
     }
@@ -279,11 +325,21 @@ class IncomingDocumentEntityTest {
     @DisplayName("Entity handles all document types including null")
     void testAllDocumentTypesIncludingNull() {
         for (DocumentType type : DocumentType.values()) {
-            entity.setDocumentType(type);
-            assertThat(entity.getDocumentType()).isEqualTo(type);
+            IncomingDocumentEntity testEntity = IncomingDocumentEntity.builder()
+                .documentNumber("INV-" + type.name())
+                .xmlContent("<test/>")
+                .source("TEST")
+                .documentType(type)
+                .build();
+            assertThat(testEntity.getDocumentType()).isEqualTo(type);
         }
 
-        entity.setDocumentType(null);
-        assertThat(entity.getDocumentType()).isNull();
+        IncomingDocumentEntity nullTypeEntity = IncomingDocumentEntity.builder()
+            .documentNumber("INV-null")
+            .xmlContent("<test/>")
+            .source("TEST")
+            .documentType(null)
+            .build();
+        assertThat(nullTypeEntity.getDocumentType()).isNull();
     }
 }
