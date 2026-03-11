@@ -1,4 +1,4 @@
-package com.wpanther.document.intake.infrastructure.config;
+package com.wpanther.document.intake.infrastructure.config.outbox;
 
 import com.wpanther.document.intake.infrastructure.adapter.out.persistence.outbox.JpaOutboxEventRepository;
 import com.wpanther.document.intake.infrastructure.adapter.out.persistence.outbox.SpringDataOutboxRepository;

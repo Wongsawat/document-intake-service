@@ -1,4 +1,4 @@
-package com.wpanther.document.intake.infrastructure.config;
+package com.wpanther.document.intake.infrastructure.config.security;
 
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.actuate.autoconfigure.security.reactive.EndpointRequest;

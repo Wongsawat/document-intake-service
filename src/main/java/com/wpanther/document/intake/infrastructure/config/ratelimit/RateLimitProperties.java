@@ -1,4 +1,4 @@
-package com.wpanther.document.intake.infrastructure.config;
+package com.wpanther.document.intake.infrastructure.config.ratelimit;
 
 import lombok.Data;
 import org.springframework.boot.context.properties.ConfigurationProperties;

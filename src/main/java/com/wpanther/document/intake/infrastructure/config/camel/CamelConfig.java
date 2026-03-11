@@ -1,7 +1,8 @@
-package com.wpanther.document.intake.infrastructure.config;
+package com.wpanther.document.intake.infrastructure.config.camel;
 
 import com.wpanther.document.intake.application.usecase.SubmitDocumentUseCase;
 import com.wpanther.document.intake.domain.model.IncomingDocument;
+import com.wpanther.document.intake.infrastructure.config.ratelimit.RateLimitProperties;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.camel.LoggingLevel;
 import org.apache.camel.builder.RouteBuilder;

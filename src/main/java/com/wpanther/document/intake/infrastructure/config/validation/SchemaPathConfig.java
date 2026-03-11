@@ -1,4 +1,4 @@
-package com.wpanther.document.intake.infrastructure.config;
+package com.wpanther.document.intake.infrastructure.config.validation;
 
 import lombok.Getter;
 import lombok.Setter;
