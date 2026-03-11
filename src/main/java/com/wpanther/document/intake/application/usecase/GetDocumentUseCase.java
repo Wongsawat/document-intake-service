@@ -1,4 +1,4 @@
-package com.wpanther.document.intake.application.port.in;
+package com.wpanther.document.intake.application.usecase;
 
 import com.wpanther.document.intake.domain.model.IncomingDocument;
 import java.util.UUID;

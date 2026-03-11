@@ -1,4 +1,4 @@
-package com.wpanther.document.intake.application.service;
+package com.wpanther.document.intake.application.usecase;
 
 import com.wpanther.document.intake.infrastructure.adapter.in.metrics.DocumentIntakeMetrics;
 import com.wpanther.document.intake.application.dto.event.DocumentReceivedTraceEvent;
@@ -7,8 +7,6 @@ import com.wpanther.document.intake.application.dto.event.StartSagaCommand;
 import com.wpanther.document.intake.domain.model.DocumentType;
 import com.wpanther.document.intake.domain.model.IncomingDocument;
 import com.wpanther.document.intake.domain.model.ValidationResult;
-import com.wpanther.document.intake.application.port.in.GetDocumentUseCase;
-import com.wpanther.document.intake.application.port.in.SubmitDocumentUseCase;
 import com.wpanther.document.intake.application.port.out.DocumentEventPublisher;
 import com.wpanther.document.intake.domain.repository.DocumentRepository;
 import com.wpanther.document.intake.application.port.out.XmlValidationPort;
