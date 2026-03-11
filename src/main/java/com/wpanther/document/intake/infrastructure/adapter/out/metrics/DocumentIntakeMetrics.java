@@ -1,5 +1,6 @@
-package com.wpanther.document.intake.infrastructure.adapter.in.metrics;
+package com.wpanther.document.intake.infrastructure.adapter.out.metrics;
 
+import com.wpanther.document.intake.application.port.out.DocumentIntakeMetricsPort;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
@@ -15,7 +16,7 @@ import java.util.concurrent.TimeUnit;
  * and Prometheus endpoint: /actuator/prometheus
  */
 @Component
-public class DocumentIntakeMetrics {
+public class DocumentIntakeMetrics implements DocumentIntakeMetricsPort {
 
     private final Counter documentsReceived;
     private final Counter documentsValidated;
@@ -66,18 +67,12 @@ public class DocumentIntakeMetrics {
                 .register(meterRegistry);
     }
 
-    /**
-     * Increment the documents received counter.
-     */
+    @Override
     public void incrementReceived() {
         documentsReceived.increment();
     }
 
-    /**
-     * Increment the documents validated counter.
-     *
-     * @param documentType The type of document (TAX_INVOICE, RECEIPT, etc.)
-     */
+    @Override
     public void incrementValidated(String documentType) {
         Counter.builder("document.intake.validated.by.type")
                 .description("Number of documents that passed validation, by type")
@@ -88,11 +83,7 @@ public class DocumentIntakeMetrics {
         documentsValidated.increment();
     }
 
-    /**
-     * Increment the documents invalid counter.
-     *
-     * @param reason The validation failure reason
-     */
+    @Override
     public void incrementInvalid(String reason) {
         Counter.builder("document.intake.invalid.by.reason")
                 .description("Number of documents that failed validation, by reason")
@@ -103,11 +94,7 @@ public class DocumentIntakeMetrics {
         documentsInvalid.increment();
     }
 
-    /**
-     * Increment the documents forwarded counter.
-     *
-     * @param documentType The type of document being forwarded
-     */
+    @Override
     public void incrementForwarded(String documentType) {
         Counter.builder("document.intake.forwarded.by.type")
                 .description("Number of documents forwarded to saga orchestrator, by type")
@@ -118,11 +105,7 @@ public class DocumentIntakeMetrics {
         documentsForwarded.increment();
     }
 
-    /**
-     * Increment the documents failed counter.
-     *
-     * @param stage The processing stage where failure occurred
-     */
+    @Override
     public void incrementFailed(String stage) {
         Counter.builder("document.intake.failed.by.stage")
                 .description("Number of documents that failed during processing, by stage")
@@ -133,64 +116,48 @@ public class DocumentIntakeMetrics {
         documentsFailed.increment();
     }
 
-    /**
-     * Record the processing time for a document.
-     *
-     * @param duration The duration in milliseconds
-     */
-    public void recordProcessingTime(long duration) {
-        processingTimer.record(duration, TimeUnit.MILLISECONDS);
+    @Override
+    public void recordProcessingTime(long durationMs) {
+        processingTimer.record(durationMs, TimeUnit.MILLISECONDS);
     }
 
     /**
-     * Get the documents received counter.
-     *
-     * @return The counter
+     * Get the documents received counter (for testing).
      */
     public Counter getDocumentsReceived() {
         return documentsReceived;
     }
 
     /**
-     * Get the documents validated counter.
-     *
-     * @return The counter
+     * Get the documents validated counter (for testing).
      */
     public Counter getDocumentsValidated() {
         return documentsValidated;
     }
 
     /**
-     * Get the documents invalid counter.
-     *
-     * @return The counter
+     * Get the documents invalid counter (for testing).
      */
     public Counter getDocumentsInvalid() {
         return documentsInvalid;
     }
 
     /**
-     * Get the documents forwarded counter.
-     *
-     * @return The counter
+     * Get the documents forwarded counter (for testing).
      */
     public Counter getDocumentsForwarded() {
         return documentsForwarded;
     }
 
     /**
-     * Get the documents failed counter.
-     *
-     * @return The counter
+     * Get the documents failed counter (for testing).
      */
     public Counter getDocumentsFailed() {
         return documentsFailed;
     }
 
     /**
-     * Get the processing timer.
-     *
-     * @return The timer
+     * Get the processing timer (for testing).
      */
     public Timer getProcessingTimer() {
         return processingTimer;

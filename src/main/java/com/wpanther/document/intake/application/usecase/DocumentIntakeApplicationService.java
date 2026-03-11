@@ -1,6 +1,6 @@
 package com.wpanther.document.intake.application.usecase;
 
-import com.wpanther.document.intake.infrastructure.adapter.in.metrics.DocumentIntakeMetrics;
+import com.wpanther.document.intake.application.port.out.DocumentIntakeMetricsPort;
 import com.wpanther.document.intake.application.dto.event.DocumentReceivedTraceEvent;
 import com.wpanther.document.intake.application.dto.event.EventStatus;
 import com.wpanther.document.intake.application.dto.event.StartSagaCommand;
@@ -35,12 +35,12 @@ public class DocumentIntakeApplicationService implements SubmitDocumentUseCase, 
     private final DocumentRepository documentRepository;
     private final XmlValidationPort validationService;
     private final DocumentEventPublisher eventPublisher;
-    private final DocumentIntakeMetrics metrics;
+    private final DocumentIntakeMetricsPort metrics;
 
     public DocumentIntakeApplicationService(DocumentRepository documentRepository,
                                 XmlValidationPort validationService,
                                 DocumentEventPublisher eventPublisher,
-                                DocumentIntakeMetrics metrics) {
+                                DocumentIntakeMetricsPort metrics) {
         this.documentRepository = documentRepository;
         this.validationService = validationService;
         this.eventPublisher = eventPublisher;

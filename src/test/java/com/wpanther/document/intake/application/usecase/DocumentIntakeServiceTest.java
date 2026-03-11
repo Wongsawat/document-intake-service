@@ -7,7 +7,7 @@ import com.wpanther.document.intake.domain.repository.DocumentRepository;
 import com.wpanther.document.intake.application.port.out.XmlValidationPort;
 import com.wpanther.document.intake.application.port.out.DocumentEventPublisher;
 import com.wpanther.document.intake.domain.model.DocumentType;
-import com.wpanther.document.intake.infrastructure.adapter.in.metrics.DocumentIntakeMetrics;
+import com.wpanther.document.intake.application.port.out.DocumentIntakeMetricsPort;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -48,7 +48,7 @@ class DocumentIntakeServiceTest {
     private DocumentEventPublisher eventPublisher;
 
     @Mock
-    private DocumentIntakeMetrics metrics;
+    private DocumentIntakeMetricsPort metrics;
 
     @InjectMocks
     private DocumentIntakeApplicationService documentIntakeService;
