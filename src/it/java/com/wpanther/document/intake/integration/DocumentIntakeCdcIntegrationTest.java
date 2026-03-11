@@ -1,7 +1,7 @@
 package com.wpanther.document.intake.integration;
 
 import com.fasterxml.jackson.databind.JsonNode;
-import com.wpanther.document.intake.application.service.DocumentIntakeService;
+import com.wpanther.document.intake.application.usecase.SubmitDocumentUseCase;
 import com.wpanther.document.intake.domain.model.DocumentStatus;
 import com.wpanther.document.intake.domain.model.IncomingDocument;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
@@ -24,7 +24,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 class DocumentIntakeCdcIntegrationTest extends AbstractCdcIntegrationTest {
 
     @Autowired
-    private DocumentIntakeService documentIntakeService;
+    private SubmitDocumentUseCase documentIntakeService;
 
     @Nested
     @DisplayName("Database Write Tests")

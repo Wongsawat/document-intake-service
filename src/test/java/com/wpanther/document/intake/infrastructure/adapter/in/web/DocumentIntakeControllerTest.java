@@ -1,13 +1,13 @@
 package com.wpanther.document.intake.infrastructure.adapter.in.web;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.wpanther.document.intake.application.port.in.SubmitDocumentUseCase;
-import com.wpanther.document.intake.application.port.in.GetDocumentUseCase;
+import com.wpanther.document.intake.application.usecase.SubmitDocumentUseCase;
+import com.wpanther.document.intake.application.usecase.GetDocumentUseCase;
 import com.wpanther.document.intake.domain.model.IncomingDocument;
 import com.wpanther.document.intake.domain.model.DocumentStatus;
 import com.wpanther.document.intake.domain.model.ValidationResult;
 import com.wpanther.document.intake.domain.model.DocumentType;
-import com.wpanther.document.intake.infrastructure.config.ValidationProperties;
+import com.wpanther.document.intake.infrastructure.config.validation.ValidationProperties;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;

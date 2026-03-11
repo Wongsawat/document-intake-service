@@ -1,9 +1,9 @@
 package com.wpanther.document.intake.infrastructure.adapter.in.web;
 
-import com.wpanther.document.intake.application.port.in.GetDocumentUseCase;
-import com.wpanther.document.intake.application.port.in.SubmitDocumentUseCase;
+import com.wpanther.document.intake.application.usecase.GetDocumentUseCase;
+import com.wpanther.document.intake.application.usecase.SubmitDocumentUseCase;
 import com.wpanther.document.intake.domain.model.IncomingDocument;
-import com.wpanther.document.intake.infrastructure.config.ValidationProperties;
+import com.wpanther.document.intake.infrastructure.config.validation.ValidationProperties;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
