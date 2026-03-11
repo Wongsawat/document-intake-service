@@ -2,8 +2,8 @@ package com.wpanther.document.intake.infrastructure.adapter.out.messaging;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.wpanther.document.intake.domain.event.DocumentReceivedTraceEvent;
-import com.wpanther.document.intake.domain.event.StartSagaCommand;
+import com.wpanther.document.intake.application.dto.event.DocumentReceivedTraceEvent;
+import com.wpanther.document.intake.application.dto.event.StartSagaCommand;
 import com.wpanther.saga.infrastructure.outbox.OutboxService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;

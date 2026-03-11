@@ -1,4 +1,4 @@
-package com.wpanther.document.intake.infrastructure.config;
+package com.wpanther.document.intake.infrastructure.config.security;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;

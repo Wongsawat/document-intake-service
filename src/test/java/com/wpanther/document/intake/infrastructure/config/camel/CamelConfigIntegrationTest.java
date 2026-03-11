@@ -1,6 +1,6 @@
-package com.wpanther.document.intake.infrastructure.config;
+package com.wpanther.document.intake.infrastructure.config.camel;
 
-import com.wpanther.document.intake.application.port.in.SubmitDocumentUseCase;
+import com.wpanther.document.intake.application.usecase.SubmitDocumentUseCase;
 import com.wpanther.document.intake.domain.model.IncomingDocument;
 import com.wpanther.document.intake.domain.model.DocumentStatus;
 import com.wpanther.document.intake.domain.model.ValidationResult;

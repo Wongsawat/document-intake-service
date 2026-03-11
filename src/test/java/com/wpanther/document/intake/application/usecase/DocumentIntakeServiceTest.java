@@ -1,11 +1,11 @@
-package com.wpanther.document.intake.application.service;
+package com.wpanther.document.intake.application.usecase;
 
 import com.wpanther.document.intake.domain.model.IncomingDocument;
 import com.wpanther.document.intake.domain.model.DocumentStatus;
 import com.wpanther.document.intake.domain.model.ValidationResult;
 import com.wpanther.document.intake.domain.repository.DocumentRepository;
 import com.wpanther.document.intake.application.port.out.XmlValidationPort;
-import com.wpanther.document.intake.domain.event.port.DocumentEventPublisher;
+import com.wpanther.document.intake.application.port.out.DocumentEventPublisher;
 import com.wpanther.document.intake.domain.model.DocumentType;
 import com.wpanther.document.intake.infrastructure.adapter.in.metrics.DocumentIntakeMetrics;
 import org.junit.jupiter.api.BeforeEach;

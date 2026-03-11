@@ -1,4 +1,4 @@
-package com.wpanther.document.intake.domain.event;
+package com.wpanther.document.intake.application.dto.event;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
