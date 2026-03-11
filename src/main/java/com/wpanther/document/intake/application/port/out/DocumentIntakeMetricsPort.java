@@ -12,5 +12,8 @@ public interface DocumentIntakeMetricsPort {
     void incrementInvalid(String reason);
     void incrementForwarded(String documentType);
     void incrementFailed(String stage);
+    /**
+     * @param durationMs processing duration in milliseconds
+     */
     void recordProcessingTime(long durationMs);
 }

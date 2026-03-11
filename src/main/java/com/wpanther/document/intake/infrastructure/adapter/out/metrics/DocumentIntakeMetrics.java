@@ -74,45 +74,25 @@ public class DocumentIntakeMetrics implements DocumentIntakeMetricsPort {
 
     @Override
     public void incrementValidated(String documentType) {
-        Counter.builder("document.intake.validated.by.type")
-                .description("Number of documents that passed validation, by type")
-                .tag("service", "document-intake")
-                .tag("type", documentType)
-                .register(meterRegistry)
-                .increment();
+        meterRegistry.counter("document.intake.validated.by.type", "service", "document-intake", "type", documentType).increment();
         documentsValidated.increment();
     }
 
     @Override
     public void incrementInvalid(String reason) {
-        Counter.builder("document.intake.invalid.by.reason")
-                .description("Number of documents that failed validation, by reason")
-                .tag("service", "document-intake")
-                .tag("reason", reason)
-                .register(meterRegistry)
-                .increment();
+        meterRegistry.counter("document.intake.invalid.by.reason", "service", "document-intake", "reason", reason).increment();
         documentsInvalid.increment();
     }
 
     @Override
     public void incrementForwarded(String documentType) {
-        Counter.builder("document.intake.forwarded.by.type")
-                .description("Number of documents forwarded to saga orchestrator, by type")
-                .tag("service", "document-intake")
-                .tag("type", documentType)
-                .register(meterRegistry)
-                .increment();
+        meterRegistry.counter("document.intake.forwarded.by.type", "service", "document-intake", "type", documentType).increment();
         documentsForwarded.increment();
     }
 
     @Override
     public void incrementFailed(String stage) {
-        Counter.builder("document.intake.failed.by.stage")
-                .description("Number of documents that failed during processing, by stage")
-                .tag("service", "document-intake")
-                .tag("stage", stage)
-                .register(meterRegistry)
-                .increment();
+        meterRegistry.counter("document.intake.failed.by.stage", "service", "document-intake", "stage", stage).increment();
         documentsFailed.increment();
     }
 
