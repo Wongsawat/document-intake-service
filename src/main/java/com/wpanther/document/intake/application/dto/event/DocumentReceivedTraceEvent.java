@@ -1,4 +1,4 @@
-package com.wpanther.document.intake.domain.event;
+package com.wpanther.document.intake.application.dto.event;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
