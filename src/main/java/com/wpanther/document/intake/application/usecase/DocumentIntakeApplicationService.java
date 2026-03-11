@@ -236,23 +236,6 @@ public class DocumentIntakeApplicationService implements SubmitDocumentUseCase, 
     }
 
     /**
-     * Mark document as forwarded.
-     * Called after the saga command has been successfully published.
-     *
-     * @param documentId the document ID to mark as forwarded
-     */
-    @Transactional
-    public void markForwarded(UUID documentId) {
-        IncomingDocument document = documentRepository.findById(documentId)
-            .orElseThrow(() -> new IllegalArgumentException("Document not found: " + documentId));
-
-        document.markForwarded();
-        documentRepository.save(document);
-
-        log.info("Marked document {} as forwarded", document.getDocumentNumber());
-    }
-
-    /**
      * Get document by ID.
      *
      * @param id the document ID

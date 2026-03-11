@@ -304,45 +304,6 @@ class DocumentIntakeServiceTest {
         verify(documentRepository).existsByDocumentNumber("INV-2024-001");
     }
 
-    // ==================== Mark Forwarded Tests ====================
-
-    @Test
-    @DisplayName("Mark forwarded updates status")
-    void testMarkForwardedUpdatesStatus() {
-        UUID documentId = UUID.randomUUID();
-        IncomingDocument document = IncomingDocument.builder()
-            .id(documentId)
-            .documentNumber("INV-001")
-            .xmlContent(VALID_XML)
-            .source("REST")
-            .status(DocumentStatus.VALIDATED)
-            .documentType(DocumentType.TAX_INVOICE)
-            .validationResult(ValidationResult.success())
-            .build();
-
-        when(documentRepository.findById(documentId)).thenReturn(Optional.of(document));
-        when(documentRepository.save(any())).thenReturn(document);
-
-        documentIntakeService.markForwarded(documentId);
-
-        assertThat(document.getStatus()).isEqualTo(DocumentStatus.FORWARDED);
-        verify(documentRepository).save(document);
-    }
-
-    @Test
-    @DisplayName("Mark forwarded throws on invalid ID")
-    void testMarkForwardedThrowsOnInvalidId() {
-        UUID documentId = UUID.randomUUID();
-        when(documentRepository.findById(documentId)).thenReturn(Optional.empty());
-
-        assertThatThrownBy(() -> documentIntakeService.markForwarded(documentId))
-            .isInstanceOf(IllegalArgumentException.class)
-            .hasMessageContaining("Document not found")
-            .hasMessageContaining(documentId.toString());
-
-        verify(documentRepository, never()).save(any());
-    }
-
     // ==================== Get Document Tests ====================
 
     @Test
@@ -404,8 +365,6 @@ class DocumentIntakeServiceTest {
         IncomingDocument retrieved = documentIntakeService.getDocument(documentId);
         assertThat(retrieved).isNotNull();
 
-        // Note: submitDocument already marks as forwarded, so the markForwarded method
-        // is tested separately in testMarkForwardedUpdatesStatus
     }
 
     // ==================== Different Document Types Tests ====================
