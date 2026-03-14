@@ -152,42 +152,72 @@ public class DocumentIntakeMetrics implements DocumentIntakeMetricsPort {
     }
 
     /**
-     * Get the documents received counter (for testing).
+     * Gets the documents received counter for testing and monitoring purposes.
+     * <p>
+     * Returns the base counter that tracks all received documents regardless of type.
+     * For type-specific metrics, use {@code document.intake.received.by.type} via Micrometer API.
+     *
+     * @return the documents received counter
      */
     public Counter getDocumentsReceived() {
         return documentsReceived;
     }
 
     /**
-     * Get the documents validated counter (for testing).
+     * Gets the documents validated counter for testing and monitoring purposes.
+     * <p>
+     * Returns the base counter that tracks all validated documents regardless of type.
+     * For type-specific metrics, use {@code document.intake.validated.by.type} via Micrometer API.
+     *
+     * @return the documents validated counter
      */
     public Counter getDocumentsValidated() {
         return documentsValidated;
     }
 
     /**
-     * Get the documents invalid counter (for testing).
+     * Gets the documents invalid counter for testing and monitoring purposes.
+     * <p>
+     * Returns the base counter that tracks all invalid documents regardless of reason.
+     * For reason-specific metrics, use {@code document.intake.invalid.by.reason} via Micrometer API.
+     *
+     * @return the documents invalid counter
      */
     public Counter getDocumentsInvalid() {
         return documentsInvalid;
     }
 
     /**
-     * Get the documents forwarded counter (for testing).
+     * Gets the documents forwarded counter for testing and monitoring purposes.
+     * <p>
+     * Returns the base counter that tracks all forwarded documents regardless of type.
+     * For type-specific metrics, use {@code document.intake.forwarded.by.type} via Micrometer API.
+     *
+     * @return the documents forwarded counter
      */
     public Counter getDocumentsForwarded() {
         return documentsForwarded;
     }
 
     /**
-     * Get the documents failed counter (for testing).
+     * Gets the documents failed counter for testing and monitoring purposes.
+     * <p>
+     * Returns the base counter that tracks all failed documents regardless of stage.
+     * For stage-specific metrics, use {@code document.intake.failed.by.stage} via Micrometer API.
+     *
+     * @return the documents failed counter
      */
     public Counter getDocumentsFailed() {
         return documentsFailed;
     }
 
     /**
-     * Get the processing timer (for testing).
+     * Gets the processing timer for testing and monitoring purposes.
+     * <p>
+     * Returns the timer that tracks document processing duration with
+     * published percentiles (50th, 95th, 99th) and histogram.
+     *
+     * @return the processing timer
      */
     public Timer getProcessingTimer() {
         return processingTimer;
