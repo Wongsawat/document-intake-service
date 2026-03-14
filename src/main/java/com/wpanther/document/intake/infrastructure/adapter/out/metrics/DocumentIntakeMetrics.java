@@ -72,24 +72,74 @@ public class DocumentIntakeMetrics implements DocumentIntakeMetricsPort {
         documentsReceived.increment();
     }
 
+    /**
+     * Increments both the base validated counter and a document type-specific counter.
+     * <p>
+     * The type-specific counter uses dynamic tagging for observability by document type.
+     * This dual-counter approach provides both:
+     * <ul>
+     *   <li>A simple total count via {@code documentsValidated}</li>
+     *   <li>Granular counts per document type (TAX_INVOICE, RECEIPT, etc.)</li>
+     * </ul>
+     * The dynamic counter is looked up via {@code meterRegistry.counter()} for efficiency
+     * rather than rebuilding on each call.
+     *
+     * @param documentType The type of document (TAX_INVOICE, RECEIPT, etc.)
+     */
     @Override
     public void incrementValidated(String documentType) {
         meterRegistry.counter("document.intake.validated.by.type", "service", "document-intake", "type", documentType).increment();
         documentsValidated.increment();
     }
 
+    /**
+     * Increments both the base invalid counter and a reason-specific counter.
+     * <p>
+     * The reason-specific counter uses dynamic tagging for observability by failure reason.
+     * This dual-counter approach provides both:
+     * <ul>
+     *   <li>A simple total count via {@code documentsInvalid}</li>
+     *   <li>Granular counts per validation failure reason</li>
+     * </ul>
+     *
+     * @param reason The validation failure reason
+     */
     @Override
     public void incrementInvalid(String reason) {
         meterRegistry.counter("document.intake.invalid.by.reason", "service", "document-intake", "reason", reason).increment();
         documentsInvalid.increment();
     }
 
+    /**
+     * Increments both the base forwarded counter and a document type-specific counter.
+     * <p>
+     * The type-specific counter uses dynamic tagging for observability by document type.
+     * This dual-counter approach provides both:
+     * <ul>
+     *   <li>A simple total count via {@code documentsForwarded}</li>
+     *   <li>Granular counts per document type forwarded to the orchestrator</li>
+     * </ul>
+     *
+     * @param documentType The type of document being forwarded
+     */
     @Override
     public void incrementForwarded(String documentType) {
         meterRegistry.counter("document.intake.forwarded.by.type", "service", "document-intake", "type", documentType).increment();
         documentsForwarded.increment();
     }
 
+    /**
+     * Increments both the base failed counter and a stage-specific counter.
+     * <p>
+     * The stage-specific counter uses dynamic tagging for observability by processing stage.
+     * This dual-counter approach provides both:
+     * <ul>
+     *   <li>A simple total count via {@code documentsFailed}</li>
+     *   <li>Granular counts per failure stage</li>
+     * </ul>
+     *
+     * @param stage The processing stage where failure occurred
+     */
     @Override
     public void incrementFailed(String stage) {
         meterRegistry.counter("document.intake.failed.by.stage", "service", "document-intake", "stage", stage).increment();

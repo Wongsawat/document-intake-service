@@ -8,6 +8,9 @@ import com.wpanther.document.intake.application.port.out.XmlValidationPort;
 import com.wpanther.document.intake.application.port.out.DocumentEventPublisher;
 import com.wpanther.document.intake.domain.model.DocumentType;
 import com.wpanther.document.intake.application.port.out.DocumentIntakeMetricsPort;
+import com.wpanther.document.intake.application.dto.event.DocumentReceivedTraceEvent;
+import com.wpanther.document.intake.application.dto.event.EventStatus;
+import com.wpanther.document.intake.application.dto.event.StartSagaCommand;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -418,5 +421,105 @@ class DocumentIntakeServiceTest {
         IncomingDocument document = documentIntakeService.submitDocument(INVALID_XML, "REST", "corr-123");
 
         assertThat(document.getValidationResult()).isEqualTo(result);
+    }
+
+    // ==================== Event Publishing Tests ====================
+
+    @Test
+    @DisplayName("Submit valid document publishes three trace events and one saga command")
+    void testSubmitValidDocumentPublishesCorrectEvents() {
+        String correlationId = "corr-events-123";
+        documentIntakeService.submitDocument(VALID_XML, "REST", correlationId);
+
+        // Verify trace events: RECEIVED, VALIDATED, FORWARDED (3 events)
+        verify(eventPublisher, times(3)).publishTraceEvent(any(DocumentReceivedTraceEvent.class));
+
+        // Verify saga command was published
+        verify(eventPublisher, times(1)).publishStartSagaCommand(any(StartSagaCommand.class));
+
+        // Capture and verify trace event contents
+        ArgumentCaptor<DocumentReceivedTraceEvent> traceCaptor = ArgumentCaptor.forClass(DocumentReceivedTraceEvent.class);
+        verify(eventPublisher, times(3)).publishTraceEvent(traceCaptor.capture());
+
+        List<DocumentReceivedTraceEvent> events = traceCaptor.getAllValues();
+        assertThat(events).hasSize(3);
+
+        // First event should be RECEIVED
+        assertThat(events.get(0).getStatus()).isEqualTo(EventStatus.RECEIVED.getValue());
+        assertThat(events.get(0).getCorrelationId()).isEqualTo(correlationId);
+
+        // Second event should be VALIDATED
+        assertThat(events.get(1).getStatus()).isEqualTo(EventStatus.VALIDATED.getValue());
+        assertThat(events.get(1).getCorrelationId()).isEqualTo(correlationId);
+
+        // Third event should be FORWARDED
+        assertThat(events.get(2).getStatus()).isEqualTo(EventStatus.FORWARDED.getValue());
+        assertThat(events.get(2).getCorrelationId()).isEqualTo(correlationId);
+
+        // Capture and verify saga command
+        ArgumentCaptor<StartSagaCommand> sagaCaptor = ArgumentCaptor.forClass(StartSagaCommand.class);
+        verify(eventPublisher).publishStartSagaCommand(sagaCaptor.capture());
+
+        StartSagaCommand sagaCommand = sagaCaptor.getValue();
+        assertThat(sagaCommand.getCorrelationId()).isEqualTo(correlationId);
+        assertThat(sagaCommand.getDocumentType()).isEqualTo(DocumentType.TAX_INVOICE.name());
+        assertThat(sagaCommand.getSource()).isEqualTo("REST");
+    }
+
+    @Test
+    @DisplayName("Submit invalid document publishes two trace events, no saga command")
+    void testSubmitInvalidDocumentPublishesOnlyTraceEvent() {
+        when(validationService.validate(any())).thenReturn(ValidationResult.invalid(List.of("Validation error")));
+
+        String correlationId = "corr-invalid-123";
+        documentIntakeService.submitDocument(VALID_XML, "KAFKA", correlationId);
+
+        // Verify two trace events: RECEIVED and INVALID
+        verify(eventPublisher, times(2)).publishTraceEvent(any(DocumentReceivedTraceEvent.class));
+
+        // Verify saga command was NOT published
+        verify(eventPublisher, never()).publishStartSagaCommand(any(StartSagaCommand.class));
+
+        // Capture and verify trace events
+        ArgumentCaptor<DocumentReceivedTraceEvent> traceCaptor = ArgumentCaptor.forClass(DocumentReceivedTraceEvent.class);
+        verify(eventPublisher, times(2)).publishTraceEvent(traceCaptor.capture());
+
+        List<DocumentReceivedTraceEvent> events = traceCaptor.getAllValues();
+        assertThat(events).hasSize(2);
+
+        // First event should be RECEIVED
+        assertThat(events.get(0).getStatus()).isEqualTo(EventStatus.RECEIVED.getValue());
+        assertThat(events.get(0).getCorrelationId()).isEqualTo(correlationId);
+
+        // Second event should be INVALID
+        assertThat(events.get(1).getStatus()).isEqualTo(EventStatus.INVALID.getValue());
+        assertThat(events.get(1).getCorrelationId()).isEqualTo(correlationId);
+        assertThat(events.get(1).getSource()).isEqualTo("KAFKA");
+    }
+
+    @Test
+    @DisplayName("Submit document with warnings publishes correct events")
+    void testSubmitDocumentWithWarningsPublishesCorrectEvents() {
+        ValidationResult warningResult = ValidationResult.validWithWarnings(List.of("Warning 1"));
+        when(validationService.validate(any())).thenReturn(warningResult);
+
+        documentIntakeService.submitDocument(VALID_XML, "REST", "corr-warning");
+
+        // Documents with warnings are still valid, so full event sequence should be published
+        verify(eventPublisher, times(3)).publishTraceEvent(any(DocumentReceivedTraceEvent.class));
+        verify(eventPublisher, times(1)).publishStartSagaCommand(any(StartSagaCommand.class));
+    }
+
+    @Test
+    @DisplayName("Submit document failure before validation publishes no trace events")
+    void testSubmitDocumentFailureBeforeValidationPublishesNoEvents() {
+        when(validationService.extractDocumentNumber(any())).thenReturn(null);
+
+        assertThatThrownBy(() -> documentIntakeService.submitDocument(VALID_XML, "REST", "corr-fail"))
+            .isInstanceOf(IllegalArgumentException.class);
+
+        // No trace events should be published when document number extraction fails
+        verify(eventPublisher, never()).publishTraceEvent(any(DocumentReceivedTraceEvent.class));
+        verify(eventPublisher, never()).publishStartSagaCommand(any(StartSagaCommand.class));
     }
 }
