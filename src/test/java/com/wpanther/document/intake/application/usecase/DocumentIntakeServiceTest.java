@@ -107,7 +107,6 @@ class DocumentIntakeServiceTest {
     // Test constants for commonly used values
     private static final String DEFAULT_SOURCE = "REST";
     private static final String ALTERNATIVE_SOURCE = "KAFKA";
-    private static final String DEFAULT_CORRELATION_ID = "corr-123";
     private static final String TEST_DOCUMENT_NUMBER = "INV-2024-001";
 
     @BeforeEach
