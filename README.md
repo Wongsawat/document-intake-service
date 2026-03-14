@@ -41,24 +41,47 @@ Kafka Topics:
   - trace.document.received
 ```
 
-### DDD Package Structure
+### DDD Package Structure (Hexagonal Architecture)
 
 ```
 com.wpanther.document.intake/
-├── domain/           # Core business logic
-│   ├── model/        # IncomingDocument, ValidationResult, DocumentStatus
-│   ├── repository/   # Repository interfaces
-│   ├── service/      # XmlValidationService interface
-│   └── event/        # StartSagaCommand, DocumentReceivedTraceEvent
-├── application/      # Use cases
-│   ├── controller/   # REST API
-│   └── service/      # DocumentIntakeService
-└── infrastructure/   # Framework implementations
-    ├── persistence/  # JPA entities and repositories
-    │   └── outbox/   # Outbox pattern implementation
-    ├── validation/   # XML validation with teda library
-    ├── messaging/    # EventPublisher
-    └── config/       # Camel routes, outbox config
+├── domain/                          # Core business logic (framework-independent)
+│   ├── model/                       # IncomingDocument, ValidationResult, DocumentStatus
+│   ├── repository/                   # Repository interfaces
+│   └── exception/                    # Domain exceptions
+│
+├── application/                      # Use cases and orchestration
+│   ├── usecase/                      # Use case interfaces + implementations
+│   │   ├── SubmitDocumentUseCase.java
+│   │   ├── GetDocumentUseCase.java
+│   │   └── DocumentIntakeApplicationService.java
+│   ├── port/out/                     # Outbound ports
+│   │   ├── XmlValidationPort.java
+│   │   ├── DocumentEventPublisher.java
+│   │   └── DocumentIntakeMetricsPort.java
+│   └── dto/event/                    # Kafka wire DTOs
+│       ├── StartSagaCommand.java
+│       ├── DocumentReceivedTraceEvent.java
+│       └── EventStatus.java
+│
+├── infrastructure/                   # Framework implementations
+│   └── adapter/
+│       ├── in/web/                  # REST API controller
+│       └── out/
+│           ├── persistence/         # JPA entities and repositories
+│           │   └── outbox/          # Outbox pattern implementation
+│           ├── validation/          # XML validation with teda library
+│           ├── messaging/            # EventPublisher
+│           ├── metrics/             # Micrometer metrics
+│           └── health/              # Health indicators
+│
+└── infrastructure/config/            # Configuration (by concern)
+    ├── camel/                        # Apache Camel routes
+    ├── openapi/                      # OpenAPI/Swagger config
+    ├── outbox/                      # Outbox configuration
+    ├── ratelimit/                   # Rate limiting config
+    ├── security/                   # Security config
+    └── validation/                 # Validation properties
 ```
 
 ### Document State Machine
@@ -179,7 +202,7 @@ mvn test -Dtest=XmlValidationServiceImplTest
 mvn test -Dtest=DocumentIntakeServiceTest#testSubmitInvoiceWithValidXml
 ```
 
-**Result**: Runs 215 unit tests in ~35 seconds.
+**Result**: Runs 362 unit tests (~20-30 seconds).
 
 ### Integration Tests
 
