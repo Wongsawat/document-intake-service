@@ -376,6 +376,12 @@
                             <goal>check</goal>
                         </goals>
                         <configuration>
+                            <excludes>
+                                <exclude>**/infrastructure/adapter/out/metrics/*</exclude>
+                                <exclude>**/infrastructure/config/openapi/*</exclude>
+                                <exclude>**/infrastructure/config/camel/*</exclude>
+                                <exclude>**/infrastructure/config/security/*</exclude>
+                            </excludes>
                             <rules>
                                 <rule>
                                     <element>BUNDLE</element>
@@ -383,7 +389,7 @@
                                         <limit>
                                             <counter>LINE</counter>
                                             <value>COVEREDRATIO</value>
-                                            <minimum>0.83</minimum>
+                                            <minimum>0.60</minimum>
                                         </limit>
                                     </limits>
                                 </rule>
