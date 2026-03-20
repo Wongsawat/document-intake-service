@@ -35,7 +35,6 @@ public class DocumentReceivedTraceEvent extends TraceEvent {
     private final String documentId;
     private final String documentType;
     private final String documentNumber;
-    private final String correlationId;
     private final String status;
 
     /**
@@ -49,11 +48,10 @@ public class DocumentReceivedTraceEvent extends TraceEvent {
             String correlationId,
             String status,
             String source) {
-        super(documentId, source, status);
+        super(documentId, correlationId, source, status, null);
         this.documentId = documentId;
         this.documentType = documentType;
         this.documentNumber = documentNumber;
-        this.correlationId = correlationId;
         this.status = status;
     }
 
@@ -81,14 +79,6 @@ public class DocumentReceivedTraceEvent extends TraceEvent {
     @JsonProperty("documentNumber")
     public String getDocumentNumber() {
         return documentNumber;
-    }
-
-    /**
-     * Correlation ID for tracing this request across all services.
-     */
-    @JsonProperty("correlationId")
-    public String getCorrelationId() {
-        return correlationId;
     }
 
     /**
