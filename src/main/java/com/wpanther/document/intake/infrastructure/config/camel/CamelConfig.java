@@ -7,7 +7,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.camel.LoggingLevel;
 import org.apache.camel.builder.RouteBuilder;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
 /**
@@ -27,16 +26,19 @@ public class CamelConfig extends RouteBuilder {
     private final String documentIntakeTopic;
     private final String intakeDlqTopic;
     private final RateLimitProperties rateLimitProperties;
+    private final boolean kafkaConsumerAutoStartup;
 
     public CamelConfig(
             SubmitDocumentUseCase submitDocumentUseCase,
             @Value("${app.kafka.topics.invoice-intake}") String documentIntakeTopic,
             @Value("${app.kafka.topics.intake-dlq}") String intakeDlqTopic,
-            RateLimitProperties rateLimitProperties) {
+            RateLimitProperties rateLimitProperties,
+            @Value("${app.kafka.consumer.auto-startup:true}") boolean kafkaConsumerAutoStartup) {
         this.submitDocumentUseCase = submitDocumentUseCase;
         this.documentIntakeTopic = documentIntakeTopic;
         this.intakeDlqTopic = intakeDlqTopic;
         this.rateLimitProperties = rateLimitProperties;
+        this.kafkaConsumerAutoStartup = kafkaConsumerAutoStartup;
     }
 
     @Override
@@ -74,27 +76,31 @@ public class CamelConfig extends RouteBuilder {
             })
             .log(LoggingLevel.INFO, "Document processed: documentId=${header.documentId}, isValid=${header.isValid}");
 
-        // Kafka intake route — dead letter channel for messages that cannot be processed
-        // after retries. autoCommitEnable=false ensures offsets are only committed after
-        // the exchange completes successfully (at-least-once delivery semantics).
-        from("kafka:" + documentIntakeTopic + "?groupId=intake-service&autoCommitEnable=false")
-            .errorHandler(deadLetterChannel("kafka:" + intakeDlqTopic)
-                .maximumRedeliveries(3)
-                .redeliveryDelay(1000)
-                .useExponentialBackOff()
-                .logExhausted(true))
-            .routeId("document-intake-kafka")
-            .log(LoggingLevel.INFO, "Received document from Kafka: ${header[kafka.KEY]}")
-            .process(exchange -> {
-                String xmlContent = exchange.getIn().getBody(String.class);
-                String correlationId = exchange.getIn().getHeader("kafka.KEY", String.class);
+        // Kafka intake route — only created when Kafka consumer is enabled.
+        // Set app.kafka.consumer.auto-startup=false to disable (e.g., in tests).
+        if (kafkaConsumerAutoStartup) {
+            // Kafka intake route — dead letter channel for messages that cannot be processed
+            // after retries. autoCommitEnable=false ensures offsets are only committed after
+            // the exchange completes successfully (at-least-once delivery semantics).
+            from("kafka:" + documentIntakeTopic + "?groupId=intake-service&autoCommitEnable=false")
+                .errorHandler(deadLetterChannel("kafka:" + intakeDlqTopic)
+                    .maximumRedeliveries(3)
+                    .redeliveryDelay(1000)
+                    .useExponentialBackOff()
+                    .logExhausted(true))
+                .routeId("document-intake-kafka")
+                .log(LoggingLevel.INFO, "Received document from Kafka: ${header[kafka.KEY]}")
+                .process(exchange -> {
+                    String xmlContent = exchange.getIn().getBody(String.class);
+                    String correlationId = exchange.getIn().getHeader("kafka.KEY", String.class);
 
-                IncomingDocument document = submitDocumentUseCase.submitDocument(xmlContent, "KAFKA", correlationId);
+                    IncomingDocument document = submitDocumentUseCase.submitDocument(xmlContent, "KAFKA", correlationId);
 
-                exchange.getIn().setHeader("documentId", document.getId().toString());
-                exchange.getIn().setHeader("documentType", document.getDocumentType().name());
-                exchange.getIn().setHeader("isValid", document.isValid());
-            })
-            .log(LoggingLevel.INFO, "Document processed: documentId=${header.documentId}, isValid=${header.isValid}");
+                    exchange.getIn().setHeader("documentId", document.getId().toString());
+                    exchange.getIn().setHeader("documentType", document.getDocumentType().name());
+                    exchange.getIn().setHeader("isValid", document.isValid());
+                })
+                .log(LoggingLevel.INFO, "Document processed: documentId=${header.documentId}, isValid=${header.isValid}");
+        }
     }
 }

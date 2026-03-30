@@ -185,7 +185,7 @@ curl http://localhost:8081/api/v1/invoices/{id}
 | Directory | Test Type | Command | External Dependencies |
 |-----------|-----------|---------|----------------------|
 | `src/test/java` | Unit Tests | `mvn test` | None |
-| `src/it/java` | Integration Tests | `mvn verify` | PostgreSQL, Kafka, Debezium |
+| `src/test/java` | CDC Integration Tests (`*IT.java`) | `mvn verify -P integration` | PostgreSQL, Kafka, Debezium |
 
 ### Unit Tests
 
@@ -246,7 +246,7 @@ mvn verify
 |-----------|----------|---------|
 | `src/test/resources/samples/valid/` | Valid Thai e-Tax XML documents | Unit tests |
 | `src/test/resources/samples/invalid/` | Invalid documents for testing validation | Unit tests |
-| `src/it/resources/` | Integration test configuration | Integration tests |
+| `src/test/resources/application-cdc-test.yml` | CDC integration test configuration | Integration tests (`*IT.java`) |
 
 | `src/test/resources/samples/invalid/` | Invalid documents for testing validation |
 
