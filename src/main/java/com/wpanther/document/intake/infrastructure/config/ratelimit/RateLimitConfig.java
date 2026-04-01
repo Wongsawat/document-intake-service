@@ -1,7 +1,6 @@
 package com.wpanther.document.intake.infrastructure.config.ratelimit;
 
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Configuration;
 
@@ -18,14 +17,12 @@ import org.springframework.context.annotation.Configuration;
  * <p>
  * Rate limiting can be disabled by setting:
  * {@code app.rate-limit.enabled=false}
+ * <p>
+ * Note: RateLimitProperties is always registered regardless of the enabled flag
+ * because CamelConfig unconditionally requires it for throttle configuration.
  */
 @Slf4j
 @Configuration
-@ConditionalOnProperty(
-    name = "app.rate-limit.enabled",
-    havingValue = "true",
-    matchIfMissing = true
-)
 @EnableConfigurationProperties(RateLimitProperties.class)
 public class RateLimitConfig {
 
