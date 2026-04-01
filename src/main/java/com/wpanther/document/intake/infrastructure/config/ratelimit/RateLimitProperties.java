@@ -2,7 +2,6 @@ package com.wpanther.document.intake.infrastructure.config.ratelimit;
 
 import lombok.Data;
 import org.springframework.boot.context.properties.ConfigurationProperties;
-import org.springframework.stereotype.Component;
 
 /**
  * Configuration properties for rate limiting.
@@ -13,7 +12,6 @@ import org.springframework.stereotype.Component;
  * - time-period-seconds: Time period for rate limiting
  */
 @Data
-@Component
 @ConfigurationProperties(prefix = "app.rate-limit")
 public class RateLimitProperties {
 
