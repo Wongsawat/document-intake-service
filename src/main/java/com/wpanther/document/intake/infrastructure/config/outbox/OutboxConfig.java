@@ -1,35 +1,33 @@
 package com.wpanther.document.intake.infrastructure.config.outbox;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.wpanther.document.intake.infrastructure.adapter.out.persistence.outbox.JpaOutboxEventRepository;
 import com.wpanther.document.intake.infrastructure.adapter.out.persistence.outbox.SpringDataOutboxRepository;
 import com.wpanther.saga.domain.outbox.OutboxEventRepository;
+import com.wpanther.saga.infrastructure.outbox.OutboxService;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 /**
- * Configuration class for OutboxEventRepository bean.
+ * Outbox infrastructure configuration for document-intake-service.
  * <p>
- * Registers the JPA implementation of saga-commons OutboxEventRepository,
- * enabling document-intake-service to use the outbox pattern for reliable
- * event publishing.
- * <p>
- * The @ConditionalOnMissingBean annotation allows for flexibility in testing
- * or alternative implementations.
+ * Registers both the JPA OutboxEventRepository implementation and the
+ * OutboxService. OutboxService is no longer auto-configured by saga-commons —
+ * each publishing service must declare it explicitly here.
  */
 @Configuration
 public class OutboxConfig {
 
-    /**
-     * Creates the OutboxEventRepository bean.
-     * This bean is injected by saga-commons' OutboxService and OutboxCleanupService.
-     *
-     * @param springRepository The Spring Data JPA repository
-     * @return JPA implementation of OutboxEventRepository
-     */
     @Bean
     @ConditionalOnMissingBean(OutboxEventRepository.class)
     public OutboxEventRepository outboxEventRepository(SpringDataOutboxRepository springRepository) {
         return new JpaOutboxEventRepository(springRepository);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean(OutboxService.class)
+    public OutboxService outboxService(OutboxEventRepository repository, ObjectMapper objectMapper) {
+        return new OutboxService(repository, objectMapper);
     }
 }
