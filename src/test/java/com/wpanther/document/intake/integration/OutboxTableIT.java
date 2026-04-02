@@ -25,10 +25,10 @@ class OutboxTableIT extends AbstractCdcIT {
     }
 
     @Test
-    @DisplayName("Should have incoming_invoices table")
-    void shouldHaveIncomingInvoicesTable() {
+    @DisplayName("Should have incoming_documents table")
+    void shouldHaveIncomingDocumentsTable() {
         Integer count = jdbcTemplate.queryForObject(
-            "SELECT COUNT(*) FROM information_schema.tables WHERE table_name = 'incoming_invoices'",
+            "SELECT COUNT(*) FROM information_schema.tables WHERE table_name = 'incoming_documents'",
             Integer.class);
         assertThat(count).isEqualTo(1);
     }

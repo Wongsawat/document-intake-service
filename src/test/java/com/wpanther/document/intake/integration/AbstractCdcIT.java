@@ -47,7 +47,10 @@ import static org.assertj.core.api.Assertions.assertThat;
  */
 @SpringBootTest(
     classes = CdcTestConfiguration.class,
-    webEnvironment = SpringBootTest.WebEnvironment.NONE
+    webEnvironment = SpringBootTest.WebEnvironment.NONE,
+    properties = {
+        "app.security.enabled=false"
+    }
 )
 @ActiveProfiles("cdc-test")
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
@@ -88,7 +91,7 @@ public abstract class AbstractCdcIT {
     void cleanupTestData() {
         // Clean tables in correct order (foreign key constraints)
         jdbcTemplate.execute("DELETE FROM outbox_events");
-        jdbcTemplate.execute("DELETE FROM incoming_invoices");
+        jdbcTemplate.execute("DELETE FROM incoming_documents");
         receivedMessages.clear();
     }
 

@@ -42,7 +42,7 @@ class DocumentIntakeCdcIT extends AbstractCdcIT {
             assertThat(document.getStatus()).isEqualTo(DocumentStatus.FORWARDED);
 
             Map<String, Object> row = jdbcTemplate.queryForMap(
-                "SELECT * FROM incoming_invoices WHERE id = ?::uuid",
+                "SELECT * FROM incoming_documents WHERE id = ?::uuid",
                 document.getId().toString());
 
             assertThat(row.get("status")).isEqualTo("FORWARDED");
