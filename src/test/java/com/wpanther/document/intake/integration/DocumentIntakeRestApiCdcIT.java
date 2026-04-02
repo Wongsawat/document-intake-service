@@ -134,8 +134,7 @@ class DocumentIntakeRestApiCdcIT {
                 "==========================================================\n" +
                 "External containers are not accessible!\n" +
                 "==========================================================\n" +
-                "Please start them first:\n" +
-                "  cd /home/wpanther/projects/etax/invoice-microservices\n" +
+                "Please start them first (from invoice-microservices root):\n" +
                 "  ./scripts/test-containers-start.sh --with-debezium --auto-deploy-connectors\n\n" +
                 "Error: " + e.getMessage() + "\n", e);
         }
