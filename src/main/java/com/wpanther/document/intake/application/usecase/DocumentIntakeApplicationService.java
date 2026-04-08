@@ -72,8 +72,8 @@ public class DocumentIntakeApplicationService implements SubmitDocumentUseCase, 
     @Transactional
     @Override
     public IncomingDocument submitDocument(String xmlContent, String source, String correlationId) {
-        // Normalize XML: strip outer whitespace and collapse inter-element whitespace
-        xmlContent = xmlContent.strip().replaceAll("\\s*\\n\\s*", " ").replaceAll(">\\s+<", "><").replaceAll("\\s{2,}", " ");
+        // Normalize XML: remove inter-element whitespace using XML-aware DOM transformation
+        xmlContent = normalizeXml(xmlContent);
         long startTime = System.currentTimeMillis();
         log.info("Submitting document from source: {} with correlationId: {}", source, correlationId);
 
@@ -249,5 +249,60 @@ public class DocumentIntakeApplicationService implements SubmitDocumentUseCase, 
     public IncomingDocument getDocument(UUID id) {
         return documentRepository.findById(id)
             .orElseThrow(() -> new IllegalArgumentException("Document not found: " + id));
+    }
+
+    /**
+     * Normalizes XML by removing whitespace-only text nodes (inter-element whitespace)
+     * without touching actual text content or attribute values.
+     * Uses DOM parsing + Transformer serialization for XML-aware, safe normalization.
+     * Returns null as-is (caller will NPE on strip()) and blank strings unchanged
+     * so downstream validation can produce the correct error message.
+     */
+    private static String normalizeXml(String xmlContent) {
+        // Propagate null so the caller receives NullPointerException (expected by contract)
+        String stripped = xmlContent.strip();
+        // Blank content cannot be parsed; pass through so downstream validation reports it
+        if (stripped.isEmpty()) {
+            return stripped;
+        }
+        try {
+            javax.xml.parsers.DocumentBuilderFactory dbf =
+                javax.xml.parsers.DocumentBuilderFactory.newInstance();
+            dbf.setNamespaceAware(true);
+            org.w3c.dom.Document doc = dbf.newDocumentBuilder()
+                .parse(new org.xml.sax.InputSource(new java.io.StringReader(stripped)));
+
+            stripWhitespaceOnlyTextNodes(doc);
+
+            javax.xml.transform.Transformer transformer =
+                javax.xml.transform.TransformerFactory.newInstance().newTransformer();
+            transformer.setOutputProperty(javax.xml.transform.OutputKeys.INDENT, "no");
+            java.io.StringWriter out = new java.io.StringWriter();
+            transformer.transform(
+                new javax.xml.transform.dom.DOMSource(doc),
+                new javax.xml.transform.stream.StreamResult(out));
+            return out.toString();
+        } catch (Exception e) {
+            throw new IllegalArgumentException("XML normalization failed: invalid XML content", e);
+        }
+    }
+
+    /**
+     * Recursively removes whitespace-only text nodes from a DOM tree.
+     * Text nodes with actual content (amounts, dates, IDs) are preserved.
+     */
+    private static void stripWhitespaceOnlyTextNodes(org.w3c.dom.Node node) {
+        java.util.List<org.w3c.dom.Node> toRemove = new java.util.ArrayList<>();
+        org.w3c.dom.NodeList children = node.getChildNodes();
+        for (int i = 0; i < children.getLength(); i++) {
+            org.w3c.dom.Node child = children.item(i);
+            if (child.getNodeType() == org.w3c.dom.Node.TEXT_NODE
+                    && child.getNodeValue().strip().isEmpty()) {
+                toRemove.add(child);
+            } else {
+                stripWhitespaceOnlyTextNodes(child);
+            }
+        }
+        toRemove.forEach(node::removeChild);
     }
 }
