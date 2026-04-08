@@ -200,7 +200,7 @@ class DocumentIntakeServiceTest {
     void testSubmitInvoiceExtractsInvoiceNumber() {
         documentIntakeService.submitDocument(VALID_XML, DEFAULT_SOURCE, "corr-123");
 
-        verify(validationService).extractDocumentNumber(VALID_XML);
+        verify(validationService).extractDocumentNumber(any());
     }
 
     @Test
@@ -236,7 +236,7 @@ class DocumentIntakeServiceTest {
     void testSubmitInvoiceExtractsDocumentType() {
         documentIntakeService.submitDocument(VALID_XML, DEFAULT_SOURCE, "corr-123");
 
-        verify(validationService).extractDocumentType(VALID_XML);
+        verify(validationService).extractDocumentType(any());
     }
 
     @Test
@@ -255,12 +255,13 @@ class DocumentIntakeServiceTest {
     // ==================== Edge Case Tests ====================
 
     @Test
-    @DisplayName("Submit document with null XML throws exception")
+    @DisplayName("Submit document with null XML throws NullPointerException before validation")
     void testSubmitInvoiceWithNullXml() {
         assertThatThrownBy(() -> documentIntakeService.submitDocument(null, DEFAULT_SOURCE, "corr-123"))
             .isInstanceOf(NullPointerException.class);
 
-        verify(validationService).extractDocumentNumber(null);
+        // Normalization (strip) throws NPE before extractDocumentNumber is called
+        verify(validationService, never()).extractDocumentNumber(any());
         verify(documentRepository, never()).save(any());
     }
 
@@ -288,6 +289,34 @@ class DocumentIntakeServiceTest {
         IncomingDocument result = documentIntakeService.submitDocument(VALID_XML, DEFAULT_SOURCE, null);
 
         assertThat(result.getCorrelationId()).isNull();
+    }
+
+    @Test
+    @DisplayName("Submit document normalizes XML before processing - strips inter-element whitespace")
+    void testSubmitDocumentNormalizesXmlContent() {
+        String indentedXml = """
+            <?xml version="1.0" encoding="UTF-8"?>
+            <rsm:TaxInvoice_CrossIndustryInvoice
+                xmlns:rsm="urn:etda:uncefact:data:standard:TaxInvoice_CrossIndustryInvoice:2"
+                xmlns:ram="urn:etda:uncefact:data:standard:TaxInvoice_ReusableAggregateBusinessInformationEntity:2">
+                <rsm:ExchangedDocument>
+                    <ram:ID>NORM-001</ram:ID>
+                </rsm:ExchangedDocument>
+            </rsm:TaxInvoice_CrossIndustryInvoice>
+            """;
+
+        ArgumentCaptor<String> xmlCaptor = ArgumentCaptor.forClass(String.class);
+        when(validationService.extractDocumentNumber(xmlCaptor.capture())).thenReturn("NORM-001");
+
+        documentIntakeService.submitDocument(indentedXml, DEFAULT_SOURCE, "corr-norm");
+
+        String captured = xmlCaptor.getValue();
+        // Must not contain whitespace between tags
+        assertThat(captured).doesNotContainPattern(">\\s+<");
+        // Must be a single line (no newlines)
+        assertThat(captured).doesNotContain("\n");
+        // Content inside tags must be preserved
+        assertThat(captured).contains("<ram:ID>NORM-001</ram:ID>");
     }
 
     // ==================== Repository Interaction Tests ====================

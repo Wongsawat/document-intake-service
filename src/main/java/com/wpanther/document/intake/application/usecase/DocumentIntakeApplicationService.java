@@ -72,6 +72,8 @@ public class DocumentIntakeApplicationService implements SubmitDocumentUseCase, 
     @Transactional
     @Override
     public IncomingDocument submitDocument(String xmlContent, String source, String correlationId) {
+        // Normalize XML: strip outer whitespace and collapse inter-element whitespace
+        xmlContent = xmlContent.strip().replaceAll("\\s*\\n\\s*", " ").replaceAll(">\\s+<", "><").replaceAll("\\s{2,}", " ");
         long startTime = System.currentTimeMillis();
         log.info("Submitting document from source: {} with correlationId: {}", source, correlationId);
 
