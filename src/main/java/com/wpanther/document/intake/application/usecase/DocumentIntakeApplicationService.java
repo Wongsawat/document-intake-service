@@ -32,6 +32,20 @@ public class DocumentIntakeApplicationService implements SubmitDocumentUseCase, 
 
     private static final Logger log = LoggerFactory.getLogger(DocumentIntakeApplicationService.class);
 
+    private static final javax.xml.parsers.DocumentBuilderFactory XML_DBF;
+    private static final javax.xml.transform.TransformerFactory XML_TF;
+
+    static {
+        XML_DBF = javax.xml.parsers.DocumentBuilderFactory.newInstance();
+        XML_DBF.setNamespaceAware(true);
+        try {
+            XML_DBF.setFeature("http://apache.org/xml/features/disallow-doctype-decl", true);
+        } catch (javax.xml.parsers.ParserConfigurationException e) {
+            throw new ExceptionInInitializerError("Failed to configure secure XML parser: " + e.getMessage());
+        }
+        XML_TF = javax.xml.transform.TransformerFactory.newInstance();
+    }
+
     private final DocumentRepository documentRepository;
     private final XmlValidationPort validationService;
     private final DocumentEventPublisher eventPublisher;
@@ -259,29 +273,23 @@ public class DocumentIntakeApplicationService implements SubmitDocumentUseCase, 
      * so downstream validation can produce the correct error message.
      */
     private static String normalizeXml(String xmlContent) {
-        // Propagate null so the caller receives NullPointerException (expected by contract)
-        String stripped = xmlContent.strip();
-        // Blank content cannot be parsed; pass through so downstream validation reports it
-        if (stripped.isEmpty()) {
-            return stripped;
-        }
+        if (xmlContent == null) throw new NullPointerException("xmlContent must not be null");
+        if (xmlContent.isBlank()) return xmlContent;
         try {
-            javax.xml.parsers.DocumentBuilderFactory dbf =
-                javax.xml.parsers.DocumentBuilderFactory.newInstance();
-            dbf.setNamespaceAware(true);
-            org.w3c.dom.Document doc = dbf.newDocumentBuilder()
-                .parse(new org.xml.sax.InputSource(new java.io.StringReader(stripped)));
+            org.w3c.dom.Document doc = XML_DBF.newDocumentBuilder()
+                .parse(new org.xml.sax.InputSource(new java.io.StringReader(xmlContent.strip())));
 
             stripWhitespaceOnlyTextNodes(doc);
 
-            javax.xml.transform.Transformer transformer =
-                javax.xml.transform.TransformerFactory.newInstance().newTransformer();
+            javax.xml.transform.Transformer transformer = XML_TF.newTransformer();
             transformer.setOutputProperty(javax.xml.transform.OutputKeys.INDENT, "no");
             java.io.StringWriter out = new java.io.StringWriter();
             transformer.transform(
                 new javax.xml.transform.dom.DOMSource(doc),
                 new javax.xml.transform.stream.StreamResult(out));
             return out.toString();
+        } catch (IllegalArgumentException e) {
+            throw e;
         } catch (Exception e) {
             throw new IllegalArgumentException("XML normalization failed: invalid XML content", e);
         }
