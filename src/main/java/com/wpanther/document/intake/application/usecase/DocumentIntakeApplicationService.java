@@ -44,6 +44,13 @@ public class DocumentIntakeApplicationService implements SubmitDocumentUseCase, 
             throw new ExceptionInInitializerError("Failed to configure secure XML parser: " + e.getMessage());
         }
         XML_TF = javax.xml.transform.TransformerFactory.newInstance();
+        try {
+            XML_TF.setAttribute(javax.xml.XMLConstants.ACCESS_EXTERNAL_DTD, "");
+            XML_TF.setAttribute(javax.xml.XMLConstants.ACCESS_EXTERNAL_STYLESHEET, "");
+        } catch (IllegalArgumentException ignored) {
+            // Some XSLT implementations do not support these attributes; safe to ignore
+            // since current usage only calls newTransformer() with no external stylesheet
+        }
     }
 
     private final DocumentRepository documentRepository;
@@ -273,7 +280,7 @@ public class DocumentIntakeApplicationService implements SubmitDocumentUseCase, 
      * so downstream validation can produce the correct error message.
      */
     private static String normalizeXml(String xmlContent) {
-        if (xmlContent == null) throw new NullPointerException("xmlContent must not be null");
+        if (xmlContent == null) throw new IllegalArgumentException("xmlContent must not be null");
         if (xmlContent.isBlank()) return xmlContent;
         try {
             org.w3c.dom.Document doc = XML_DBF.newDocumentBuilder()

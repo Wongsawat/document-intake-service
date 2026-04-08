@@ -255,10 +255,10 @@ class DocumentIntakeServiceTest {
     // ==================== Edge Case Tests ====================
 
     @Test
-    @DisplayName("Submit document with null XML throws NullPointerException before validation")
+    @DisplayName("Submit document with null XML throws IllegalArgumentException before validation")
     void testSubmitInvoiceWithNullXml() {
         assertThatThrownBy(() -> documentIntakeService.submitDocument(null, DEFAULT_SOURCE, "corr-123"))
-            .isInstanceOf(NullPointerException.class);
+            .isInstanceOf(IllegalArgumentException.class);
 
         // Normalization (strip) throws NPE before extractDocumentNumber is called
         verify(validationService, never()).extractDocumentNumber(any());
