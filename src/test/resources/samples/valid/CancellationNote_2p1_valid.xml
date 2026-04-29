@@ -12,7 +12,6 @@
         <ram:Name>ใบแจ้งยกเลิก</ram:Name>
         <ram:TypeCode>T07</ram:TypeCode>
         <ram:IssueDateTime>2024-01-15T10:30:00</ram:IssueDateTime>
-        <ram:PurposeCode>CNL01</ram:PurposeCode>
     </rsm:ExchangedDocument>
     <rsm:SupplyChainTradeTransaction>
         <ram:ApplicableHeaderTradeAgreement>
